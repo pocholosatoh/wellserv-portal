@@ -10,6 +10,8 @@ const DEMO_KEYS = new Set([
   "address","date_of_test","notes"
 ]);
 
+const HIDDEN_KEYS = new Set(["hema_100"]);
+
 function requireEnv(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`Missing env: ${name}`);
@@ -230,7 +232,9 @@ export function buildReportForRow(row: Row, rangeMap: Record<string, RangeMeta[]
   const bySection: Record<string, ReportItem[]> = {};
   for (const [key, raw] of Object.entries(row)) {
     if (DEMO_KEYS.has(key)) continue;
-    if (raw == null || String(raw) === "") continue;
+    if (HIDDEN_KEYS.has(key)) continue;
+    // Skip blanks, '-' and spreadsheet error strings (e.g., #VALUE!)
+    if (isEmptyLike(raw)) continue;
 
     const meta = chooseMeta(rangeMap[key], patient.sex);
     const label = meta?.label || titleize(key);

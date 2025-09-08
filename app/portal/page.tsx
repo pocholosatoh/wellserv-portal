@@ -1,19 +1,5 @@
 "use client";
-import { useState } from "react";
-
-/** A tiny helper that turns the reference info into readable text.
- *  You don't need to edit this—it's just formatting.
- */
-function formatRef(ref?: { low?: number; high?: number; normal_values?: string }) {
-  if (!ref) return "";
-  const hasLow  = typeof ref.low  === "number";
-  const hasHigh = typeof ref.high === "number";
-  if (hasLow && hasHigh) return `${ref.low}–${ref.high}`;
-  if (hasLow)  return `≥ ${ref.low}`;
-  if (hasHigh) return `≤ ${ref.high}`;
-  if (ref.normal_values) return ref.normal_values; // e.g., "Negative"
-  return "";
-}
+import { useMemo, useState } from "react";
 
 type ReportItem = {
   key: string;
@@ -31,9 +17,21 @@ type Patient = {
 type Visit = { date_of_test: string; barcode: string; notes: string };
 type Report = { patient: Patient; visit: Visit; sections: ReportSection[] };
 
+function formatRef(ref?: { low?: number; high?: number; normal_values?: string }) {
+  if (!ref) return "";
+  const hasLow  = typeof ref.low  === "number";
+  const hasHigh = typeof ref.high === "number";
+  if (hasLow && hasHigh) return `${ref.low}–${ref.high}`;
+  if (hasLow)  return `≥ ${ref.low}`;
+  if (hasHigh) return `≤ ${ref.high}`;
+  if (ref.normal_values) return ref.normal_values; // e.g., "Negative"
+  return "";
+}
+
 export default function Portal() {
   const [patientId, setPatientId] = useState("");
-  const [data, setData] = useState<{ count: number; reports: Report[] } | null>(null);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
@@ -46,26 +44,41 @@ export default function Portal() {
       const json = await res.json();
       if (!res.ok) {
         setErr(json?.error || "Something went wrong.");
-        setData(null);
+        setReports([]);
+        setSelectedDate("");
       } else {
-        setData(json);
+        const reps: Report[] = json?.reports || [];
+        setReports(reps);
+
+        // Build unique visit dates (sorted newest first)
+        const dates = Array.from(new Set(reps.map(r => r.visit.date_of_test))).sort((a, b) => b.localeCompare(a));
+        setSelectedDate(dates[0] || "");
       }
     } catch (e: any) {
       setErr(e?.message || "Network error.");
-      setData(null);
+      setReports([]);
+      setSelectedDate("");
     } finally {
       setLoading(false);
     }
   }
 
-  // For now we show the first matching visit.
-  const report: Report | undefined = data?.reports?.[0];
+  // Current report based on the selected visit date
+  const report = useMemo(() => {
+    if (!selectedDate) return reports[0];
+    return reports.find(r => r.visit.date_of_test === selectedDate) || reports[0];
+  }, [reports, selectedDate]);
+
+  // All available visit dates for the picker
+  const visitDates = useMemo(() => {
+    return Array.from(new Set(reports.map(r => r.visit.date_of_test))).sort((a, b) => b.localeCompare(a));
+  }, [reports]);
 
   return (
     <div style={{ padding: "16px", maxWidth: 960, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>View Lab Results</h1>
 
-      <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
+      <div style={{ display: "flex", gap: 8, margin: "12px 0", flexWrap: "wrap" }}>
         <input
           value={patientId}
           onChange={(e) => setPatientId(e.target.value)}
@@ -79,6 +92,23 @@ export default function Portal() {
         >
           {loading ? "Loading..." : "View"}
         </button>
+
+        {/* Visit date picker (only shown when we have results) */}
+        {visitDates.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <label style={{ fontSize: 14 }}>Visit date:</label>
+            <select
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{ padding: "8px 10px", border: "1px solid #ccc", borderRadius: 6 }}
+            >
+              {visitDates.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {report && (
           <button
             onClick={() => window.print()}
@@ -96,7 +126,7 @@ export default function Portal() {
           <div style={{ margin: "12px 0", lineHeight: 1.4 }}>
             <div style={{ fontWeight: 700 }}>{report.patient.full_name}</div>
             <div>
-              {report.patient.patient_id} • {report.patient.sex} • {report.patient.age} yrs • DOB {report.patient.birthday}
+              {report.patient.sex} • {report.patient.age} yrs • DOB {report.patient.birthday}
             </div>
             <div>Date of Test: <b>{report.visit.date_of_test}</b></div>
             {report.visit.notes && <div>Notes: {report.visit.notes}</div>}
@@ -111,20 +141,23 @@ export default function Portal() {
                     <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: "6px" }}>Parameter</th>
                     <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px" }}>Result</th>
                     <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: "6px" }}>Unit</th>
-                    {/* New column */}
                     <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: "6px" }}>Reference</th>
-                    <th style={{ textAlign: "center", borderBottom: "1px solid #ddd", padding: "6px" }}>Flag</th>
+                    <th
+                      style={{ textAlign: "center", borderBottom: "1px solid #ddd", padding: "6px" }}
+                      aria-label="Flag"
+                    />
                   </tr>
                 </thead>
                 <tbody>
                   {section.items.map((it) => {
-                    const refText = formatRef(it.ref); // ← builds the reference text
+                    // Just in case: don't render blank values (API already filters, but we double-guard here)
+                    if (!it.value) return null;
+                    const refText = formatRef(it.ref);
                     return (
                       <tr key={it.key}>
                         <td style={{ padding: "6px" }}>{it.label}</td>
                         <td style={{ padding: "6px", textAlign: "right" }}>{it.value}</td>
                         <td style={{ padding: "6px" }}>{it.unit || ""}</td>
-                        {/* New cell showing the reference range or normal value */}
                         <td style={{ padding: "6px" }}>{refText}</td>
                         <td
                           style={{
