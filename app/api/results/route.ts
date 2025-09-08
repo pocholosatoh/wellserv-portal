@@ -1,12 +1,10 @@
 ﻿import { NextResponse } from "next/server";
-import { readRows } from "@/lib/sheets"; // make sure this path matches your tsconfig path alias
+import { readResults } from "@/lib/sheets"; // ⟵ change this
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const patientId = searchParams.get("patientId") ?? undefined;
-
-  const rows = await readRows();
-  const filtered = patientId ? rows.filter(r => r.patientId === patientId) : rows;
-
-  return NextResponse.json({ count: filtered.length, rows: filtered });
+  const patient_id = searchParams.get("patient_id") ?? "";
+  const all = await readResults(); // ⟵ and this
+  const rows = patient_id ? all.filter(r => (r["patient_id"] || "").toLowerCase() === patient_id.toLowerCase()) : all;
+  return NextResponse.json({ count: rows.length, rows });
 }
