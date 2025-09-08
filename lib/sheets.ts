@@ -16,6 +16,11 @@ function requireEnv(name: string): string {
   return v;
 }
 
+function isEmptyLike(x: any) {
+  const s = String(x ?? "").trim().toUpperCase();
+  return s === "" || s === "-" || s.startsWith("#") || s.includes("VALUE!");
+}
+
 // ---- Google Sheets client (singleton for dev hot-reload) ----
 let _client: ReturnType<typeof google.sheets> | null = null;
 
@@ -149,8 +154,10 @@ function chooseMeta(metas: RangeMeta[] | undefined, patientSex: string): RangeMe
 }
 
 function computeFlag(valRaw: string, meta?: RangeMeta): "" | "L" | "H" | "A" {
-  if (!meta) return "";
+  if (!meta || isEmptyLike(valRaw)) return "";
   const v = Number(valRaw);
+
+  // Numeric (or looks numeric)
   if (meta.type === "numeric" || (!meta.type && !Number.isNaN(v))) {
     if (!Number.isNaN(v)) {
       if (typeof meta.low === "number" && v < meta.low) return "L";
@@ -158,17 +165,20 @@ function computeFlag(valRaw: string, meta?: RangeMeta): "" | "L" | "H" | "A" {
     }
     return "";
   }
-  // text / categorical (optional: if normal_values/scaling are provided)
+
+  // Text/categorical: mark "A" if not in normal_values (when provided)
   if (meta.normal_values) {
     const normal = meta.normal_values.split(",").map(x => x.trim().toLowerCase());
-    if (!normal.includes((valRaw || "").toLowerCase())) return "A";
+    if (!normal.includes(String(valRaw).toLowerCase())) return "A";
   }
+
   return "";
 }
 
+
 function formatValue(valRaw: string, meta?: RangeMeta): string {
-  if (!meta) return valRaw ?? "";
-  if (meta.decimals != null && meta.decimals >= 0) {
+  if (isEmptyLike(valRaw)) return "";
+  if (meta?.decimals != null && meta.decimals >= 0) {
     const n = Number(valRaw);
     if (!Number.isNaN(n)) return n.toFixed(meta.decimals);
   }

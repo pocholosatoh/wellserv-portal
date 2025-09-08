@@ -1,150 +1,88 @@
-'use client';
-import { useState } from 'react';
+"use client";
+import { useState } from "react";
 
-type Row = Record<string, string | null>;
+type ReportItem = { key:string; label:string; value:string; unit?:string; flag?:""|"L"|"H"|"A" };
+type ReportSection = { name:string; items:ReportItem[] };
+type Patient = { patient_id:string; full_name:string; age:string; sex:string; birthday:string; contact:string; address:string };
+type Visit = { date_of_test:string; barcode:string; notes:string };
 
 export default function Portal() {
-  const [patient_id, setPid] = useState('');
-  const [rows, setRows] = useState<Row[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [pid, setPid] = useState("");
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string>("");
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true); setErr(null); setRows(null);
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
-
-    let res: Response;
-    try {
-      res = await fetch('/api/results', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient_id }),
-        signal: controller.signal,
-      });
-    } catch (err: any) {
-      clearTimeout(timer);
-      setLoading(false);
-      return setErr(err?.name === 'AbortError' ? 'Request timed out.' : 'Network error.');
-    }
-    clearTimeout(timer);
-
-    let data: any = null, text = '';
-    const ct = res.headers.get('content-type') || '';
-    try {
-      data = ct.includes('application/json') ? await res.json() : null;
-      if (!data) text = await res.text();
-    } catch { text = await res.text(); }
-
+  async function search() {
+    setErr(""); setLoading(true);
+    const res = await fetch(`/api/report?patient_id=${encodeURIComponent(pid)}`);
+    const json = await res.json();
     setLoading(false);
-    if (!res.ok) return setErr((data && data.error) || text || `HTTP ${res.status}`);
-    setRows((data.rows || []) as Row[]);
+    if (!res.ok) { setErr(json?.error || "Error"); return; }
+    setData(json);
   }
 
-  return (
-    <main className="max-w-4xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">View Lab Results</h1>
+  const report = data?.reports?.[0] as { patient:Patient; visit:Visit; sections:ReportSection[] } | undefined;
 
-      <form onSubmit={submit} className="flex gap-2 print:hidden">
-        <input
-          className="border p-2 flex-1 rounded"
-          placeholder="Patient ID (e.g., SATOH010596)"
-          value={patient_id}
-          onChange={e => setPid(e.target.value)}
-        />
-        <button className="px-4 py-2 rounded bg-black text-white">
-          {loading ? 'Loading…' : 'View'}
+  return (
+    <div style={{padding:"16px", maxWidth:960, margin:"0 auto"}}>
+      <h1 style={{fontSize:28, fontWeight:700}}>View Lab Results</h1>
+
+      <div style={{display:"flex", gap:8, margin:"12px 0"}}>
+        <input value={pid} onChange={e=>setPid(e.target.value)} placeholder="Enter Patient ID"
+               style={{padding:"8px 10px", border:"1px solid #ccc", borderRadius:6, width:260}}/>
+        <button onClick={search} disabled={loading || !pid}
+                style={{padding:"8px 14px", borderRadius:6, border:"1px solid #222", background:"#222", color:"#fff"}}>
+          {loading ? "Loading..." : "View"}
         </button>
-        {rows && rows.length > 0 && (
-          <button type="button" className="px-4 py-2 rounded border" onClick={() => window.print()}>
+        {report && (
+          <button onClick={()=>window.print()}
+                  style={{padding:"8px 14px", borderRadius:6, border:"1px solid #999", background:"#fff"}}>
             Print
           </button>
         )}
-      </form>
-
-      {err && <p className="text-red-600">{err}</p>}
-      {rows && rows.length === 0 && <p>No records found.</p>}
-      {rows && rows.map((r, i) => <ResultCard key={i} row={r} />)}
-
-      <style>{`
-        @media print {
-          .print\\:hidden { display: none !important; }
-          main { max-width: 100%; padding: 0; }
-        }
-      `}</style>
-    </main>
-  );
-}
-
-function ResultCard({ row }: { row: Row }) {
-  const sections = groupSections(row);
-  return (
-    <div className="border rounded p-4 space-y-2 my-2">
-      <div className="text-lg font-semibold">{row.full_name}</div>
-      <div className="text-sm text-gray-600">
-        {row.patient_id} • {row.sex} • {row.age ? `${row.age} yrs` : ''} • DOB {row.birthday}
       </div>
-      <div className="text-sm">Date of Test: <b>{row.date_of_test}</b></div>
-      {row.notes && <div className="text-sm mt-1">Overall Notes: {row.notes}</div>}
 
-      <div className="mt-3 grid sm:grid-cols-2 gap-3">
-        {sections.map(sec => (
-          <div key={sec.title} className="border rounded p-3">
-            <div className="font-medium mb-2">{sec.title}</div>
-            <dl className="grid grid-cols-2 gap-y-1 text-sm">
-              {sec.items.map(([k, v]) => (
-                <FragmentRow key={k} k={k} v={v} />
-              ))}
-            </dl>
-            {sec.notes && <div className="mt-2 text-sm italic">Notes: {sec.notes}</div>}
+      {err && <div style={{color:"#b00020"}}>{err}</div>}
+
+      {report && (
+        <>
+          <div style={{margin:"12px 0"}}>
+            <div style={{fontWeight:700}}>{report.patient.full_name}</div>
+            <div>{report.patient.patient_id} • {report.patient.sex} • {report.patient.age} yrs • DOB {report.patient.birthday}</div>
+            <div>Date of Test: <b>{report.visit.date_of_test}</b></div>
+            {report.visit.notes && <div>Overall Notes: {report.visit.notes}</div>}
           </div>
-        ))}
-      </div>
+
+          {report.sections.map(section => (
+            <div key={section.name} style={{marginTop:18}}>
+              <h3 style={{fontSize:18, fontWeight:700, margin:"10px 0"}}>{section.name}</h3>
+              <table style={{width:"100%", borderCollapse:"collapse"}}>
+                <thead>
+                  <tr>
+                    <th style={{textAlign:"left", borderBottom:"1px solid #ddd", padding:"6px"}}>Parameter</th>
+                    <th style={{textAlign:"right", borderBottom:"1px solid #ddd", padding:"6px"}}>Result</th>
+                    <th style={{textAlign:"left", borderBottom:"1px solid #ddd", padding:"6px"}}>Unit</th>
+                    <th style={{textAlign:"center", borderBottom:"1px solid #ddd", padding:"6px"}}>Flag</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {section.items.map(it => (
+                    <tr key={it.key}>
+                      <td style={{padding:"6px"}}>{it.label}</td>
+                      <td style={{padding:"6px", textAlign:"right"}}>{it.value}</td>
+                      <td style={{padding:"6px"}}>{it.unit || ""}</td>
+                      <td style={{padding:"6px", textAlign:"center",
+                                  color: it.flag==="H" ? "#b00020" : it.flag==="L" ? "#1976d2" : it.flag==="A" ? "#f57c00" : "#666"}}>
+                        {it.flag || ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
-}
-
-function FragmentRow({ k, v }: { k: string; v: string }) {
-  return (
-    <>
-      <dt className="text-gray-600">{k}</dt>
-      <dd className="text-right font-medium">{v}</dd>
-    </>
-  );
-}
-
-function titleCase(s: string) {
-  return s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function groupSections(r: Row) {
-  const defs = [
-    { prefix: 'hema_', title: 'Hematology', notesKey: 'hema_remarks' },
-    { prefix: 'chem_', title: 'Chemistry', notesKey: 'chem_remarks' },
-    { prefix: 'ua_',   title: 'Urinalysis', notesKey: 'ua_remarks' },
-    { prefix: 'fa_',   title: 'Fecalysis', notesKey: 'fa_remarks' },
-    { prefix: 'sero_', title: 'Serology', notesKey: 'sero_remarks' },
-  ];
-  return defs.map(d => {
-    const items: [string,string][] = [];
-    for (const [k,v] of Object.entries(r)) {
-      if (!k.startsWith(d.prefix) || k === d.notesKey) continue;
-      if (v == null || String(v).trim() === '') continue;
-      items.push([displayLabel(k, d.prefix), String(v)]);
-    }
-    const notes = (r[d.notesKey] ?? '') as string;
-    return { title: d.title, items, notes: notes || '' };
-  }).filter(sec => sec.items.length || sec.notes);
-}
-
-function displayLabel(key: string, prefix: string) {
-  const short = key.slice(prefix.length);
-  const map: Record<string,string> = {
-    wbc: 'WBC', rbc: 'RBC', hgb: 'Hgb', hct: 'Hct', mcv: 'MCV', mch: 'MCH', mchc: 'MCHC',
-    plt: 'Platelets', sg: 'Specific Gravity', ph: 'pH', le: 'Leukocyte Esterase',
-    glu: 'Glucose', pro: 'Protein', alt: 'ALT', ast: 'AST', hba1c: 'HbA1c',
-  };
-  return map[short] ?? titleCase(short);
 }
