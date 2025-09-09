@@ -80,16 +80,19 @@ export async function readRanges(): Promise<Row[]> {
   const values = await fetchRange(range);
   return rowsToObjects(values);
 }
-export async function readConfig(): Promise<ConfigMap> {
-  const range = requireEnv("SHEET_CONFIG");    // Config!A:B
+
+export async function readConfig(): Promise<Record<string,string>> {
+  const range = requireEnv("SHEET_CONFIG");
   const values = await fetchRange(range);
-  const out: ConfigMap = {};
+  const out: Record<string,string> = {};
   for (const row of values) {
     const [k, v] = row;
-    if (k != null) out[String(k)] = v != null ? String(v) : "";
+    if (k != null) out[String(k).trim()] = v != null ? String(v).trim() : "";
   }
   return out;
 }
+
+
 
 // ---- Domain helpers (mapping/flags/sections) ----
 export type RangeMeta = {
