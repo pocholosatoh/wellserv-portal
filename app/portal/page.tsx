@@ -69,6 +69,8 @@ export default function Portal() {
     return reports.find(r => r.visit.date_of_test === selectedDate) || reports[0];
   }, [reports, selectedDate]);
 
+  const SHOW_VISIT_NOTES = false;
+
   // All available visit dates for the picker
   const visitDates = useMemo(() => {
     return Array.from(new Set(reports.map(r => r.visit.date_of_test))).sort((a, b) => b.localeCompare(a));
@@ -128,8 +130,8 @@ export default function Portal() {
             <div>
               {report.patient.sex} • {report.patient.age} yrs • DOB {report.patient.birthday}
             </div>
-            <div>Date of Test: <b>{report.visit.date_of_test}</b></div>
-            {report.visit.notes && <div>Notes: {report.visit.notes}</div>}
+            <div>Processed Date: <b>{report.visit.date_of_test}</b></div>
+            {SHOW_VISIT_NOTES && report.visit.notes && <div>Notes: {report.visit.notes}</div>}
           </div>
 
           {report.sections.map((section) => (
