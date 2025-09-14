@@ -65,6 +65,9 @@ export default function Portal() {
   const cfg = (data?.config ?? {}) as Record<string, string>;
   const reports = data?.reports ?? [];
 
+  const showVisitNotes =
+  (cfg.show_visit_notes || "").toLowerCase() === "true"; // default: hidden
+
   const visitDates = useMemo(
     () => Array.from(new Set(reports.map(r => r.visit.date_of_test))).sort((a,b)=>b.localeCompare(a)),
     [reports]
@@ -203,12 +206,7 @@ export default function Portal() {
           </button>
         </div>
           )}
-          {report && (
-            <button onClick={()=>window.print()}
-              style={{ padding:"8px 14px", borderRadius:6, border:"1px solid var(--border)", background:"#fff" }}>
-              Print
-            </button>
-          )}
+  
         </div>
 
         {err && <div style={{ color:"#b00020", marginTop:4 }}>{err}</div>}
@@ -219,7 +217,11 @@ export default function Portal() {
               <div style={{ fontWeight:700 }}>{report.patient.full_name}</div>
               <div>{report.patient.sex} • {report.patient.age} yrs • DOB {report.patient.birthday}</div>
               <div>Date of Test: <b>{report.visit.date_of_test}</b></div>
-              {report.visit.notes && <div>Notes: {report.visit.notes}</div>}
+
+              {showVisitNotes && report?.visit?.notes?.trim() && (
+                <div><strong>Notes:</strong> {report.visit.notes}</div>
+              )}
+
             </div>
 
             {report.sections.map(section => (
