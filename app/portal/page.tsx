@@ -1,6 +1,7 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+// ---------- types ----------
 type RefInfo = { low?: number; high?: number; normal_values?: string };
 type ReportItem = { key:string; label:string; value:string; unit?:string; flag?:""|"L"|"H"|"A"; ref?: RefInfo };
 type ReportSection = { name:string; items:ReportItem[] };
@@ -20,6 +21,25 @@ function formatRef(ref?: RefInfo) {
   if (ref.normal_values) return ref.normal_values;
   return "";
 }
+
+// Collect footer lines from cfg: report_footer_line1..N (supports multi-line cell values)
+function getFooterLines(cfg: Record<string, string> | undefined): string[] {
+  if (!cfg) return [];
+  const keys = Object.keys(cfg).filter(k => /^report_footer_line\d+$/i.test(k));
+  keys.sort((a, b) => {
+    const na = parseInt(a.match(/\d+/)![0], 10);
+    const nb = parseInt(b.match(/\d+/)![0], 10);
+    return na - nb;
+  });
+  const lines: string[] = [];
+  for (const k of keys) {
+    const raw = (cfg[k] ?? "").toString().trim();
+    if (!raw) continue;
+    raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean).forEach(s => lines.push(s));
+  }
+  return lines;
+}
+
 function extractDriveId(url?: string) {
   const u = (url || "").trim();
   if (!u) return "";
@@ -55,19 +75,71 @@ function getSignersFromConfig(cfg: Record<string,string>) {
   return { rmts, pathos };
 }
 
+// If your sheet provides a Drive link or ID, return a direct image URL
+function toImageUrl(url?: string) {
+  if (!url) return "";
+  const m = url.match(/[-\w]{25,}/); // crude Drive file-id find
+  return m ? `https://drive.google.com/uc?export=view&id=${m[0]}` : url;
+}
+
 export default function Portal() {
   const [patientId, setPatientId] = useState("");
   const [data, setData] = useState<ReportResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [bootCfg, setBootCfg] = useState<Record<string, string> | null>(null);
 
-  const cfg = (data?.config ?? {}) as Record<string, string>;
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/config", { cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!ignore && json?.config) {
+          setBootCfg(json.config as Record<string, string>);
+        }
+      } catch {
+        // silently ignore; page still works without preloaded config
+      }
+    })();
+    return () => { ignore = true; };
+  }, []);
+
+  const cfg = { ...(bootCfg || {}), ...(data?.config || {}) } as Record<string,string>;
   const reports = data?.reports ?? [];
 
-  const showVisitNotes =
-  (cfg.show_visit_notes || "").toLowerCase() === "true"; // default: hidden
+  // Dashboard footer visibility toggles (default: hidden until search)
+  const showFooterOnDashboard = (cfg?.footer_show_on_dashboard || "").toLowerCase() === "true";
+  const showSignersOnDashboard = (cfg?.footer_show_signers_on_dashboard || "").toLowerCase() === "true";
+  const hasReport = (reports?.length ?? 0) > 0;
+  const showFooter = hasReport || showFooterOnDashboard;
+  const showSigners = hasReport || showSignersOnDashboard;
 
+  // Footer + style knobs
+  const footerLines = getFooterLines(cfg);
+  const footerAlign = ((cfg?.report_footer_align ?? "center").toString().toLowerCase() as "left" | "center" | "right");
+  const footerFontPx = Number(cfg?.report_footer_font_px) || 10;
+  const footerGapPx  = Number(cfg?.report_footer_gap_px)  || 4;
+
+  // Watermark config (text or image)
+  const { primary: wmPrimary, fallback: wmFallback } = driveImageUrls(cfg?.watermark_image_url);
+  const wmImgUrl = wmPrimary || wmFallback; // prefer primary, fallback to lh3 host
+  const wmText = (cfg?.watermark_text || "").trim();
+  const wmShowScreen = (cfg?.watermark_show_dashboard || "true").toLowerCase() === "true";
+  const wmShowPrint  = (cfg?.watermark_show_print    || "true").toLowerCase() === "true";
+  const wmOpacityScreen = Math.max(0, Math.min(1, Number(cfg?.watermark_opacity_screen || 0.12)));
+  const wmOpacityPrint  = Math.max(0, Math.min(1, Number(cfg?.watermark_opacity_print  || 0.08)));
+  const wmAngleDeg = Number(cfg?.watermark_angle_deg || -30);
+  const wmSize = (cfg?.watermark_size || "40vw");
+  const wmFallbackText = (cfg?.watermark_default_text || (reports.length === 0 ? "WELLSERV MEDICAL CORP." : "")).trim();
+  const hasWm = Boolean(wmText || wmImgUrl || wmFallbackText);
+
+  // Visit notes toggle (default hidden)
+  const showVisitNotes = (cfg?.show_visit_notes || "").toLowerCase() === "true";
+
+  // Derived report selection
   const visitDates = useMemo(
     () => Array.from(new Set(reports.map(r => r.visit.date_of_test))).sort((a,b)=>b.localeCompare(a)),
     [reports]
@@ -103,9 +175,8 @@ export default function Portal() {
   // signers + logo (computed BEFORE return)
   const { rmts, pathos } = getSignersFromConfig(cfg);
   const signers = [...rmts, ...pathos];
-
   const { primary: logoPrimary, fallback: logoFallback } = driveImageUrls(cfg.clinic_logo_url);
-  const logoSrc = logoPrimary; // we fallback in onError
+  const logoSrc = logoPrimary;
 
   return (
     <div className="page" style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
@@ -138,10 +209,7 @@ export default function Portal() {
         .clinic-sub { color:#444; }
 
         /* footer */
-        .report-footer {
-          margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border);
-          font-size: 14px; color: var(--brand);
-        }
+        .report-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border); font-size: 14px; color: var(--brand); }
         .sig-row { display:flex; gap:16px; align-items:flex-end; flex-wrap: wrap; }
         .sig { flex:1; min-width:260px; text-align:center; margin-top:8px; }
         .sig img { max-height: var(--sig-height); width: auto; object-fit: contain; display:block; margin: 0 auto 6px; }
@@ -156,17 +224,60 @@ export default function Portal() {
           .report-footer { page-break-inside: avoid; }
           body { margin: 0; }
         }
+
+        /* --- Watermark layer --- */
+        .page { position: relative; }
+        .page > * { position: relative; z-index: 1; }
+        .wm-layer { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; pointer-events: none; z-index: 0; }
+        .wm-text { font-weight: 700; color: #000; letter-spacing: 0.1em; font-size: var(--wm-size, 60vw); white-space: nowrap; text-transform: uppercase; mix-blend-mode: multiply; opacity: var(--wm-opacity, 0.08); transform: rotate(var(--wm-angle, -30deg)); }
+        .wm-img { width: var(--wm-size, 40vw); height: auto; opacity: var(--wm-opacity, 0.06); transform: rotate(var(--wm-angle, -30deg)); // filter: grayscale(100%); mix-blend-mode: multiply; // }
+        @media print {
+          .wm-layer { display: flex !important; }
+          .wm-layer[data-print="off"] { display: none !important; }
+          .wm-text, .wm-img { opacity: var(--wm-opacity-print, 0.08); }
+        }
       `}</style>
+
+      {hasWm && (
+        <div
+          className="wm-layer"
+          data-print={wmShowPrint ? "on" : "off"}
+          style={{
+            display: wmShowScreen ? "flex" : "none",
+            ["--wm-opacity" as any]: String(wmOpacityScreen),
+            ["--wm-opacity-print" as any]: String(wmOpacityPrint),
+            ["--wm-angle" as any]: `${wmAngleDeg}deg`,
+            ["--wm-size" as any]: wmSize,
+          }}
+          aria-hidden="true"
+        >
+          {wmImgUrl ? (
+            <img
+              className="wm-img"
+              src={wmImgUrl}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                if (wmFallback && img.src !== wmFallback) img.src = wmFallback; else img.style.display = "none";
+              }}
+              alt=""
+            />
+          ) : (
+            <div className="wm-text">{wmText || wmFallbackText}</div>
+          )}
+        </div>
+      )}
 
       <div className="container content">
         {/* ---------- CLINIC HEADER ---------- */}
         {(cfg.clinic_name || cfg.clinic_logo_url || cfg.clinic_address || cfg.clinic_phone) && (
-          <div className="clinic">
+          <div className="clinic" style={{ flexDirection:"column", alignItems:"center", textAlign:"center" }}>
             {logoSrc ? (
               <img
                 src={logoSrc}
                 alt=""
                 referrerPolicy="no-referrer"
+                style={{ display: "block", margin: "0 auto", maxHeight: 120 }}
                 onError={(e) => {
                   const img = e.currentTarget as HTMLImageElement;
                   if (logoFallback && img.src !== logoFallback) img.src = logoFallback; else img.style.display = "none";
@@ -181,32 +292,50 @@ export default function Portal() {
           </div>
         )}
 
-        <h1 style={{ marginTop: 4, marginBottom: 8 }}>View Lab Results</h1>
+        <h1 className="print:hidden" style={{ marginTop: 4, marginBottom: 8 }}>View Lab Results</h1>
 
         <div className="controls">
-          <input value={patientId} onChange={(e)=>setPatientId(e.target.value)}
+          <input
+            value={patientId}
+            onChange={(e) => setPatientId(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !loading && patientId.trim()) {
+                e.preventDefault();
+                search();
+              }
+            }}
             placeholder="Enter Patient ID"
-            style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6, width:260 }}/>
-          <button onClick={search} disabled={loading || !patientId}
-            style={{ padding:"8px 14px", borderRadius:6, border:"1px solid #222", background:"#222", color:"#fff" }}>
+            style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6, width:260 }}
+          />
+
+          <button
+            onClick={search}
+            disabled={loading || !patientId.trim()}
+            style={{ padding:"8px 14px", borderRadius:6, border:"1px solid #222", background:"#222", color:"#fff" }}
+          >
             {loading ? "Loading..." : "View"}
           </button>
+
           {visitDates.length > 0 && (
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <label style={{ fontSize:14 }}>Visit date:</label>
-              <select value={report?.visit.date_of_test || ""} onChange={(e)=>setSelectedDate(e.target.value)}
-                style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6 }}>
+              <select
+                value={selectedDate || ""}
+                onChange={(e)=>setSelectedDate(e.target.value)}
+                style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6 }}
+              >
                 {visitDates.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
-            
-          <button onClick={() => window.print()}
-            className="print:hidden"
-            style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6, marginLeft:8 }}>
-            Print / Save as PDF
-          </button>
-        </div>
+
+              <button
+                onClick={() => window.print()}
+                className="print:hidden"
+                style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6, marginLeft:8 }}
+              >
+                Print / Save as PDF
+              </button>
+            </div>
           )}
-  
         </div>
 
         {err && <div style={{ color:"#b00020", marginTop:4 }}>{err}</div>}
@@ -221,7 +350,6 @@ export default function Portal() {
               {showVisitNotes && report?.visit?.notes?.trim() && (
                 <div><strong>Notes:</strong> {report.visit.notes}</div>
               )}
-
             </div>
 
             {report.sections.map(section => (
@@ -247,10 +375,7 @@ export default function Portal() {
                           <td style={{ textAlign:"right" }}>{it.value}</td>
                           <td>{it.unit || ""}</td>
                           <td>{refText}</td>
-                          <td style={{
-                            textAlign:"center",
-                            color: it.flag==="H" ? "#b00020" : it.flag==="L" ? "#1976d2" : it.flag==="A" ? "#f57c00" : "#666"
-                          }}>
+                          <td style={{ textAlign:"center", color: it.flag==="H" ? "#b00020" : it.flag==="L" ? "#1976d2" : it.flag==="A" ? "#f57c00" : "#666" }}>
                             {it.flag || ""}
                           </td>
                         </tr>
@@ -264,41 +389,50 @@ export default function Portal() {
         )}
       </div>
 
-      {/* ---------- FOOTER (multi-RMT + pathologist) ---------- */}
-      <footer className="report-footer container">
-        <div className="sig-row">
-          {signers.map((s, idx) => {
-            const { primary, fallback } = driveImageUrls(s.sig);
-            return (
-              <div key={idx} className="sig">
-                {primary ? (
-                  <img
-                    src={primary}
-                    alt=""
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      const img = e.currentTarget as HTMLImageElement;
-                      if (fallback && img.src !== fallback) img.src = fallback; else img.style.display = "none";
-                    }}
-                  />
-                ) : null}
-                <div><strong>{s.name}</strong></div>
-                <div className="muted">
-                  {s.role}{s.license ? ` – PRC ${s.license}` : ""}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {showFooter && (
+        <footer className="report-footer container">
+          {showSigners && signers.length > 0 && (
+            <div className="sig-row">
+              {signers.map((s, idx) => {
+                const { primary, fallback } = driveImageUrls(s.sig);
+                return (
+                  <div key={idx} className="sig">
+                    {primary ? (
+                      <img
+                        src={primary}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement;
+                          if (fallback && img.src !== fallback) img.src = fallback; else img.style.display = "none";
+                        }}
+                      />
+                    ) : null}
+                    <div><strong>{s.name}</strong></div>
+                    <div className="muted">{s.role}{s.license ? ` – PRC ${s.license}` : ""}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-        {(cfg.report_footer_line1 || cfg.report_footer_line2 || cfg.report_footer_line3) && (
-          <div style={{ textAlign:"center", marginTop:10, lineHeight:1.3, width:"100%" }}>
-            {cfg.report_footer_line1 && <div>{cfg.report_footer_line1}</div>}
-            {cfg.report_footer_line2 && <div>{cfg.report_footer_line2}</div>}
-            {cfg.report_footer_line3 && <div>{cfg.report_footer_line3}</div>}
-          </div>
-        )}
-      </footer>
+          {footerLines.length > 0 && (
+            <div
+              style={{
+                textAlign: footerAlign,
+                marginTop: 10,
+                lineHeight: 1.3,
+                width: "100%",
+                fontSize: `${footerFontPx}px`,
+              }}
+            >
+              {footerLines.map((line, i) => (
+                <div key={i} style={{ marginTop: i === 0 ? 0 : footerGapPx }}>{line}</div>
+              ))}
+            </div>
+          )}
+        </footer>
+      )}
     </div>
   );
 }
