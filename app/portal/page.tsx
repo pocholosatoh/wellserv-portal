@@ -195,7 +195,13 @@ export default function Portal() {
                 style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6 }}>
                 {visitDates.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
-            </div>
+            
+          <button onClick={() => window.print()}
+            className="print:hidden"
+            style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6, marginLeft:8 }}>
+            Print / Save as PDF
+          </button>
+        </div>
           )}
           {report && (
             <button onClick={()=>window.print()}

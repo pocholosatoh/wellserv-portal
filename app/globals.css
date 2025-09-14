@@ -1,0 +1,8 @@
+/* Global styles for WellServ Portal */
+* { box-sizing: border-box; }
+
+@media print {
+  .print\:hidden { display: none !important; }
+  @page { margin: 12mm; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
