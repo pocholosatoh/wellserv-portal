@@ -133,7 +133,7 @@ export default function Portal() {
   const wmOpacityPrint  = Math.max(0, Math.min(1, Number(cfg?.watermark_opacity_print  || 0.08)));
   const wmAngleDeg = Number(cfg?.watermark_angle_deg || -30);
   const wmSize = (cfg?.watermark_size || "40vw");
-  const wmFallbackText = (cfg?.watermark_default_text || (reports.length === 0 ? "WELLSERV MEDICAL CORP." : "")).trim();
+  const wmFallbackText = (cfg?.watermark_default_text || (reports.length === 0 ? "WELLSERV" : "")).trim();
   const hasWm = Boolean(wmText || wmImgUrl || wmFallbackText);
 
   // Visit notes toggle (default hidden)
@@ -229,8 +229,8 @@ export default function Portal() {
         .page { position: relative; }
         .page > * { position: relative; z-index: 1; }
         .wm-layer { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; pointer-events: none; z-index: 0; }
-        .wm-text { font-weight: 700; color: #000; letter-spacing: 0.1em; font-size: var(--wm-size, 60vw); white-space: nowrap; text-transform: uppercase; mix-blend-mode: multiply; opacity: var(--wm-opacity, 0.08); transform: rotate(var(--wm-angle, -30deg)); }
-        .wm-img { width: var(--wm-size, 40vw); height: auto; opacity: var(--wm-opacity, 0.06); transform: rotate(var(--wm-angle, -30deg)); // filter: grayscale(100%); mix-blend-mode: multiply; // }
+        .wm-text { font-weight: 700; color: #000; letter-spacing: 0.1em; font-size: var(--wm-size, 10vw); white-space: nowrap; text-transform: uppercase; mix-blend-mode: multiply; opacity: var(--wm-opacity, 0.08); transform: rotate(var(--wm-angle, -30deg)); }
+        .wm-img { width: var(--wm-size, 60vw); height: auto; opacity: var(--wm-opacity, 0.06); transform: rotate(var(--wm-angle, -30deg)); // filter: grayscale(100%); mix-blend-mode: multiply; // }
         @media print {
           .wm-layer { display: flex !important; }
           .wm-layer[data-print="off"] { display: none !important; }
@@ -311,7 +311,7 @@ export default function Portal() {
           <button
             onClick={search}
             disabled={loading || !patientId.trim()}
-            style={{ padding:"8px 14px", borderRadius:6, border:"1px solid #222", background:"#222", color:"#fff" }}
+            style={{ padding:"8px 14px", borderRadius:6, border:"1px solid #222222ff", background:"#222", color:"#fff" }}
           >
             {loading ? "Loading..." : "View"}
           </button>
