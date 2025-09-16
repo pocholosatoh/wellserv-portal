@@ -22,6 +22,17 @@ function formatRef(ref?: RefInfo) {
   return "";
 }
 
+// parse a numeric string like "89.2" or "-1.5" (rejects "N/A", "Positive", etc.)
+function toNum(s?: string): number | null {
+  const t = String(s ?? "").replace(/,/g, "").trim();
+  const m = t.match(/^[-+]?\d*\.?\d+$/);
+  if (!m) return null;
+  const n = Number(m[0]);
+  return Number.isFinite(n) ? n : null;
+}
+const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+
 // Collect footer lines from cfg: report_footer_line1..N (supports multi-line cell values)
 function getFooterLines(cfg: Record<string, string> | undefined): string[] {
   if (!cfg) return [];
@@ -58,6 +69,27 @@ function driveImageUrls(url?: string) {
     fallback: `https://lh3.googleusercontent.com/d/${id}`,
   };
 }
+
+function formatPrevDate(s: string): string {
+  // Accepts "YYYY-MM-DD" or "M/D/YYYY" (with or without leading zeros)
+  let y = 0, m = 0, d = 0;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [yy, mm, dd] = s.split("-").map(Number);
+    y = yy; m = mm; d = dd;
+  } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+    const [mm, dd, yy] = s.split("/").map(Number);
+    y = yy; m = mm; d = dd;
+  } else {
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+      y = dt.getFullYear(); m = dt.getMonth() + 1; d = dt.getDate();
+    }
+  }
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const yy2 = String(y).slice(-2);
+  return `${pad2(m)}/${pad2(d)}/'${yy2}`; // MM/DD/'YY
+}
+
 function getSignersFromConfig(cfg: Record<string,string>) {
   const rmts: Array<{ role: string; name: string; license?: string; sig?: string }> = [];
   const push = (n: string, l: string, s: string) => {
@@ -89,6 +121,7 @@ export default function Portal() {
   const [err, setErr] = useState("");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [bootCfg, setBootCfg] = useState<Record<string, string> | null>(null);
+  const [compareOn, setCompareOn] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -149,6 +182,46 @@ export default function Portal() {
     const current = selectedDate || visitDates[0];
     return reports.find(r => r.visit.date_of_test === current) || reports[0];
   }, [reports, selectedDate, visitDates]);
+
+  // Index of values by visit date -> analyte key -> { value, unit }
+  const valueIndex = useMemo(() => {
+    const map = new Map<string, Map<string, { value: number; unit?: string }>>();
+    for (const r of reports) {
+      const d = r.visit.date_of_test;
+      let m = map.get(d);
+      if (!m) { m = new Map(); map.set(d, m); }
+      for (const s of r.sections) {
+        for (const it of s.items) {
+          const v = toNum(it.value);
+          if (v == null) continue;
+          m.set(it.key, { value: v, unit: it.unit });
+        }
+      }
+    }
+    return map;
+  }, [reports]);
+
+  // Find the nearest earlier visit that has a numeric value (and same unit, if present)
+// Find up to `maxCount` earlier visits with a numeric value for the same key (same unit)
+  function findPrevList(it: ReportItem, maxCount = 3): Array<{ date: string; value: number }> {
+    if (!report) return [];
+    const currentDate = report.visit.date_of_test;
+    const idx = visitDates.indexOf(currentDate); // visitDates is DESC
+    if (idx < 0) return [];
+
+    const out: Array<{ date: string; value: number }> = [];
+    for (let i = idx + 1; i < visitDates.length && out.length < maxCount; i++) {
+      const d = visitDates[i];
+      const m = valueIndex.get(d);
+      const rec = m?.get(it.key);
+      if (!rec) continue;
+      // Skip if unit changes between visits to avoid bad comparisons
+      if (it.unit && rec.unit && it.unit !== rec.unit) continue;
+      out.push({ date: d, value: rec.value });
+    }
+    return out;
+  }
+
 
   async function search() {
     if (!patientId) return;
@@ -316,6 +389,16 @@ export default function Portal() {
             {loading ? "Loading..." : "View"}
           </button>
 
+          <label style={{ display:"flex", alignItems:"center", gap:6, marginLeft:12 }}>
+            <input
+              type="checkbox"
+              checked={compareOn}
+              onChange={(e)=>setCompareOn(e.target.checked)}
+            />
+            Compare with last visit
+          </label>
+
+
           {visitDates.length > 0 && (
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <label style={{ fontSize:14 }}>Visit date:</label>
@@ -360,6 +443,8 @@ export default function Portal() {
                     <tr>
                       <th style={{ textAlign:"left" }}>Parameter</th>
                       <th style={{ textAlign:"right" }}>Result</th>
+                      {compareOn && <th style={{ textAlign:"right" }}>Prev. Res.</th>}
+                      {compareOn && <th style={{ textAlign:"right" }}>Latest % Change</th>}
                       <th style={{ textAlign:"left" }}>Unit</th>
                       <th style={{ textAlign:"left" }}>Reference</th>
                       <th style={{ textAlign:"center" }} aria-label="Flag"></th>
@@ -369,17 +454,54 @@ export default function Portal() {
                     {section.items.map(it => {
                       if (!it.value) return null;
                       const refText = formatRef(it.ref);
+                      const cur = toNum(it.value);
+                      const prevList = compareOn ? findPrevList(it, 3) : [];
+
+                      // Δ is computed vs the most recent previous result only (Prev #1)
+                      const prev1 = prevList[0];
+
+                      let deltaText = "—";
+                      let deltaColor = "#666";
+                      if (cur != null && prev1) {
+                        const delta = cur - prev1.value;
+                        const pct = prev1.value !== 0 ? (delta / prev1.value) * 100 : null;
+                        const arrow = delta > 0 ? "▲" : delta < 0 ? "▼" : "•";
+                        deltaText = `${arrow} ${delta > 0 ? "+" : ""}${fmt(delta)}${pct != null ? ` (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` : ""}`;
+                        deltaColor = delta > 0 ? "#b00020" : delta < 0 ? "#1976d2" : "#666";
+                      }
+
                       return (
                         <tr key={it.key}>
                           <td>{it.label}</td>
                           <td style={{ textAlign:"right" }}>{it.value}</td>
+
+                          {compareOn && (
+                            <>
+                              <td style={{ textAlign:"right" }}>
+                                {prevList.length ? (
+                                  // show up to 3 lines: DATE: VALUE
+                                  prevList.map(p => (
+                                    <div key={p.date} style={{ whiteSpace:"nowrap", fontSize:12, lineHeight:1.2 }}>
+                                      {formatPrevDate(p.date)}: {fmt(p.value)}
+                                    </div>
+                                  ))
+                                ) : "—"}
+                              </td>
+                              <td style={{ textAlign:"right", color: deltaColor }}>{deltaText}</td>
+                            </>
+                          )}
+
                           <td>{it.unit || ""}</td>
                           <td>{refText}</td>
-                          <td style={{ textAlign:"center", color: it.flag==="H" ? "#b00020" : it.flag==="L" ? "#1976d2" : it.flag==="A" ? "#f57c00" : "#666" }}>
+                          <td style={{
+                            textAlign:"center",
+                            color: it.flag==="H" ? "#b00020" : it.flag==="L" ? "#1976d2" : it.flag==="A" ? "#f57c00" : "#666"
+                          }}>
                             {it.flag || ""}
                           </td>
                         </tr>
                       );
+
                     })}
                   </tbody>
                 </table>
