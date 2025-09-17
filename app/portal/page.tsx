@@ -199,43 +199,63 @@ export default function Portal() {
   }, [reports, selectedDate, visitDates]);
 
   // Index of values by visit date -> analyte key -> { value, unit }
+  // Index of values by visit date -> analyte key -> { raw string, numeric (if any), unit }
   const valueIndex = useMemo(() => {
-    const map = new Map<string, Map<string, { value: number; unit?: string }>>();
+    const map = new Map<string, Map<string, { raw: string; num: number | null; unit?: string }>>();
     for (const r of reports) {
       const d = r.visit.date_of_test;
       let m = map.get(d);
       if (!m) { m = new Map(); map.set(d, m); }
       for (const s of r.sections) {
         for (const it of s.items) {
-          const v = toNum(it.value);
-          if (v == null) continue;
-          m.set(it.key, { value: v, unit: it.unit });
+          const raw = String(it.value ?? "").trim();
+          if (!raw) continue; // skip empty
+          const num = toNum(raw); // numeric or null
+          m.set(it.key, { raw, num, unit: it.unit });
         }
       }
     }
     return map;
   }, [reports]);
 
-  // Find the nearest earlier visit that has a numeric value (and same unit, if present)
-// Find up to `maxCount` earlier visits with a numeric value for the same key (same unit)
-  function findPrevList(it: ReportItem, maxCount = 3): Array<{ date: string; value: number }> {
+// Up to N previous visits (includes non-numeric). Most-recent first.
+  function findPrevListAny(it: ReportItem, maxCount = 3): Array<{ date: string; raw: string; num: number | null; unit?: string }> {
     if (!report) return [];
     const currentDate = report.visit.date_of_test;
     const idx = visitDates.indexOf(currentDate); // visitDates is DESC
     if (idx < 0) return [];
 
-    const out: Array<{ date: string; value: number }> = [];
+    const out: Array<{ date: string; raw: string; num: number | null; unit?: string }> = [];
     for (let i = idx + 1; i < visitDates.length && out.length < maxCount; i++) {
       const d = visitDates[i];
-      const m = valueIndex.get(d);
-      const rec = m?.get(it.key);
+      const rec = valueIndex.get(d)?.get(it.key);
       if (!rec) continue;
-      // Skip if unit changes between visits to avoid bad comparisons
-      if (it.unit && rec.unit && it.unit !== rec.unit) continue;
-      out.push({ date: d, value: rec.value });
+      // For display, we allow non-numeric and ignore unit mismatches
+      out.push({ date: d, raw: rec.raw, num: rec.num, unit: rec.unit });
     }
     return out;
   }
+
+  // For Δ: get the MOST RECENT previous that is numeric AND (if both have units) same unit
+  function findPrevNumForDelta(it: ReportItem): { date: string; value: number } | null {
+    if (!report) return null;
+    const currentDate = report.visit.date_of_test;
+    const idx = visitDates.indexOf(currentDate);
+    if (idx < 0) return null;
+
+    const curNum = toNum(it.value);
+    if (curNum == null) return null;
+
+    for (let i = idx + 1; i < visitDates.length; i++) {
+      const d = visitDates[i];
+      const rec = valueIndex.get(d)?.get(it.key);
+      if (!rec || rec.num == null) continue;
+      if (it.unit && rec.unit && it.unit !== rec.unit) continue; // guard mismatched units
+      return { date: d, value: rec.num };
+    }
+    return null;
+  }
+
 
 
   async function search() {
@@ -523,7 +543,7 @@ export default function Portal() {
                       {compareOn && <th style={{ textAlign:"right" }}>Latest % Change</th>}
                       <th style={{ textAlign:"left" }}>Unit</th>
                       <th style={{ textAlign:"left" }}>Reference</th>
-                      <th style={{ textAlign:"center" }} aria-label="Flag"></th>
+                      <th style={{ textAlign:"center" }}>Current Flag</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -531,16 +551,15 @@ export default function Portal() {
                       if (!it.value) return null;
                       const refText = formatRef(it.ref);
                       const cur = toNum(it.value);
-                      const prevList = compareOn ? findPrevList(it, 3) : [];
+                      const prevList = compareOn ? findPrevListAny(it, 3) : [];
+                      const prev1Num = compareOn ? findPrevNumForDelta(it) : null;
 
-                      // Δ is computed vs the most recent previous result only (Prev #1)
-                      const prev1 = prevList[0];
-
+                      // Δ vs the most recent numeric previous (if available)
                       let deltaText = "—";
                       let deltaColor = "#666";
-                      if (cur != null && prev1) {
-                        const delta = cur - prev1.value;
-                        const pct = prev1.value !== 0 ? (delta / prev1.value) * 100 : null;
+                      if (cur != null && prev1Num) {
+                        const delta = cur - prev1Num.value;
+                        const pct = prev1Num.value !== 0 ? (delta / prev1Num.value) * 100 : null;
                         const arrow = delta > 0 ? "▲" : delta < 0 ? "▼" : "•";
                         deltaText = `${arrow} ${delta > 0 ? "+" : ""}${fmt(delta)}${pct != null ? ` (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` : ""}`;
                         deltaColor = delta > 0 ? "#b00020" : delta < 0 ? "#1976d2" : "#666";
@@ -555,10 +574,9 @@ export default function Portal() {
                             <>
                               <td style={{ textAlign:"right" }}>
                                 {prevList.length ? (
-                                  // show up to 3 lines: DATE: VALUE
                                   prevList.map(p => (
                                     <div key={p.date} style={{ whiteSpace:"nowrap", fontSize:12, lineHeight:1.2 }}>
-                                      {formatPrevDate(p.date)}: {fmt(p.value)}
+                                      {formatPrevDate(p.date)}: {p.num != null ? fmt(p.num) : p.raw}
                                     </div>
                                   ))
                                 ) : "—"}
@@ -577,6 +595,7 @@ export default function Portal() {
                           </td>
                         </tr>
                       );
+
 
                     })}
                   </tbody>
