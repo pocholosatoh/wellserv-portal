@@ -122,19 +122,24 @@ export default function Portal() {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [bootCfg, setBootCfg] = useState<Record<string, string> | null>(null);
   const [compareOn, setCompareOn] = useState(false);
+  // Splash / preload states
+  const [bootLoaded, setBootLoaded] = useState(false);   // marks /api/config finished (success or fail)
+  const [logoLoaded, setLogoLoaded] = useState(false);   // clinic header logo
+  const [wmImgLoaded, setWmImgLoaded] = useState(false); // watermark image
+  const [splashDone, setSplashDone] = useState(false);   // when to hide splash
 
   useEffect(() => {
     let ignore = false;
     (async () => {
       try {
         const res = await fetch("/api/config", { cache: "no-store" });
-        if (!res.ok) return;
-        const json = await res.json();
-        if (!ignore && json?.config) {
-          setBootCfg(json.config as Record<string, string>);
+        if (res.ok) {
+          const json = await res.json();
+          if (!ignore && json?.config) setBootCfg(json.config as Record<string,string>);
         }
-      } catch {
-        // silently ignore; page still works without preloaded config
+      } catch {}
+      finally {
+        if (!ignore) setBootLoaded(true);   // 👈 important
       }
     })();
     return () => { ignore = true; };
@@ -160,6 +165,16 @@ export default function Portal() {
   const { primary: wmPrimary, fallback: wmFallback } = driveImageUrls(cfg?.watermark_image_url);
   const wmImgUrl = wmPrimary || wmFallback; // prefer primary, fallback to lh3 host
   const wmText = (cfg?.watermark_text || "").trim();
+
+  // Preload watermark image (if any) so we don’t swap text→image mid-render
+  useEffect(() => {
+    setWmImgLoaded(false);
+    if (!wmImgUrl) { setWmImgLoaded(true); return; }
+    const img = new Image();
+    img.onload = img.onerror = () => setWmImgLoaded(true);
+    img.src = wmImgUrl;
+  }, [wmImgUrl]);
+
   const wmShowScreen = (cfg?.watermark_show_dashboard || "true").toLowerCase() === "true";
   const wmShowPrint  = (cfg?.watermark_show_print    || "true").toLowerCase() === "true";
   const wmOpacityScreen = Math.max(0, Math.min(1, Number(cfg?.watermark_opacity_screen || 0.12)));
@@ -251,6 +266,31 @@ export default function Portal() {
   const { primary: logoPrimary, fallback: logoFallback } = driveImageUrls(cfg.clinic_logo_url);
   const logoSrc = logoPrimary;
 
+  // Preload clinic logo so it’s ready before we render it
+  useEffect(() => {
+    setLogoLoaded(false);
+    if (!logoSrc) { setLogoLoaded(true); return; }
+    const img = new Image();
+    img.onload = img.onerror = () => setLogoLoaded(true);
+    img.src = logoSrc;
+  }, [logoSrc]);
+
+  // --- Splash control (hide when ready or after a short max wait) ---
+  const splashEnabled = (cfg?.loading_splash_enabled ?? "true").toString().toLowerCase() === "true";
+  const splashMaxMs   = Number(cfg?.loading_splash_max_ms ?? 900); // ms
+
+  // Ready when: config fetched + logo preloaded + watermark image preloaded
+  const readyTargetsOk = bootLoaded && logoLoaded && wmImgLoaded;
+
+  useEffect(() => {
+    if (!splashEnabled) { setSplashDone(true); return; }
+    if (readyTargetsOk) { setSplashDone(true); return; }
+    const t = setTimeout(() => setSplashDone(true), splashMaxMs); // failsafe
+    return () => clearTimeout(t);
+  }, [splashEnabled, readyTargetsOk, splashMaxMs]);
+
+  const showSplash = splashEnabled && !splashDone;
+
   return (
     <div className="page" style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
       <style>{`
@@ -309,9 +349,43 @@ export default function Portal() {
           .wm-layer[data-print="off"] { display: none !important; }
           .wm-text, .wm-img { opacity: var(--wm-opacity-print, 0.08); }
         }
+
+        /* Splash overlay */
+        .splash {
+          position: fixed;
+          inset: 0;
+          display: grid;
+          place-items: center;
+          background: #fff;
+          z-index: 9999;
+          opacity: 1;
+          transition: opacity .2s ease;
+        }
+        .splash-inner { text-align: center; display: grid; gap: 10px; }
+        .splash-text { font-size: 14px; color: #666; }
+        .splash-dot {
+          width: 6px; height: 6px; border-radius: 9999px; background: #222;
+          margin: 6px auto 0; animation: pulse 1s ease-in-out infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { transform: scale(0.8); opacity: .4; }
+          50%      { transform: scale(1.3); opacity: 1; }
+        }
       `}</style>
 
-      {hasWm && (
+      {showSplash && (
+        <div className="splash">
+          <div className="splash-inner">
+            {logoSrc ? (
+              <img src={logoSrc} alt="" referrerPolicy="no-referrer" style={{ maxHeight: 72 }} />
+            ) : null}
+            <div className="splash-text">{cfg?.loading_splash_text || "Loading WELLSERV® Portal…"}</div>
+            <div className="splash-dot" aria-hidden />
+          </div>
+        </div>
+      )}
+
+      {!showSplash && hasWm && (
         <div
           className="wm-layer"
           data-print={wmShowPrint ? "on" : "off"}
@@ -341,7 +415,9 @@ export default function Portal() {
         </div>
       )}
 
-      <div className="container content">
+      <div className="container content"
+        style={{ opacity: showSplash ? 0 : 1, pointerEvents: showSplash ? "none" : "auto" }}
+      >
         {/* ---------- CLINIC HEADER ---------- */}
         {(cfg.clinic_name || cfg.clinic_logo_url || cfg.clinic_address || cfg.clinic_phone) && (
           <div className="clinic" style={{ flexDirection:"column", alignItems:"center", textAlign:"center" }}>
@@ -395,7 +471,7 @@ export default function Portal() {
               checked={compareOn}
               onChange={(e)=>setCompareOn(e.target.checked)}
             />
-            Compare with last visit
+            Compare with prev. visit/s
           </label>
 
 
