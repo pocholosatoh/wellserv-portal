@@ -22,6 +22,44 @@ function formatRef(ref?: RefInfo) {
   return "";
 }
 
+// Exact keys you never want to appear in "Prev"
+// Hard-exclude these exact keys from appearing in the Prev column
+const EXCLUDE_EXACT_KEYS = new Set([
+  "chem_remarks",
+  "hema_remarks",
+  "ua_remarks",
+  "fa_remarks",
+  "sero_remarks",
+]);
+
+// Optional exact labels to exclude (covers lines like "RESULTS/S", "Remarks")
+const EXCLUDE_EXACT_LABELS = new Set(["remarks", "results", "result", "results/s"]);
+
+function shouldExcludeFromPrev(it: ReportItem, cfg?: Record<string, string>): boolean {
+  const keyRaw = String(it.key || "").trim().toLowerCase();
+  const labelRaw = String(it.label || "").trim().toLowerCase().replace(/[:]/g, "");
+
+  if (EXCLUDE_EXACT_KEYS.has(keyRaw)) return true;      // hard block by key
+  if (EXCLUDE_EXACT_LABELS.has(labelRaw)) return true;  // hard block by label
+
+  // Allow exact-key excludes from Config too (comma-separated)
+  const cfgKeys = (cfg?.prev_exclude_keys || "")
+    .split(",")
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (cfgKeys.includes(keyRaw)) return true;
+
+  // Substring safety net (catches "clinical remarks", "note:", etc.)
+  const norm = (s?: string) =>
+    String(s || "").toLowerCase().replace(/[_\-:.]+/g, " ").replace(/\s+/g, " ").trim();
+  const label = norm(it.label);
+  const keyNorm = norm(it.key);
+  const builtins = ["remark", "remarks", "note", "notes", "comment", "comments", "interpretation"];
+  if (builtins.some(t => label.includes(t) || keyNorm.includes(t))) return true;
+
+  return false;
+}
+
 // parse a numeric string like "89.2" or "-1.5" (rejects "N/A", "Positive", etc.)
 function toNum(s?: string): number | null {
   const t = String(s ?? "").replace(/,/g, "").trim();
@@ -198,25 +236,26 @@ export default function Portal() {
     return reports.find(r => r.visit.date_of_test === current) || reports[0];
   }, [reports, selectedDate, visitDates]);
 
-  // Index of values by visit date -> analyte key -> { value, unit }
-  // Index of values by visit date -> analyte key -> { raw string, numeric (if any), unit }
-  const valueIndex = useMemo(() => {
-    const map = new Map<string, Map<string, { raw: string; num: number | null; unit?: string }>>();
-    for (const r of reports) {
-      const d = r.visit.date_of_test;
-      let m = map.get(d);
-      if (!m) { m = new Map(); map.set(d, m); }
-      for (const s of r.sections) {
-        for (const it of s.items) {
-          const raw = String(it.value ?? "").trim();
-          if (!raw) continue; // skip empty
-          const num = toNum(raw); // numeric or null
-          m.set(it.key, { raw, num, unit: it.unit });
-        }
+// Index by visit date -> analyte key -> { raw, num, unit }, excluding Remarks/Notes/etc.
+const valueIndex = useMemo(() => {
+  const map = new Map<string, Map<string, { raw: string; num: number | null; unit?: string }>>();
+  for (const r of reports) {
+    const d = r.visit.date_of_test;
+    let m = map.get(d);
+    if (!m) { m = new Map(); map.set(d, m); }
+    for (const s of r.sections) {
+      for (const it of s.items) {
+        if (shouldExcludeFromPrev(it, cfg)) continue; // ⬅️ important
+
+        const raw = String(it.value ?? "").trim();
+        if (!raw) continue;
+        const num = toNum(raw); // numeric or null
+        m.set(it.key, { raw, num, unit: it.unit });
       }
     }
-    return map;
-  }, [reports]);
+  }
+  return map;
+}, [reports, cfg]);  // ⬅️ include cfg so sheet changes take effect
 
 // Up to N previous visits (includes non-numeric). Most-recent first.
   function findPrevListAny(it: ReportItem, maxCount = 3): Array<{ date: string; raw: string; num: number | null; unit?: string }> {
@@ -551,8 +590,10 @@ export default function Portal() {
                       if (!it.value) return null;
                       const refText = formatRef(it.ref);
                       const cur = toNum(it.value);
-                      const prevList = compareOn ? findPrevListAny(it, 3) : [];
-                      const prev1Num = compareOn ? findPrevNumForDelta(it) : null;
+                      const skipPrev = shouldExcludeFromPrev(it, cfg);
+                      
+                      const prevList = compareOn && !skipPrev ? findPrevListAny(it, 3) : [];
+                      const prev1Num = compareOn && !skipPrev ? findPrevNumForDelta(it) : null;
 
                       // Δ vs the most recent numeric previous (if available)
                       let deltaText = "—";
