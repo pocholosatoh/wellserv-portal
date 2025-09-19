@@ -60,7 +60,6 @@ const suffixIfNumeric = (v: any, suffix: string): string => {
 };
 
 // Exact keys you never want to appear in "Prev"
-// Hard-exclude these exact keys from appearing in the Prev column
 const EXCLUDE_EXACT_KEYS = new Set([
   "chem_remarks",
   "hema_remarks",
@@ -75,18 +74,15 @@ const EXCLUDE_EXACT_LABELS = new Set(["remarks", "results", "result", "results/s
 function shouldExcludeFromPrev(it: ReportItem, cfg?: Record<string, string>): boolean {
   const keyRaw = String(it.key || "").trim().toLowerCase();
   const labelRaw = String(it.label || "").trim().toLowerCase().replace(/[:]/g, "");
+  if (EXCLUDE_EXACT_KEYS.has(keyRaw)) return true;
+  if (EXCLUDE_EXACT_LABELS.has(labelRaw)) return true;
 
-  if (EXCLUDE_EXACT_KEYS.has(keyRaw)) return true;      // hard block by key
-  if (EXCLUDE_EXACT_LABELS.has(labelRaw)) return true;  // hard block by label
-
-  // Allow exact-key excludes from Config too (comma-separated)
   const cfgKeys = (cfg?.prev_exclude_keys || "")
     .split(",")
     .map(s => s.trim().toLowerCase())
     .filter(Boolean);
   if (cfgKeys.includes(keyRaw)) return true;
 
-  // Substring safety net (catches "clinical remarks", "note:", etc.)
   const norm = (s?: string) =>
     String(s || "").toLowerCase().replace(/[_\-:.]+/g, " ").replace(/\s+/g, " ").trim();
   const label = norm(it.label);
@@ -97,7 +93,7 @@ function shouldExcludeFromPrev(it: ReportItem, cfg?: Record<string, string>): bo
   return false;
 }
 
-// parse a numeric string like "89.2" or "-1.5" (rejects "N/A", "Positive", etc.)
+// parse a numeric string
 function toNum(s?: string): number | null {
   const t = String(s ?? "").replace(/,/g, "").trim();
   const m = t.match(/^[-+]?\d*\.?\d+$/);
@@ -107,8 +103,7 @@ function toNum(s?: string): number | null {
 }
 const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
-
-// Collect footer lines from cfg: report_footer_line1..N (supports multi-line cell values)
+// Footer lines from config
 function getFooterLines(cfg: Record<string, string> | undefined): string[] {
   if (!cfg) return [];
   const keys = Object.keys(cfg).filter(k => /^report_footer_line\d+$/i.test(k));
@@ -146,7 +141,6 @@ function driveImageUrls(url?: string) {
 }
 
 function formatPrevDate(s: string): string {
-  // Accepts "YYYY-MM-DD" or "M/D/YYYY" (with or without leading zeros)
   let y = 0, m = 0, d = 0;
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
     const [yy, mm, dd] = s.split("-").map(Number);
@@ -162,7 +156,7 @@ function formatPrevDate(s: string): string {
   }
   const pad2 = (n: number) => String(n).padStart(2, "0");
   const yy2 = String(y).slice(-2);
-  return `${pad2(m)}/${pad2(d)}/'${yy2}`; // MM/DD/'YY
+  return `${pad2(m)}/${pad2(d)}/'${yy2}`;
 }
 
 function getSignersFromConfig(cfg: Record<string,string>) {
@@ -182,10 +176,9 @@ function getSignersFromConfig(cfg: Record<string,string>) {
   return { rmts, pathos };
 }
 
-// If your sheet provides a Drive link or ID, return a direct image URL
 function toImageUrl(url?: string) {
   if (!url) return "";
-  const m = url.match(/[-\w]{25,}/); // crude Drive file-id find
+  const m = url.match(/[-\w]{25,}/);
   return m ? `https://drive.google.com/uc?export=view&id=${m[0]}` : url;
 }
 
@@ -198,10 +191,10 @@ export default function Portal() {
   const [bootCfg, setBootCfg] = useState<Record<string, string> | null>(null);
   const [compareOn, setCompareOn] = useState(false);
   // Splash / preload states
-  const [bootLoaded, setBootLoaded] = useState(false);   // marks /api/config finished (success or fail)
-  const [logoLoaded, setLogoLoaded] = useState(false);   // clinic header logo
-  const [wmImgLoaded, setWmImgLoaded] = useState(false); // watermark image
-  const [splashDone, setSplashDone] = useState(false);   // when to hide splash
+  const [bootLoaded, setBootLoaded] = useState(false);
+  const [logoLoaded, setLogoLoaded] = useState(false);
+  const [wmImgLoaded, setWmImgLoaded] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -214,7 +207,7 @@ export default function Portal() {
         }
       } catch {}
       finally {
-        if (!ignore) setBootLoaded(true);   // 👈 important
+        if (!ignore) setBootLoaded(true);
       }
     })();
     return () => { ignore = true; };
@@ -223,7 +216,7 @@ export default function Portal() {
   const cfg = { ...(bootCfg || {}), ...(data?.config || {}) } as Record<string,string>;
   const reports = data?.reports ?? [];
 
-  // Dashboard footer visibility toggles (default: hidden until search)
+  // Dashboard footer visibility toggles
   const showFooterOnDashboard = (cfg?.footer_show_on_dashboard || "").toLowerCase() === "true";
   const showSignersOnDashboard = (cfg?.footer_show_signers_on_dashboard || "").toLowerCase() === "true";
   const hasReport = (reports?.length ?? 0) > 0;
@@ -236,12 +229,11 @@ export default function Portal() {
   const footerFontPx = Number(cfg?.report_footer_font_px) || 10;
   const footerGapPx  = Number(cfg?.report_footer_gap_px)  || 4;
 
-  // Watermark config (text or image)
+  // Watermark config
   const { primary: wmPrimary, fallback: wmFallback } = driveImageUrls(cfg?.watermark_image_url);
-  const wmImgUrl = wmPrimary || wmFallback; // prefer primary, fallback to lh3 host
+  const wmImgUrl = wmPrimary || wmFallback;
   const wmText = (cfg?.watermark_text || "").trim();
 
-  // Preload watermark image (if any) so we don’t swap text→image mid-render
   useEffect(() => {
     setWmImgLoaded(false);
     if (!wmImgUrl) { setWmImgLoaded(true); return; }
@@ -259,10 +251,9 @@ export default function Portal() {
   const wmFallbackText = (cfg?.watermark_default_text || (reports.length === 0 ? "WELLSERV" : "")).trim();
   const hasWm = Boolean(wmText || wmImgUrl || wmFallbackText);
 
-  // Visit notes toggle (default hidden)
   const showVisitNotes = (cfg?.show_visit_notes || "").toLowerCase() === "true";
 
-  // Derived report selection
+  // Visits
   const visitDates = useMemo(
     () => Array.from(new Set(reports.map(r => r.visit.date_of_test))).sort((a,b)=>b.localeCompare(a)),
     [reports]
@@ -273,66 +264,57 @@ export default function Portal() {
     return reports.find(r => r.visit.date_of_test === current) || reports[0];
   }, [reports, selectedDate, visitDates]);
 
-// Index by visit date -> analyte key -> { raw, num, unit }, excluding Remarks/Notes/etc.
-const valueIndex = useMemo(() => {
-  const map = new Map<string, Map<string, { raw: string; num: number | null; unit?: string }>>();
-  for (const r of reports) {
-    const d = r.visit.date_of_test;
-    let m = map.get(d);
-    if (!m) { m = new Map(); map.set(d, m); }
-    for (const s of r.sections) {
-      for (const it of s.items) {
-        if (shouldExcludeFromPrev(it, cfg)) continue; // ⬅️ important
-
-        const raw = String(it.value ?? "").trim();
-        if (!raw) continue;
-        const num = toNum(raw); // numeric or null
-        m.set(it.key, { raw, num, unit: it.unit });
+  // Build index for previous values
+  const valueIndex = useMemo(() => {
+    const map = new Map<string, Map<string, { raw: string; num: number | null; unit?: string }>>();
+    for (const r of reports) {
+      const d = r.visit.date_of_test;
+      let m = map.get(d);
+      if (!m) { m = new Map(); map.set(d, m); }
+      for (const s of r.sections) {
+        for (const it of s.items) {
+          if (shouldExcludeFromPrev(it, cfg)) continue;
+          const raw = String(it.value ?? "").trim();
+          if (!raw) continue;
+          const num = toNum(raw);
+          m.set(it.key, { raw, num, unit: it.unit });
+        }
       }
     }
-  }
-  return map;
-}, [reports, cfg]);  // ⬅️ include cfg so sheet changes take effect
+    return map;
+  }, [reports, cfg]);
 
-// Up to N previous visits (includes non-numeric). Most-recent first.
   function findPrevListAny(it: ReportItem, maxCount = 3): Array<{ date: string; raw: string; num: number | null; unit?: string }> {
     if (!report) return [];
     const currentDate = report.visit.date_of_test;
-    const idx = visitDates.indexOf(currentDate); // visitDates is DESC
+    const idx = visitDates.indexOf(currentDate);
     if (idx < 0) return [];
-
     const out: Array<{ date: string; raw: string; num: number | null; unit?: string }> = [];
     for (let i = idx + 1; i < visitDates.length && out.length < maxCount; i++) {
       const d = visitDates[i];
       const rec = valueIndex.get(d)?.get(it.key);
       if (!rec) continue;
-      // For display, we allow non-numeric and ignore unit mismatches
       out.push({ date: d, raw: rec.raw, num: rec.num, unit: rec.unit });
     }
     return out;
   }
 
-  // For Δ: get the MOST RECENT previous that is numeric AND (if both have units) same unit
   function findPrevNumForDelta(it: ReportItem): { date: string; value: number } | null {
     if (!report) return null;
     const currentDate = report.visit.date_of_test;
     const idx = visitDates.indexOf(currentDate);
     if (idx < 0) return null;
-
     const curNum = toNum(it.value);
     if (curNum == null) return null;
-
     for (let i = idx + 1; i < visitDates.length; i++) {
       const d = visitDates[i];
       const rec = valueIndex.get(d)?.get(it.key);
       if (!rec || rec.num == null) continue;
-      if (it.unit && rec.unit && it.unit !== rec.unit) continue; // guard mismatched units
+      if (it.unit && rec.unit && it.unit !== rec.unit) continue;
       return { date: d, value: rec.num };
     }
     return null;
   }
-
-
 
   async function search() {
     if (!patientId) return;
@@ -362,7 +344,6 @@ const valueIndex = useMemo(() => {
   const { primary: logoPrimary, fallback: logoFallback } = driveImageUrls(cfg.clinic_logo_url);
   const logoSrc = logoPrimary;
 
-  // Preload clinic logo so it’s ready before we render it
   useEffect(() => {
     setLogoLoaded(false);
     if (!logoSrc) { setLogoLoaded(true); return; }
@@ -371,17 +352,15 @@ const valueIndex = useMemo(() => {
     img.src = logoSrc;
   }, [logoSrc]);
 
-  // --- Splash control (hide when ready or after a short max wait) ---
+  // Splash control
   const splashEnabled = (cfg?.loading_splash_enabled ?? "true").toString().toLowerCase() === "true";
-  const splashMaxMs   = Number(cfg?.loading_splash_max_ms ?? 900); // ms
-
-  // Ready when: config fetched + logo preloaded + watermark image preloaded
+  const splashMaxMs   = Number(cfg?.loading_splash_max_ms ?? 900);
   const readyTargetsOk = bootLoaded && logoLoaded && wmImgLoaded;
 
   useEffect(() => {
     if (!splashEnabled) { setSplashDone(true); return; }
     if (readyTargetsOk) { setSplashDone(true); return; }
-    const t = setTimeout(() => setSplashDone(true), splashMaxMs); // failsafe
+    const t = setTimeout(() => setSplashDone(true), splashMaxMs);
     return () => clearTimeout(t);
   }, [splashEnabled, readyTargetsOk, splashMaxMs]);
 
@@ -391,7 +370,6 @@ const valueIndex = useMemo(() => {
     <div className="page" style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
       <style>{`
         :root{
-          /* ---------- theme knobs ---------- */
           --font-base: 14px;
           --font-heading: 18px;
           --font-title: 18px;
@@ -407,7 +385,6 @@ const valueIndex = useMemo(() => {
         h3 { font-size: var(--font-heading); }
 
         .container { max-width: 960px; margin: 0 auto; padding: 16px; }
-        .controls { display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; }
         .content { flex: 1 0 auto; }
         th, td { padding: var(--row-pad); }
 
@@ -416,6 +393,23 @@ const valueIndex = useMemo(() => {
         .clinic img { height: var(--logo-height); width:auto; object-fit: contain; display:block; }
         .clinic-name { font-weight: 700; font-size: 20px; line-height: 1.2; }
         .clinic-sub { color:#444; }
+
+        /* toolbar with title + search (moves search next to the title) */
+        .toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin: 6px 0 8px; }
+        .toolbar h1 { margin: 0; }
+        .searchbar { display:flex; gap:8px; align-items:center; }
+
+        /* patient header (name, sex/age/DOB) */
+        .patient-head {
+          display:flex; align-items:baseline; justify-content:space-between;
+          gap:12px; padding:10px 12px; margin: 8px 0 10px;
+          border:1px solid var(--border); border-radius:12px; background:#fff;
+        }
+        .ph-name { font-size: 20px; font-weight: 800; letter-spacing: .2px; }
+        .ph-meta { color:#444; }
+
+        /* controls row under summary */
+        .controls { display:flex; gap:12px; margin:12px 0; flex-wrap:wrap; }
 
         /* footer */
         .report-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border); font-size: 14px; color: var(--brand); }
@@ -429,7 +423,7 @@ const valueIndex = useMemo(() => {
         tbody td { border-bottom: 1px solid rgba(0,0,0,0.04); }
 
         @media print {
-          .controls { display:none !important; }
+          .toolbar, .controls { display:none !important; }
           .report-footer { page-break-inside: avoid; }
           body { margin: 0; }
         }
@@ -439,7 +433,7 @@ const valueIndex = useMemo(() => {
         .page > * { position: relative; z-index: 1; }
         .wm-layer { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; pointer-events: none; z-index: 0; }
         .wm-text { font-weight: 700; color: #000; letter-spacing: 0.1em; font-size: var(--wm-size, 10vw); white-space: nowrap; text-transform: uppercase; mix-blend-mode: multiply; opacity: var(--wm-opacity, 0.08); transform: rotate(var(--wm-angle, -30deg)); }
-        .wm-img { width: var(--wm-size, 60vw); height: auto; opacity: var(--wm-opacity, 0.06); transform: rotate(var(--wm-angle, -30deg)); // filter: grayscale(100%); mix-blend-mode: multiply; // }
+        .wm-img { width: var(--wm-size, 60vw); height: auto; opacity: var(--wm-opacity, 0.06); transform: rotate(var(--wm-angle, -30deg)); }
         @media print {
           .wm-layer { display: flex !important; }
           .wm-layer[data-print="off"] { display: none !important; }
@@ -447,67 +441,31 @@ const valueIndex = useMemo(() => {
         }
 
         /* Splash overlay */
-        .splash {
-          position: fixed;
-          inset: 0;
-          display: grid;
-          place-items: center;
-          background: #fff;
-          z-index: 9999;
-          opacity: 1;
-          transition: opacity .2s ease;
-        }
+        .splash { position: fixed; inset: 0; display: grid; place-items: center; background: #fff; z-index: 9999; opacity: 1; transition: opacity .2s ease; }
         .splash-inner { text-align: center; display: grid; gap: 10px; }
         .splash-text { font-size: 14px; color: #666; }
-        .splash-dot {
-          width: 6px; height: 6px; border-radius: 9999px; background: #222;
-          margin: 6px auto 0; animation: pulse 1s ease-in-out infinite;
-        }
-        @keyframes pulse {
-          0%, 100% { transform: scale(0.8); opacity: .4; }
-          50%      { transform: scale(1.3); opacity: 1; }
-        }
+        .splash-dot { width: 6px; height: 6px; border-radius: 9999px; background: #222; margin: 6px auto 0; animation: pulse 1s ease-in-out infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: .4; } 50% { transform: scale(1.3); opacity: 1; } }
 
-       /* Patient Summary Card */
-        .ps-card {
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 14px;
-          margin: 10px 0 14px;
-          background: #fafafa;
-        }
+        /* Patient Summary Card */
+        .ps-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin: 10px 0 14px; background: #fafafa; }
         .ps-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
         .ps-title { font-weight: 700; }
         .ps-badge { font-size:12px; color:#555; background:#f0f0f0; border:1px solid #e6e6e6; border-radius:999px; padding:2px 8px; }
-
-        .ps-grid {
-          display:grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
-          gap: 10px 16px;
-        }
+        .ps-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 10px 16px; }
         .ps-label { color:#666; font-size:12px; }
         .ps-value { font-weight:600; }
-        .ps-muted { color:#666; font-size:12px; }
-        .ps-span2 { grid-column: 1 / -1; }
+        .ps-multi { white-space:pre-wrap; line-height:1.25; }
+        .ps-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #ddd; background:#fff; }
+        .ps-sep { grid-column:1 / -1; height:1px; background:#e9e9e9; margin:6px 0; }
 
-        .ps-pill {
-          display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px;
-          border:1px solid #ddd; background:#fff;
-        }
-
-        /* Print */
-        @media print {
-          .ps-card { page-break-inside: avoid; background: #fff; }
-        }
-        
+        @media print { .ps-card { page-break-inside: avoid; background: #fff; } }
       `}</style>
 
       {showSplash && (
         <div className="splash">
           <div className="splash-inner">
-            {logoSrc ? (
-              <img src={logoSrc} alt="" referrerPolicy="no-referrer" style={{ maxHeight: 72 }} />
-            ) : null}
+            {logoSrc ? <img src={logoSrc} alt="" referrerPolicy="no-referrer" style={{ maxHeight: 72 }} /> : null}
             <div className="splash-text">{cfg?.loading_splash_text || "Loading WELLSERV® Portal…"}</div>
             <div className="splash-dot" aria-hidden />
           </div>
@@ -544,9 +502,7 @@ const valueIndex = useMemo(() => {
         </div>
       )}
 
-      <div className="container content"
-        style={{ opacity: showSplash ? 0 : 1, pointerEvents: showSplash ? "none" : "auto" }}
-      >
+      <div className="container content" style={{ opacity: showSplash ? 0 : 1, pointerEvents: showSplash ? "none" : "auto" }}>
         {/* ---------- CLINIC HEADER ---------- */}
         {(cfg.clinic_name || cfg.clinic_logo_url || cfg.clinic_address || cfg.clinic_phone) && (
           <div className="clinic" style={{ flexDirection:"column", alignItems:"center", textAlign:"center" }}>
@@ -570,17 +526,50 @@ const valueIndex = useMemo(() => {
           </div>
         )}
 
-        <h1 className="print:hidden" style={{ marginTop: 4, marginBottom: 8 }}>View Lab Results</h1>
+        {/* ---------- Title + Search ---------- */}
+        <div className="toolbar print:hidden">
+          <h1>View Lab Results</h1>
+          <div className="searchbar">
+            <input
+              value={patientId}
+              onChange={(e) => setPatientId(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !loading && patientId.trim()) {
+                  e.preventDefault();
+                  search();
+                }
+              }}
+              placeholder="Enter Patient ID"
+              style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6, width:260 }}
+            />
+            <button
+              onClick={search}
+              disabled={loading || !patientId.trim()}
+              style={{ padding:"8px 14px", borderRadius:6, border:"1px solid #222", background:"#222", color:"#fff" }}
+            >
+              {loading ? "Loading..." : "View"}
+            </button>
+          </div>
+        </div>
 
+        {/* ---------- Patient Header (above the card) ---------- */}
+        {report && (
+          <div className="patient-head">
+            <div className="ph-name">{report.patient.full_name}</div>
+            <div className="ph-meta">
+              {report.patient.sex} • {report.patient.age} yrs • DOB {report.patient.birthday}
+            </div>
+          </div>
+        )}
+
+        {/* ---------- Patient Summary Card ---------- */}
         {report && (() => {
           const p: any = report.patient || {};
 
           // Vitals & contact
           const htFt = p.height_ft, htIn = p.height_inch, wtKg = p.weight_kg;
           const bmi = bmiFromFtInKg(htFt, htIn, wtKg);
-          const bpStr = (p.systolic_bp && p.diastolic_bp)
-            ? `${p.systolic_bp}/${p.diastolic_bp} mmHg` : "";
-
+          const bpStr = (p.systolic_bp && p.diastolic_bp) ? `${p.systolic_bp}/${p.diastolic_bp} mmHg` : "";
           const smoking = suffixIfNumeric(p.smoking_hx, "packs/mo");
           const alcohol = suffixIfNumeric(p.alcohol_hx, "bottles/mo");
 
@@ -599,7 +588,6 @@ const valueIndex = useMemo(() => {
 
           const lastUpd = (p.last_updated || "").trim();
 
-          // Do we have anything to show?
           const hasVitals = (!!htFt || !!htIn || !!wtKg || !!bmi || !!bpStr || !!smoking || !!alcohol);
           const hasContact = (!!email || !!phone || !!addr);
           const hasNarr = (!!chief || !!hpi || !!pmh || !!psh || !!allergies || !!medsText || !!famHx);
@@ -615,149 +603,42 @@ const valueIndex = useMemo(() => {
 
               <div className="ps-grid">
                 {/* VITALS */}
-                { (htFt || htIn) && (
-                  <div>
-                    <div className="ps-label">Height</div>
-                    <div className="ps-value">{fmtFtIn(htFt, htIn)}</div>
-                  </div>
-                )}
-
-                {!!wtKg && (
-                  <div>
-                    <div className="ps-label">Weight</div>
-                    <div className="ps-value">{withUnit(wtKg, "kg")}</div>
-                  </div>
-                )}
-
+                {(htFt || htIn) && (<div><div className="ps-label">Height</div><div className="ps-value">{fmtFtIn(htFt, htIn)}</div></div>)}
+                {!!wtKg && (<div><div className="ps-label">Weight</div><div className="ps-value">{withUnit(wtKg, "kg")}</div></div>)}
                 {bmi != null && (
                   <div>
                     <div className="ps-label">BMI</div>
-                    <div className="ps-value">
-                      {bmi} <span className="ps-pill">{bmiClass(bmi)}</span>
-                    </div>
+                    <div className="ps-value">{bmi} <span className="ps-pill">{bmiClass(bmi)}</span></div>
                   </div>
                 )}
-
-                {!!bpStr && (
-                  <div>
-                    <div className="ps-label">Blood Pressure</div>
-                    <div className="ps-value">{bpStr}</div>
-                  </div>
-                )}
-
-                {!!smoking && (
-                  <div>
-                    <div className="ps-label">Smoking</div>
-                    <div className="ps-value">{smoking}</div>
-                  </div>
-                )}
-
-                {!!alcohol && (
-                  <div>
-                    <div className="ps-label">Alcohol</div>
-                    <div className="ps-value">{alcohol}</div>
-                  </div>
-                )}
+                {!!bpStr && (<div><div className="ps-label">Blood Pressure</div><div className="ps-value">{bpStr}</div></div>)}
+                {!!smoking && (<div><div className="ps-label">Smoking</div><div className="ps-value">{smoking}</div></div>)}
+                {!!alcohol && (<div><div className="ps-label">Alcohol</div><div className="ps-value">{alcohol}</div></div>)}
 
                 {/* CONTACT */}
-                {!!phone && (
-                  <div>
-                    <div className="ps-label">Contact</div>
-                    <div className="ps-value">{phone}</div>
-                  </div>
-                )}
-                {!!email && (
-                  <div>
-                    <div className="ps-label">Email</div>
-                    <div className="ps-value">{email}</div>
-                  </div>
-                )}
-                {/* ADDRESS (grid item, not full-width) */}
-                {!!addr && (
-                  <div>
-                    <div className="ps-label">Address</div>
-                    <div className="ps-value ps-multi">{addr}</div>
-                  </div>
-                )}
+                {!!phone && (<div><div className="ps-label">Contact</div><div className="ps-value">{phone}</div></div>)}
+                {!!email && (<div><div className="ps-label">Email</div><div className="ps-value">{email}</div></div>)}
+                {!!addr  && (<div><div className="ps-label">Address</div><div className="ps-value ps-multi">{addr}</div></div>)}
 
-                {/* NARRATIVE FIELDS (grid items, bold values like above) */}
-                {!!chief && (
-                  <div>
-                    <div className="ps-label">Chief Complaint</div>
-                    <div className="ps-value ps-multi">{chief}</div>
-                  </div>
-                )}
+                {/* subtle divider between contact/address and narratives */}
+                {(hasContact && hasNarr) && <div className="ps-sep" />}
 
-                {!!hpi && (
-                  <div>
-                    <div className="ps-label">Present Illness History</div>
-                    <div className="ps-value ps-multi">{hpi}</div>
-                  </div>
-                )}
-
-                {!!pmh && (
-                  <div>
-                    <div className="ps-label">Past Medical History</div>
-                    <div className="ps-value ps-multi">{pmh}</div>
-                  </div>
-                )}
-
-                {!!psh && (
-                  <div>
-                    <div className="ps-label">Past Surgical History</div>
-                    <div className="ps-value ps-multi">{psh}</div>
-                  </div>
-                )}
-
-                {!!allergies && (
-                  <div>
-                    <div className="ps-label">Allergies</div>
-                    <div className="ps-value ps-multi">{allergies}</div>
-                  </div>
-                )}
-
-                {!!medsText && (
-                  <div>
-                    <div className="ps-label">Medications</div>
-                    <div className="ps-value ps-multi">{medsText}</div>
-                  </div>
-                )}
-
-                {!!famHx && (
-                  <div>
-                    <div className="ps-label">Family History</div>
-                    <div className="ps-value ps-multi">{famHx}</div>
-                  </div>
-                )}
-
+                {/* NARRATIVES */}
+                {!!chief && (<div><div className="ps-label">Chief Complaint</div><div className="ps-value ps-multi">{chief}</div></div>)}
+                {!!hpi   && (<div><div className="ps-label">Present Illness History</div><div className="ps-value ps-multi">{hpi}</div></div>)}
+                {!!pmh   && (<div><div className="ps-label">Past Medical History</div><div className="ps-value ps-multi">{pmh}</div></div>)}
+                {!!psh   && (<div><div className="ps-label">Past Surgical History</div><div className="ps-value ps-multi">{psh}</div></div>)}
+                {!!allergies && (<div><div className="ps-label">Allergies</div><div className="ps-value ps-multi">{allergies}</div></div>)}
+                {!!medsText  && (<div><div className="ps-label">Medications</div><div className="ps-value ps-multi">{medsText}</div></div>)}
+                {!!famHx     && (<div><div className="ps-label">Family History</div><div className="ps-value ps-multi">{famHx}</div></div>)}
               </div>
             </section>
           );
         })()}
 
+        {/* ---------- Controls (unchanged: compare, visit date, print) ---------- */}
         <div className="controls">
-          <input
-            value={patientId}
-            onChange={(e) => setPatientId(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !loading && patientId.trim()) {
-                e.preventDefault();
-                search();
-              }
-            }}
-            placeholder="Enter Patient ID"
-            style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6, width:260 }}
-          />
-
-          <button
-            onClick={search}
-            disabled={loading || !patientId.trim()}
-            style={{ padding:"8px 14px", borderRadius:6, border:"1px solid #222222ff", background:"#222", color:"#fff" }}
-          >
-            {loading ? "Loading..." : "View"}
-          </button>
-
-          <label style={{ display:"flex", alignItems:"center", gap:6, marginLeft:12 }}>
+          <label style={{ display:"flex", alignItems:"center", gap:6 }}>
             <input
               type="checkbox"
               checked={compareOn}
@@ -765,7 +646,6 @@ const valueIndex = useMemo(() => {
             />
             Compare with prev. visit/s
           </label>
-
 
           {visitDates.length > 0 && (
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -781,7 +661,7 @@ const valueIndex = useMemo(() => {
               <button
                 onClick={() => window.print()}
                 className="print:hidden"
-                style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6, marginLeft:8 }}
+                style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6 }}
               >
                 Print / Save as PDF
               </button>
@@ -793,16 +673,6 @@ const valueIndex = useMemo(() => {
 
         {report && (
           <>
-            <div style={{ margin:"12px 0", lineHeight:1.4 }}>
-              <div style={{ fontWeight:700 }}>{report.patient.full_name}</div>
-              <div>{report.patient.sex} • {report.patient.age} yrs • DOB {report.patient.birthday}</div>
-              <div>Date of Test: <b>{report.visit.date_of_test}</b></div>
-
-              {showVisitNotes && report?.visit?.notes?.trim() && (
-                <div><strong>Notes:</strong> {report.visit.notes}</div>
-              )}
-            </div>
-
             {report.sections.map(section => (
               <div key={section.name} style={{ marginTop:18 }}>
                 <h3 style={{ margin:"10px 0" }}>{section.name}</h3>
@@ -824,11 +694,9 @@ const valueIndex = useMemo(() => {
                       const refText = formatRef(it.ref);
                       const cur = toNum(it.value);
                       const skipPrev = shouldExcludeFromPrev(it, cfg);
-                      
                       const prevList = compareOn && !skipPrev ? findPrevListAny(it, 3) : [];
                       const prev1Num = compareOn && !skipPrev ? findPrevNumForDelta(it) : null;
 
-                      // Δ vs the most recent numeric previous (if available)
                       let deltaText = "—";
                       let deltaColor = "#666";
                       if (cur != null && prev1Num) {
@@ -869,8 +737,6 @@ const valueIndex = useMemo(() => {
                           </td>
                         </tr>
                       );
-
-
                     })}
                   </tbody>
                 </table>
