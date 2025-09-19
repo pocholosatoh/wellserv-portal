@@ -22,6 +22,43 @@ function formatRef(ref?: RefInfo) {
   return "";
 }
 
+// --- Patient Summary helpers ---
+const num = (x: any): number | null => {
+  const s = String(x ?? "").replace(/[^\d.-]/g, "").trim();
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+};
+const heightM = (ft?: any, inch?: any): number | null => {
+  const f = num(ft) ?? 0, i = num(inch) ?? 0;
+  const totalIn = f * 12 + i;
+  return totalIn > 0 ? totalIn * 0.0254 : null;
+};
+const bmiFromFtInKg = (ft?: any, inch?: any, kg?: any): number | null => {
+  const m = heightM(ft, inch);
+  const w = num(kg);
+  if (!m || !w) return null;
+  return Math.round((w / (m * m)) * 10) / 10;
+};
+const bmiClass = (bmi: number): string => {
+  if (bmi < 18.5) return "Underweight";
+  if (bmi < 25) return "Normal";
+  if (bmi < 30) return "Overweight";
+  return "Obese";
+};
+const fmtFtIn = (ft?: any, inch?: any): string => {
+  const f = num(ft), i = num(inch);
+  if (f == null && i == null) return "";
+  return `${f ?? 0}′ ${i ?? 0}″`;
+};
+const withUnit = (v: any, u: string): string =>
+  String(v ?? "").toString().trim() ? `${v} ${u}` : "";
+const suffixIfNumeric = (v: any, suffix: string): string => {
+  const s = String(v ?? "").trim();
+  if (!s) return "";
+  return num(s) != null ? `${s} ${suffix}` : s; // accept free text too
+};
+
 // Exact keys you never want to appear in "Prev"
 // Hard-exclude these exact keys from appearing in the Prev column
 const EXCLUDE_EXACT_KEYS = new Set([
@@ -430,6 +467,39 @@ const valueIndex = useMemo(() => {
           0%, 100% { transform: scale(0.8); opacity: .4; }
           50%      { transform: scale(1.3); opacity: 1; }
         }
+
+       /* Patient Summary Card */
+        .ps-card {
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 14px;
+          margin: 10px 0 14px;
+          background: #fafafa;
+        }
+        .ps-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+        .ps-title { font-weight: 700; }
+        .ps-badge { font-size:12px; color:#555; background:#f0f0f0; border:1px solid #e6e6e6; border-radius:999px; padding:2px 8px; }
+
+        .ps-grid {
+          display:grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+          gap: 10px 16px;
+        }
+        .ps-label { color:#666; font-size:12px; }
+        .ps-value { font-weight:600; }
+        .ps-muted { color:#666; font-size:12px; }
+        .ps-span2 { grid-column: 1 / -1; }
+
+        .ps-pill {
+          display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px;
+          border:1px solid #ddd; background:#fff;
+        }
+
+        /* Print */
+        @media print {
+          .ps-card { page-break-inside: avoid; background: #fff; }
+        }
+        
       `}</style>
 
       {showSplash && (
@@ -501,6 +571,169 @@ const valueIndex = useMemo(() => {
         )}
 
         <h1 className="print:hidden" style={{ marginTop: 4, marginBottom: 8 }}>View Lab Results</h1>
+
+        {report && (() => {
+          const p: any = report.patient || {};
+
+          // Vitals & contact
+          const htFt = p.height_ft, htIn = p.height_inch, wtKg = p.weight_kg;
+          const bmi = bmiFromFtInKg(htFt, htIn, wtKg);
+          const bpStr = (p.systolic_bp && p.diastolic_bp)
+            ? `${p.systolic_bp}/${p.diastolic_bp} mmHg` : "";
+
+          const smoking = suffixIfNumeric(p.smoking_hx, "packs/mo");
+          const alcohol = suffixIfNumeric(p.alcohol_hx, "bottles/mo");
+
+          const email = (p.email || "").trim();
+          const phone = (p.contact || "").trim();
+          const addr  = (p.address || "").trim();
+
+          // Narratives
+          const chief = (p.chief_complaint || "").trim();
+          const hpi   = (p.present_illness_history || "").trim();
+          const pmh   = (p.past_medical_history || "").trim();
+          const psh   = (p.past_surgical_history || "").trim();
+          const allergies = (p.allergies_text || "").trim();
+          const medsText  = (p.medications_current || p.medications || "").trim();
+          const famHx = (p.family_hx || p.family_history || "").trim();
+
+          const lastUpd = (p.last_updated || "").trim();
+
+          // Do we have anything to show?
+          const hasVitals = (!!htFt || !!htIn || !!wtKg || !!bmi || !!bpStr || !!smoking || !!alcohol);
+          const hasContact = (!!email || !!phone || !!addr);
+          const hasNarr = (!!chief || !!hpi || !!pmh || !!psh || !!allergies || !!medsText || !!famHx);
+
+          if (!hasVitals && !hasContact && !hasNarr) return null;
+
+          return (
+            <section className="ps-card">
+              <div className="ps-head">
+                <div className="ps-title">Patient Summary</div>
+                {lastUpd && <div className="ps-badge">Last updated: {lastUpd}</div>}
+              </div>
+
+              <div className="ps-grid">
+                {/* VITALS */}
+                { (htFt || htIn) && (
+                  <div>
+                    <div className="ps-label">Height</div>
+                    <div className="ps-value">{fmtFtIn(htFt, htIn)}</div>
+                  </div>
+                )}
+
+                {!!wtKg && (
+                  <div>
+                    <div className="ps-label">Weight</div>
+                    <div className="ps-value">{withUnit(wtKg, "kg")}</div>
+                  </div>
+                )}
+
+                {bmi != null && (
+                  <div>
+                    <div className="ps-label">BMI</div>
+                    <div className="ps-value">
+                      {bmi} <span className="ps-pill">{bmiClass(bmi)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {!!bpStr && (
+                  <div>
+                    <div className="ps-label">Blood Pressure</div>
+                    <div className="ps-value">{bpStr}</div>
+                  </div>
+                )}
+
+                {!!smoking && (
+                  <div>
+                    <div className="ps-label">Smoking</div>
+                    <div className="ps-value">{smoking}</div>
+                  </div>
+                )}
+
+                {!!alcohol && (
+                  <div>
+                    <div className="ps-label">Alcohol</div>
+                    <div className="ps-value">{alcohol}</div>
+                  </div>
+                )}
+
+                {/* CONTACT */}
+                {!!phone && (
+                  <div>
+                    <div className="ps-label">Contact</div>
+                    <div className="ps-value">{phone}</div>
+                  </div>
+                )}
+                {!!email && (
+                  <div>
+                    <div className="ps-label">Email</div>
+                    <div className="ps-value">{email}</div>
+                  </div>
+                )}
+                {/* ADDRESS (grid item, not full-width) */}
+                {!!addr && (
+                  <div>
+                    <div className="ps-label">Address</div>
+                    <div className="ps-value ps-multi">{addr}</div>
+                  </div>
+                )}
+
+                {/* NARRATIVE FIELDS (grid items, bold values like above) */}
+                {!!chief && (
+                  <div>
+                    <div className="ps-label">Chief Complaint</div>
+                    <div className="ps-value ps-multi">{chief}</div>
+                  </div>
+                )}
+
+                {!!hpi && (
+                  <div>
+                    <div className="ps-label">Present Illness History</div>
+                    <div className="ps-value ps-multi">{hpi}</div>
+                  </div>
+                )}
+
+                {!!pmh && (
+                  <div>
+                    <div className="ps-label">Past Medical History</div>
+                    <div className="ps-value ps-multi">{pmh}</div>
+                  </div>
+                )}
+
+                {!!psh && (
+                  <div>
+                    <div className="ps-label">Past Surgical History</div>
+                    <div className="ps-value ps-multi">{psh}</div>
+                  </div>
+                )}
+
+                {!!allergies && (
+                  <div>
+                    <div className="ps-label">Allergies</div>
+                    <div className="ps-value ps-multi">{allergies}</div>
+                  </div>
+                )}
+
+                {!!medsText && (
+                  <div>
+                    <div className="ps-label">Medications</div>
+                    <div className="ps-value ps-multi">{medsText}</div>
+                  </div>
+                )}
+
+                {!!famHx && (
+                  <div>
+                    <div className="ps-label">Family History</div>
+                    <div className="ps-value ps-multi">{famHx}</div>
+                  </div>
+                )}
+
+              </div>
+            </section>
+          );
+        })()}
 
         <div className="controls">
           <input

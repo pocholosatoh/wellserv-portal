@@ -6,8 +6,8 @@ export type Row = Record<string, string>;
 export type ConfigMap = Record<string, string>;
 
 const DEMO_KEYS = new Set([
-  "barcode","patient_id","full_name","age","sex","birthday","contact",
-  "address","date_of_test","notes"
+  "barcode", "patient_id", "full_name", "age", "sex", "birthday", "contact",
+  "address", "date_of_test", "notes"
 ]);
 
 const HIDDEN_KEYS = new Set(["hema_100"]);
@@ -69,20 +69,35 @@ function rowsToObjects(values: RawRow[]): Row[] {
   });
 }
 
+// Normalize object keys to snake_case (for tolerant column headers)
+function normalizeKeys<T extends Row>(row: T): T {
+  const out: Row = {};
+  for (const [k, v] of Object.entries(row)) {
+    const nk = String(k)
+      .trim()
+      .toLowerCase()
+      .replace(/[^\w]+/g, "_")   // spaces, slashes, punctuation -> _
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    out[nk] = typeof v === "string" ? v.trim() : (v as any);
+  }
+  return out as T;
+}
+
 // ---- Public readers ----
 export async function readResults(): Promise<Row[]> {
-  const range = requireEnv("SHEET_RANGE");     // Results!A:ZZ
+  const range = requireEnv("SHEET_RANGE");     // e.g., "Results!A:ZZ"
   const values = await fetchRange(range);
   return rowsToObjects(values);
 }
 export async function readRanges(): Promise<Row[]> {
-  const range = requireEnv("SHEET_RANGES");    // Ranges!A:K
+  const range = requireEnv("SHEET_RANGES");    // e.g., "Ranges!A:K"
   const values = await fetchRange(range);
   return rowsToObjects(values);
 }
 
 export async function readConfig(): Promise<Record<string,string>> {
-  const range = requireEnv("SHEET_CONFIG");
+  const range = requireEnv("SHEET_CONFIG");    // e.g., "Config!A:B"
   const values = await fetchRange(range);
   const out: Record<string,string> = {};
   for (const row of values) {
@@ -92,7 +107,22 @@ export async function readConfig(): Promise<Record<string,string>> {
   return out;
 }
 
-
+/**
+ * Read the Patients tab.
+ * Uses env SHEET_PATIENTS if provided, otherwise defaults to "Patients!A:ZZ".
+ * Keys are normalized to snake_case for resilience (e.g., "Past Surgical Hi" -> "past_surgical_hi").
+ */
+export async function readPatients(): Promise<Row[]> {
+  const range = process.env.SHEET_PATIENTS || "Patients!A:ZZ";
+  try {
+    const values = await fetchRange(range);
+    const rows = rowsToObjects(values);
+    return rows.map(normalizeKeys);
+  } catch (e) {
+    // If the sheet/tab doesn't exist yet, return empty to keep API resilient
+    return [];
+  }
+}
 
 // ---- Domain helpers (mapping/flags/sections) ----
 export type RangeMeta = {
@@ -179,7 +209,6 @@ function computeFlag(valRaw: string, meta?: RangeMeta): "" | "L" | "H" | "A" {
 
   return "";
 }
-
 
 function formatValue(valRaw: string, meta?: RangeMeta): string {
   if (isEmptyLike(valRaw)) return "";
