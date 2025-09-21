@@ -17,6 +17,8 @@ export type HemaRow = {
 };
 
 const TAB = (process.env.HEMA_TAB || "Database").trim();
+const MAX_COLUMN_INDEX = 24; // Column X
+const MAX_COLUMN_A1 = colToA1(MAX_COLUMN_INDEX);
 
 // exact column headers we expect in the sheet (and CSV)
 export const HEMA_HEADERS = [
@@ -122,13 +124,14 @@ export async function updateHemaToDatabase(sheetId: string, rows: HemaRow[]) {
   // read entire tab
   const { data } = await api.spreadsheets.values.get({
     spreadsheetId: sheetId,
-    range: `${TAB}!A:ZZ`,
+    range: `${TAB}!A:${MAX_COLUMN_A1}`,
     valueRenderOption: "UNFORMATTED_VALUE",
     dateTimeRenderOption: "FORMATTED_STRING",
     majorDimension: "ROWS",
   });
 
-  const matrix: any[][] = (data.values as any[][]) || [];
+  const matrixRaw: any[][] = (data.values as any[][]) || [];
+  const matrix = matrixRaw.map(row => row.slice(0, MAX_COLUMN_INDEX));
   const headers: string[] = (matrix[0] || []).map(h => String(h).trim());
   if (!headers.length) throw new Error(`Sheet ${sheetId} "${TAB}" has no header row`);
 
@@ -161,7 +164,8 @@ export async function updateHemaToDatabase(sheetId: string, rows: HemaRow[]) {
 
     // existing row values
     const row0 = (matrix[r1 - 1] || []).slice();
-    while (row0.length < headers.length) row0.push("");
+    while (row0.length < MAX_COLUMN_INDEX) row0.push("");
+    row0.splice(MAX_COLUMN_INDEX);
 
     // set only our hema headers
     for (const h of HEMA_HEADERS) {
@@ -170,7 +174,7 @@ export async function updateHemaToDatabase(sheetId: string, rows: HemaRow[]) {
     }
 
     updates.push({
-      range: `${TAB}!A${r1}:${colToA1(headers.length)}${r1}`,
+      range: `${TAB}!A${r1}:${MAX_COLUMN_A1}${r1}`,
       values: [row0],
     });
   }
