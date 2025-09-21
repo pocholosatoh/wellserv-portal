@@ -1,12 +1,11 @@
 "use client";
-
 import { useState } from "react";
 import Papa, { ParseResult } from "papaparse";
+import { BRANCHES } from "@/lib/branches";  // <-- only key + label used on client
 
 type Row = Record<string, any>;
-type PanelKey = "si" | "sl";
 
-function Panel({ label, sheetKey }: { label: string; sheetKey: PanelKey }) {
+function Panel({ label, sheetKey }: { label: string; sheetKey: string }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [status, setStatus] = useState("");
 
@@ -15,12 +14,11 @@ function Panel({ label, sheetKey }: { label: string; sheetKey: PanelKey }) {
     Papa.parse<Row>(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (results: ParseResult<Row>) => {
-        const data = results.data || [];
-        setRows(data);
-        setStatus(`Parsed ${data.length} rows`);
+      complete: (res: ParseResult<Row>) => {
+        setRows(res.data || []);
+        setStatus(`Parsed ${res.data?.length ?? 0} rows`);
       },
-      error: (err: any) => setStatus(`Parse error${err?.message ? `: ${err.message}` : ""}`),
+      error: (err) => setStatus(`Parse error${(err as any)?.message ? `: ${(err as any).message}` : ""}`),
     });
   }
 
@@ -35,10 +33,7 @@ function Panel({ label, sheetKey }: { label: string; sheetKey: PanelKey }) {
       body: JSON.stringify({ sheetKey, rows }),
     });
     const json = await res.json();
-    if (!res.ok) {
-      setStatus(json.error || "Upload failed");
-      return;
-    }
+    if (!res.ok) { setStatus(json.error || "Upload failed"); return; }
 
     const miss: string[] = json.missingHeaders || [];
     const nf: string[] = json.notFound || [];
@@ -57,43 +52,22 @@ function Panel({ label, sheetKey }: { label: string; sheetKey: PanelKey }) {
         <h2 style={{ margin: 0 }}>{label}</h2>
         <div style={{ color: "#666" }}>{status}</div>
       </div>
-
       <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
-        <input
-          type="file"
-          accept=".csv"
-          onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-        />
+        <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
         <button onClick={upload} disabled={rows.length === 0} style={{ padding: "8px 14px" }}>
           Upload to {label}
         </button>
       </div>
-
       {rows.length > 0 && (
         <div style={{ overflowX: "auto", fontSize: 12 }}>
           <div style={{ marginBottom: 6, fontWeight: 600 }}>Preview (first 10 rows)</div>
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
             <thead>
-              <tr>
-                {previewKeys.map((h) => (
-                  <th
-                    key={h}
-                    style={{ textAlign: "left", padding: "6px 8px", borderBottom: "1px solid #eee" }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
+              <tr>{previewKeys.map(h => <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: "1px solid #eee" }}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {rows.slice(0, 10).map((r, i) => (
-                <tr key={i}>
-                  {previewKeys.map((h) => (
-                    <td key={h} style={{ padding: "6px 8px", borderBottom: "1px solid #f6f6f6" }}>
-                      {String(r[h] ?? "")}
-                    </td>
-                  ))}
-                </tr>
+                <tr key={i}>{previewKeys.map(h => <td key={h} style={{ padding: "6px 8px", borderBottom: "1px solid #f6f6f6" }}>{String(r[h] ?? "")}</td>)}</tr>
               ))}
             </tbody>
           </table>
@@ -109,13 +83,12 @@ export default function RmtUploadPage() {
       <h1 style={{ marginBottom: 0 }}>Hematology Upload</h1>
       <p style={{ marginTop: 0, color: "#666" }}>
         CSV headers must match the <b>Database</b> tab columns in each branch sheet.
-        Required: <code>patient_id</code>, plus any of:{" "}
-        <code>WBC, Lympho, MID, Gran, RBC, Hemoglobin, Hematocrit, MCV, MCH, MCHC, Platelet</code>.
+        Required: <code>patient_id</code>, plus any of: <code>WBC, Lympho, MID, Gran, RBC, Hemoglobin, Hematocrit, MCV, MCH, MCHC, Platelet</code>.
       </p>
-
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <Panel label="San Isidro (SI)" sheetKey="si" />
-        <Panel label="San Leonardo (SL)" sheetKey="sl" />
+        {BRANCHES.map(b => (
+          <Panel key={b.key} label={b.label} sheetKey={b.key} />
+        ))}
       </div>
     </div>
   );
