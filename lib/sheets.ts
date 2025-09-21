@@ -137,6 +137,8 @@ export type RangeMeta = {
   high?: number | "";
   normal_values?: string;   // e.g., “Negative”
   scaling_order?: string;   // e.g., “Negative<Trace<1+<2+...”
+  age_min?: number | "";
+  age_max?: number | "";
 };
 
 export function buildRangeMap(rows: Row[]): Record<string, RangeMeta[]> {
@@ -157,6 +159,8 @@ export function buildRangeMap(rows: Row[]): Record<string, RangeMeta[]> {
       high: r["high"] !== "" && r["high"] != null ? Number(r["high"]) : "",
       normal_values: r["normal_values"]?.trim(),
       scaling_order: r["scaling_order"]?.trim(),
+      age_min: r["age_min"] !== "" && r["age_min"] != null ? Number(r["age_min"]) : "",
+      age_max: r["age_max"] !== "" && r["age_max"] != null ? Number(r["age_max"]) : "",
     };
     (map[key] ||= []).push(meta);
   }
@@ -180,12 +184,31 @@ function normalizeSex(s?: string) {
   return "";
 }
 
-function chooseMeta(metas: RangeMeta[] | undefined, patientSex: string): RangeMeta | undefined {
+function chooseMeta(
+  metas: RangeMeta[] | undefined,
+  patientSex: string,
+  ageYears?: number
+): RangeMeta | undefined {
   if (!metas || !metas.length) return undefined;
-  // Prefer sex-specific row if matches patient
+
   const sx = normalizeSex(patientSex);
-  const firstSexMatch = metas.find(m => (m.sex || "") === sx && sx !== "");
-  return firstSexMatch || metas[0];
+  const inBand = (m: RangeMeta) => {
+    const minOk = typeof m.age_min !== "number" || (ageYears != null && ageYears >= m.age_min);
+    const maxOk = typeof m.age_max !== "number" || (ageYears != null && ageYears <  m.age_max);
+    return minOk && maxOk;
+  };
+
+  // Prefer sex + age match
+  const sexAge = metas.find(m => (m.sex || "") === sx && sx !== "" && inBand(m));
+  if (sexAge) return sexAge;
+
+  // Then sex-only
+  const sexOnly = metas.find(m => (m.sex || "") === sx && sx !== "");
+  if (sexOnly) return sexOnly;
+
+  // Then age-only
+  const ageOnly = metas.find(inBand);
+  return ageOnly || metas[0];
 }
 
 function computeFlag(valRaw: string, meta?: RangeMeta): "" | "L" | "H" | "A" {
@@ -259,7 +282,22 @@ export function buildReportForRow(row: Row, rangeMap: Record<string, RangeMeta[]
     date_of_test: row["date_of_test"] || "",
     barcode:      row["barcode"]      || "",
     notes:        row["notes"]        || "",
-  };
+  }; 
+
+  const ageYears: number | undefined = (() => {
+    const a = Number(row["age"]);
+    if (!Number.isNaN(a) && a >= 0) return a;
+
+    const bdRaw = row["birthday"];
+    const dtRaw = row["date_of_test"];
+    const bd = bdRaw ? new Date(bdRaw) : undefined;
+    const dt = dtRaw ? new Date(dtRaw) : new Date();
+    if (bd && !Number.isNaN(bd.getTime())) {
+      const diffMs = dt.getTime() - bd.getTime();
+      if (diffMs >= 0) return diffMs / (365.2425 * 24 * 60 * 60 * 1000); // ~years
+    }
+    return undefined;
+  })();
 
   const bySection: Record<string, ReportItem[]> = {};
   for (const [key, raw] of Object.entries(row)) {
@@ -268,7 +306,7 @@ export function buildReportForRow(row: Row, rangeMap: Record<string, RangeMeta[]
     // Skip blanks, '-' and spreadsheet error strings (e.g., #VALUE!)
     if (isEmptyLike(raw)) continue;
 
-    const meta = chooseMeta(rangeMap[key], patient.sex);
+    const meta = chooseMeta(rangeMap[key], patient.sex, ageYears);
     const label = meta?.label || titleize(key);
     const value = formatValue(String(raw), meta);
     const flag  = computeFlag(String(raw), meta);
