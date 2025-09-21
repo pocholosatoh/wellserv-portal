@@ -1,14 +1,23 @@
-import type { Metadata } from "next";
 import "./globals.css";
+import type { Metadata } from "next";
+import { Open_Sans } from "next/font/google";
 
+const openSans = Open_Sans({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],      // regular / semibold / bold
+  display: "swap",
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
-  robots: { index: false, follow: false, nocache: true },
+  title: "WELLSERV Portal",
+  description: "Patient results",
+  // robots here or in route metadata; your portal already sets noindex
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={openSans.variable}>
       <body>{children}</body>
     </html>
   );
