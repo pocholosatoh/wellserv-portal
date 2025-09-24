@@ -1,66 +1,58 @@
 ﻿// app/api/results/route.ts
 import { NextResponse } from "next/server";
-import { readResults } from "@/lib/sheets";
+import {
+  readResults, readRanges, readConfig, readPatients,
+  buildRangeMap, filterByPatientId, filterByDate, buildReportForRow
+} from "@/lib/sheets";
 
 export const dynamic = "force-dynamic";
 
-async function safeHash(s: string) {
-  try {
-    const buf = new TextEncoder().encode(s);
-    const digest = await crypto.subtle.digest("SHA-256", buf);
-    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 8);
-  } catch {
-    return "hasherr";
+function overlayPatientFromPatients(base: any, extra: any) {
+  if (!extra) return base;
+  const dst = { ...base };
+  const fields = [
+    "full_name","sex","age","birthday","contact","address",
+    "email","height_ft","height_inch","weight_kg","systolic_bp","diastolic_bp",
+    "smoking_hx","alcohol_hx",
+    "chief_complaint","present_illness_history","past_medical_history",
+    "past_surgical_history","allergies_text","medications_current","medications",
+    "family_hx","family_history","last_updated"
+  ];
+  for (const k of fields) {
+    const v = extra[k];
+    if (v !== undefined && String(v).trim() !== "") (dst as any)[k] = String(v);
   }
-}
-
-async function getRows(patientId?: string) {
-  const all = await readResults();
-  if (!patientId) return all;
-  const pid = patientId.trim().toLowerCase();
-  return all.filter(r => (r["patient_id"] || "").trim().toLowerCase() === pid);
-}
-
-export async function GET(req: Request) {
-  const __start = Date.now();
-  const { searchParams } = new URL(req.url);
-  const patient_id = searchParams.get("patient_id") || "";
-
-  try {
-    const rows = await getRows(patient_id || undefined);
-
-    try {
-      const pid = patient_id ? await safeHash(patient_id) : "none";
-      console.log("[api:results] ok %s %d row(s) in %dms", pid, rows.length, Date.now() - __start);
-    } catch {}
-
-    return NextResponse.json({ count: rows.length, rows });
-  } catch (e: any) {
-    try {
-      const pid = patient_id ? await safeHash(patient_id) : "none";
-      console.log("[api:results] fail %s in %dms", pid, Date.now() - __start);
-    } catch {}
-    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
-  }
+  return dst;
 }
 
 export async function POST(req: Request) {
-  const __start = Date.now();
   const body = await req.json().catch(() => ({}));
-  const patient_id = body?.patient_id as string | undefined;
+  const patient_id = String(body?.patient_id || "").trim();
+  const date = String(body?.date || "").trim();
+  if (!patient_id) return NextResponse.json({ error: "Missing patient_id" }, { status: 400 });
 
   try {
-    const rows = await getRows(patient_id);
-    try {
-      const pid = patient_id ? await safeHash(patient_id) : "none";
-      console.log("[api:results] ok POST %s %d row(s) in %dms", pid, rows.length, Date.now() - __start);
-    } catch {}
-    return NextResponse.json({ count: rows.length, rows });
+    const [results, ranges, cfg, patients] = await Promise.all([
+      readResults(), readRanges(), readConfig(), readPatients()
+    ]);
+    const rmap = buildRangeMap(ranges);
+
+    const px = new Map<string, any>();
+    for (const p of patients) {
+      const id = String(p.patient_id || "").trim().toLowerCase();
+      if (id) px.set(id, p);
+    }
+
+    const rows = filterByDate(filterByPatientId(results, patient_id), date);
+    const reports = rows.map(r => {
+      const rep = buildReportForRow(r, rmap);
+      const extra = px.get(String(rep.patient.patient_id || "").trim().toLowerCase());
+      rep.patient = overlayPatientFromPatients(rep.patient, extra);
+      return rep;
+    });
+
+    return NextResponse.json({ count: reports.length, reports, config: cfg });
   } catch (e: any) {
-    try {
-      const pid = patient_id ? await safeHash(patient_id) : "none";
-      console.log("[api:results] fail POST %s in %dms", pid, Date.now() - __start);
-    } catch {}
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }
