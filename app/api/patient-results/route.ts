@@ -40,43 +40,60 @@ const EXCLUDE_LABELS = new Set([
   "updated at",
 ]);
 
-/**
- * Merge selected Patient fields (from sbReadPatientById) into the report.patient
- * without overwriting the patient_id from the result rows.
- */
+function cleanBlank(v: any) {
+  const s = String(v ?? "").trim();
+  return ["", "-", "n/a", "null"].includes(s.toLowerCase()) ? "" : s;
+}
+
+const DIRECT_FIELDS = [
+  "full_name",
+  "sex",
+  "age",
+  "birthday",
+  "contact",
+  "address",
+  "email",
+  "height_ft",
+  "height_inch",
+  "weight_kg",
+  "systolic_bp",
+  "diastolic_bp",
+  "last_updated",
+  "present_illness_history",
+  "past_medical_history",
+  "past_surgical_history",
+  "chief_complaint",
+  "allergies_text",
+  "medications_current",
+  "medications",
+  "family_hx",
+  "family_history",
+];
+
+const ALIASES: Record<string, string[]> = {
+  // canonical : acceptable source keys
+  smoking_hx: ["smoking_hx", "smoking", "smoking_history", "smokingHistory"],
+  alcohol_hx: ["alcohol_hx", "alcohol", "alcohol_history", "alcoholHistory"],
+};
+
 function overlayPatient(base: any, extra: any) {
   if (!extra) return base;
-  const dst = { ...base };
-  const fields = [
-    "full_name",
-    "sex",
-    "age",
-    "birthday",
-    "contact",
-    "address",
-    "email",
-    "height_ft",
-    "height_inch",
-    "weight_kg",
-    "systolic_bp",
-    "diastolic_bp",
-    "last_updated",
-    "present_illness_history",
-    "past_medical_history",
-    "past_surgical_history",
-    "chief_complaint",
-    "allergies_text",
-    "medications_current",
-    "medications",
-    "family_hx",
-    "family_history",
-  ];
-  for (const f of fields) {
-    const v = extra?.[f];
-    if (v !== undefined && v !== null && String(v).trim() !== "") {
-      dst[f] = v;
+  const dst: any = { ...base };
+
+  // 1) copy direct fields if non-blank
+  for (const f of DIRECT_FIELDS) {
+    const cv = cleanBlank(extra?.[f]);
+    if (cv) dst[f] = cv;
+  }
+
+  // 2) copy aliases into canonical keys (so UI can always read smoking_hx/alcohol_hx)
+  for (const [canon, keys] of Object.entries(ALIASES)) {
+    for (const k of keys) {
+      const cv = cleanBlank(extra?.[k]);
+      if (cv) { dst[canon] = cv; break; }
     }
   }
+
   return dst;
 }
 
