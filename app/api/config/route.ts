@@ -1,16 +1,12 @@
-// ===============================
-// REPLACE the entire file: app/api/config/route.ts
-// (This file must contain ONLY TypeScript for the API route — no CSS.)
-// ===============================
+// app/api/config/route.ts
 import { NextResponse } from "next/server";
-import { readConfig } from "@/lib/sheets";
-
+import { sbReadConfig } from "@/lib/supabase"; // <-- Supabase only
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const cfg = await readConfig();
-    return NextResponse.json({ config: cfg });
+    const config = await sbReadConfig();
+    return NextResponse.json({ config });
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message || "Server error" },
