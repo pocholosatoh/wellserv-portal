@@ -84,27 +84,58 @@ export function normalizeTrioToFrac(a: any, b: any, c: any) {
   return { Lympho: L, MID: M, Gran: G };
 }
 
+// Helper: get first non-empty value among a list of header aliases
+function pick(r: Record<string, any>, names: string[]) {
+  for (const n of names) {
+    // match both exact and trimmed keys
+    if (n in r && r[n] != null && String(r[n]).trim() !== "") return r[n];
+  }
+  return null;
+}
+
+// Aliases for NEW CSV headers -> internal keys we write to the sheet
+const CSV_ALIASES = {
+  patient_id: ["patient_id", "PatientID", "Patient ID"],
+
+  WBC:        ["WBC", "WBC (10^9/L)"],
+  Lympho:     ["Lympho", "Lymph% ( )", "Lymph%", "Lymph %"],
+  MID:        ["MID", "Mid% ( )", "Mid%", "Mid %"],
+  Gran:       ["Gran", "Gran% ( )", "Gran%", "Gran %"],
+  RBC:        ["RBC", "RBC (10^12/L)"],
+  Hemoglobin: ["Hemoglobin", "HGB (g/L)", "HGB"],
+  Hematocrit: ["Hematocrit", "HCT ( )", "HCT"],
+  MCV:        ["MCV", "MCV (fL)"],
+  MCH:        ["MCH", "MCH (pg)"],
+  MCHC:       ["MCHC", "MCHC (g/L)"],
+  Platelet:   ["Platelet", "PLT (10^9/L)", "PLT"],
+};
+
 export function sanitizeHemaRows(rows: any[]): HemaRow[] {
   return rows
-    .map(r => {
-      const pid = String(r["patient_id"] ?? r["PatientID"] ?? "").trim();
+    .map((r: Record<string, any>) => {
+      const pid = String(pick(r, CSV_ALIASES.patient_id) ?? "").trim();
       if (!pid) return null;
 
-      const trio = normalizeTrioToFrac(r["Lympho"], r["MID"], r["Gran"]);
+      // Trio normalization: accepts % (e.g., 28) or fraction (0.28); returns 0.xx and sums to 1.00
+      const trio = normalizeTrioToFrac(
+        pick(r, CSV_ALIASES.Lympho),
+        pick(r, CSV_ALIASES.MID),
+        pick(r, CSV_ALIASES.Gran)
+      );
 
       const obj: HemaRow = {
         patient_id: pid,
-        WBC:        round2(toNum(r["WBC"])),
+        WBC:        round2(toNum(pick(r, CSV_ALIASES.WBC))),
         Lympho:     trio.Lympho,  // 0.xx
         MID:        trio.MID,     // 0.xx
         Gran:       trio.Gran,    // 0.xx
-        RBC:        round2(toNum(r["RBC"])),
-        Hemoglobin: round2(toNum(r["Hemoglobin"])),
-        Hematocrit: round2(toNum(r["Hematocrit"])),
-        MCV:        round2(toNum(r["MCV"])),
-        MCH:        round2(toNum(r["MCH"])),
-        MCHC:       round2(toNum(r["MCHC"])),
-        Platelet:   round2(toNum(r["Platelet"])),
+        RBC:        round2(toNum(pick(r, CSV_ALIASES.RBC))),
+        Hemoglobin: round2(toNum(pick(r, CSV_ALIASES.Hemoglobin))),
+        Hematocrit: round2(toNum(pick(r, CSV_ALIASES.Hematocrit))),
+        MCV:        round2(toNum(pick(r, CSV_ALIASES.MCV))),
+        MCH:        round2(toNum(pick(r, CSV_ALIASES.MCH))),
+        MCHC:       round2(toNum(pick(r, CSV_ALIASES.MCHC))),
+        Platelet:   round2(toNum(pick(r, CSV_ALIASES.Platelet))),
       };
       return obj;
     })

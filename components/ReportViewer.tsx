@@ -678,7 +678,7 @@ export default function ReportViewer({
               <button
                 onClick={() => fetchReports(patientId)}
                 disabled={loading || !patientId.trim()}
-                style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #222", background: "#222", color: "#fff" }}
+                style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #44969b", background: "#44969b", color: "#fff" }}
               >
                 {loading ? "Loading..." : "View"}
               </button>
@@ -741,16 +741,16 @@ export default function ReportViewer({
                 {!!wtKg && (<div><div className="ps-label">Weight</div><div className="ps-value">{withUnit(wtKg, "kg")}</div></div>)}
                 {bmi != null && (
                   <div>
-                    <div className="ps-label">BMI</div>
+                    <div className="ps-label">Calculated BMI</div>
                     <div className="ps-value">{bmi} <span className="ps-pill">{bmiClass(bmi)}</span></div>
                   </div>
                 )}
-                {!!bpStr && (<div><div className="ps-label">Blood Pressure</div><div className="ps-value">{bpStr}</div></div>)}
-                {!!smoking && (<div><div className="ps-label">Smoking</div><div className="ps-value">{smoking}</div></div>)}
-                {!!alcohol && (<div><div className="ps-label">Alcohol</div><div className="ps-value">{alcohol}</div></div>)}
+                {!!bpStr && (<div><div className="ps-label">Latest Known Blood Pressure</div><div className="ps-value">{bpStr}</div></div>)}
+                {!!smoking && (<div><div className="ps-label">Smoking History</div><div className="ps-value">{smoking}</div></div>)}
+                {!!alcohol && (<div><div className="ps-label">Alcohol History</div><div className="ps-value">{alcohol}</div></div>)}
 
                 {/* CONTACT */}
-                {!!phone && (<div><div className="ps-label">Contact</div><div className="ps-value">{phone}</div></div>)}
+                {!!phone && (<div><div className="ps-label">Contact Number</div><div className="ps-value">{phone}</div></div>)}
                 {!!email && (<div><div className="ps-label">Email</div><div className="ps-value">{email}</div></div>)}
                 {!!addr  && (<div><div className="ps-label">Address</div><div className="ps-value ps-multi">{addr}</div></div>)}
 

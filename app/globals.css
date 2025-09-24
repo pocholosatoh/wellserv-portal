@@ -13,3 +13,19 @@ html, body { font-family: var(--font-sans-stack); }
   @page { margin: 12mm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* Placeholder color, size, style */
+.ws-input::placeholder{ 
+  color: #44969b;     /* your teal */
+  opacity: 0.85; 
+  font-style: italic; /* optional */
+  font-size: 0.95rem; /* optional */
+}
+
+/* Older engines (safe to include) */
+.ws-input::-webkit-input-placeholder{ color:#44969b; opacity:.85; }
+.ws-input:-ms-input-placeholder{ color:#44969b; opacity:.85; }     /* IE 10–11 */
+.ws-input::-ms-input-placeholder{ color:#44969b; opacity:.85; }    /* Edge Legacy */
+
+/* Optional: fade placeholder on focus */
+.ws-input:focus::placeholder{ color: rgba(68,150,155,.45); }

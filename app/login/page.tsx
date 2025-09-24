@@ -32,6 +32,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [cfg, setCfg] = useState<Record<string, string>>({});
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setReady(true); }, []);
   const router = useRouter();
 
   // pull config (clinic header + optional portal_access_code + optional custom privacy copy)
@@ -159,7 +161,7 @@ const needsCode = !!requiredAccessCode?.trim();
   };
 
   const footerNote: React.CSSProperties = {
-    color: "#98a2b3", fontSize: 12, textAlign: "center", lineHeight: 1.4,
+    color: "#b4b4b5ff", fontSize: 12, textAlign: "center", lineHeight: 1.4,
   };
 
   const linkBtn: React.CSSProperties = {
@@ -180,8 +182,7 @@ const needsCode = !!requiredAccessCode?.trim();
   // default privacy notice text (can be overridden via Config)
   const privacyTitle = cfg.privacy_notice_title?.trim() || "Data Privacy Notice";
   const privacyBody = cfg.privacy_notice_body?.trim() || `
-By continuing, you agree to the collection and processing of your personal and health information
-for the purpose of identity verification and releasing laboratory results, in accordance with the
+By continuing, you agree to the collection and processing of your personal and health information for the purpose of identity verification and releasing laboratory results, in accordance with the
 Philippines Data Privacy Act of 2012 (RA 10173) and its IRR. Your data will be handled with
 strict confidentiality and retained only as required by law and clinic policy. For questions or
 requests (access, correction, deletion), contact our Data Protection Officer via the clinic number or email.
@@ -220,9 +221,11 @@ requests (access, correction, deletion), contact our Data Protection Officer via
       <div style={card}>
         <header style={{ marginBottom: 16 }}>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Patient Portal</h1>
-          <p style={{ margin: "6px 0 0 0", color: "#667085", fontSize: 13 }}>
-            Enter your Patient ID {requiredAccessCode ? "and Access Code" : ""} to view your results.
-          </p>
+            <p style={{ margin: "6px 0 0 0", color: "#000000ff", fontSize: 13 }}>
+              {ready && (
+                <>Enter your Patient ID {needsCode ? "and Access Code " : ""} to view your results.</>
+              )}
+            </p>
         </header>
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
@@ -249,7 +252,7 @@ requests (access, correction, deletion), contact our Data Protection Officer via
                 autoComplete="off"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder={needsCode ? "Enter access code" : "(optional for now)"}
+                placeholder="Access Code (ask staff 😉)"
                 style={input}
               />
             </>

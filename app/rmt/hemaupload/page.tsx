@@ -82,8 +82,9 @@ export default function RmtUploadPage() {
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16, display: "grid", gap: 16 }}>
       <h1 style={{ marginBottom: 0 }}>Hematology Upload</h1>
       <p style={{ marginTop: 0, color: "#666" }}>
-        CSV headers must match the <b>Database</b> tab columns in each branch sheet.
-        Required: <code>patient_id</code>, plus any of: <code>WBC, Lympho, MID, Gran, RBC, Hemoglobin, Hematocrit, MCV, MCH, MCHC, Platelet</code>.
+        CSV headers must match these new names. Required: <code>Patient ID</code>, plus any of:
+        {" "}
+        <code>WBC (10^9/L), Lymph% ( ), Mid% ( ), Gran% ( ), RBC (10^12/L), HGB (g/L), HCT ( ), MCV (fL), MCH (pg), MCHC (g/L), PLT (10^9/L)</code>.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {BRANCHES.map(b => (
