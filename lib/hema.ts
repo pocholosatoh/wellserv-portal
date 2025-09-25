@@ -59,7 +59,7 @@ const round2 = (n: number | null) => (n == null ? null : Math.round(n * 100) / 1
 export function normalizeTrioToFrac(a: any, b: any, c: any) {
   const r2 = (x: number) => Math.round(x * 100) / 100; // local helper for non-nullable numbers
 
-  let A = toNum(a), B = toNum(b), C = toNum(c);
+  const A = toNum(a), B = toNum(b), C = toNum(c);
   if (A == null && B == null && C == null) return { Lympho: null, MID: null, Gran: null };
 
   // accept either percents (28) or fractions (0.28)
