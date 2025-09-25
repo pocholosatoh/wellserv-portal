@@ -189,6 +189,24 @@ function toImageUrl(url?: string) {
   return m ? `https://drive.google.com/uc?export=view&id=${m[0]}` : url;
 }
 
+function ts(d?: string | null): number {
+  if (!d) return 0;
+  const s = String(d).trim();
+  const t = Date.parse(s);
+  if (!Number.isNaN(t)) return t;
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) {
+    let a = parseInt(m[1], 10);
+    let b = parseInt(m[2], 10);
+    let y = m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10);
+    const isDMY = a > 12;
+    const month = (isDMY ? b : a) - 1;
+    const day   = isDMY ? a : b;
+    return new Date(y, month, day).getTime();
+  }
+  return 0;
+}
+
 export default function ReportViewer({
   initialPatientId,
   apiPath = "/api/results",
@@ -274,17 +292,16 @@ export default function ReportViewer({
   const showVisitNotes = (cfg?.show_visit_notes || "").toLowerCase() === "true";
 
   // Visits
-  // Visits (defensive: tolerate rows that lack visit/date_of_test)
   const visitDates = useMemo(() => {
-    const dates = Array.from(
-      new Set(
-        reports
-          .map((r: any) => String(r?.visit?.date_of_test ?? ""))
-          .filter(Boolean)
-      )
-    ).sort((a, b) => b.localeCompare(a));
-    return dates;
-  }, [reports]);
+  const dates = Array.from(
+    new Set(
+      reports
+        .map((r: any) => String(r?.visit?.date_of_test ?? ""))
+        .filter(Boolean)
+    )
+  ).sort((a, b) => ts(b) - ts(a)); // ← real date sort
+  return dates;
+}, [reports]);
 
   const report = useMemo(() => {
     if (!Array.isArray(reports) || reports.length === 0) return undefined;
@@ -829,82 +846,93 @@ export default function ReportViewer({
           <>
             {report.sections
               .filter(sec => (sec?.items?.length ?? 0) > 0) // ← skip empty sections
-              .map(section => (
-                <div key={section.name} style={{ marginTop:18 }}>
-                  <h3 style={{ margin:"10px 0" }}>{section.name}</h3>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign:"left" }}>Parameter</th>
-                        <th style={{ textAlign:"right" }}>Result</th>
-                        {compareOn && <th style={{ textAlign:"right" }}>Prev. Res.</th>}
-                        {compareOn && <th style={{ textAlign:"right" }}>Latest % Change</th>}
-                        <th style={{ textAlign:"left" }}>Unit</th>
-                        <th style={{ textAlign:"left" }}>Reference</th>
-                        <th style={{ textAlign:"center" }}>Current Flag</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {section.items.map(it => {
-                        if (!it.value) return null;
+              .map(section => {
+                const hideRF = section.name === "Urinalysis" || section.name === "Fecalysis"; // ← hide columns for UA/FA
 
-                        // extra defensive hide (in case old payloads sneak in)
-                        const labelLc = String(it.label || "").trim().toLowerCase();
-                        if (labelLc === "branch" || labelLc === "created at" || labelLc === "updated at") {
-                          return null;
-                        }
+                return (
+                  <div key={section.name} style={{ marginTop: 18 }}>
+                    <h3 style={{ margin: "10px 0" }}>{section.name}</h3>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: "left" }}>Parameter</th>
+                          <th style={{ textAlign: "right" }}>Result</th>
+                          {compareOn && <th style={{ textAlign: "right" }}>Prev. Res.</th>}
+                          {compareOn && <th style={{ textAlign: "right" }}>Latest % Change</th>}
+                          <th style={{ textAlign: "left" }}>Unit</th>
+                          {!hideRF && <th style={{ textAlign: "left" }}>Reference</th>}
+                          {!hideRF && <th style={{ textAlign: "center" }}>Current Flag</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {section.items.map(it => {
+                          if (!it.value) return null;
 
-                        const refText = formatRef(it.ref);
-                        const cur = toNum(it.value);
-                        const skipPrev = shouldExcludeFromPrev(it, cfg);
-                        const prevList = compareOn && !skipPrev ? findPrevListAny(it, 3) : [];
-                        const prev1Num = compareOn && !skipPrev ? findPrevNumForDelta(it) : null;
+                          // extra defensive hide (in case old payloads sneak in)
+                          const labelLc = String(it.label || "").trim().toLowerCase();
+                          if (labelLc === "branch" || labelLc === "created at" || labelLc === "updated at") {
+                            return null;
+                          }
 
-                        let deltaText = "—";
-                        let deltaColor = "#666";
-                        if (cur != null && prev1Num) {
-                          const delta = cur - prev1Num.value;
-                          const pct = prev1Num.value !== 0 ? (delta / prev1Num.value) * 100 : null;
-                          const arrow = delta > 0 ? "▲" : delta < 0 ? "▼" : "•";
-                          deltaText = `${arrow} ${delta > 0 ? "+" : ""}${fmt(delta)}${pct != null ? ` (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` : ""}`;
-                          deltaColor = delta > 0 ? "#b00020" : delta < 0 ? "#1976d2" : "#666";
-                        }
+                          const refText = hideRF ? "" : formatRef(it.ref);
+                          const cur = toNum(it.value);
+                          const skipPrev = shouldExcludeFromPrev(it, cfg);
+                          const prevList = compareOn && !skipPrev ? findPrevListAny(it, 3) : [];
+                          const prev1Num = compareOn && !skipPrev ? findPrevNumForDelta(it) : null;
 
-                        return (
-                          <tr key={it.key}>
-                            <td>{it.label}</td>
-                            <td style={{ textAlign:"right" }}>{it.value}</td>
+                          let deltaText = "—";
+                          let deltaColor = "#666";
+                          if (cur != null && prev1Num) {
+                            const delta = cur - prev1Num.value;
+                            const pct = prev1Num.value !== 0 ? (delta / prev1Num.value) * 100 : null;
+                            const arrow = delta > 0 ? "▲" : delta < 0 ? "▼" : "•";
+                            deltaText = `${arrow} ${delta > 0 ? "+" : ""}${fmt(delta)}${pct != null ? ` (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` : ""}`;
+                            deltaColor = delta > 0 ? "#b00020" : delta < 0 ? "#1976d2" : "#666";
+                          }
 
-                            {compareOn && (
-                              <>
-                                <td style={{ textAlign:"right" }}>
-                                  {prevList.length ? (
-                                    prevList.map(p => (
-                                      <div key={p.date} style={{ whiteSpace:"nowrap", fontSize:12, lineHeight:1.2 }}>
-                                        {formatPrevDate(p.date)}: {p.num != null ? fmt(p.num) : p.raw}
-                                      </div>
-                                    ))
-                                  ) : "—"}
+                          return (
+                            <tr key={it.key}>
+                              <td>{it.label}</td>
+                              <td style={{ textAlign: "right" }}>{it.value}</td>
+
+                              {compareOn && (
+                                <>
+                                  <td style={{ textAlign: "right" }}>
+                                    {prevList.length ? (
+                                      prevList.map(p => (
+                                        <div key={p.date} style={{ whiteSpace: "nowrap", fontSize: 12, lineHeight: 1.2 }}>
+                                          {formatPrevDate(p.date)}: {p.num != null ? fmt(p.num) : p.raw}
+                                        </div>
+                                      ))
+                                    ) : "—"}
+                                  </td>
+                                  <td style={{ textAlign: "right", color: deltaColor }}>{deltaText}</td>
+                                </>
+                              )}
+
+                              <td>{it.unit || ""}</td>
+                              {!hideRF && <td>{refText}</td>}
+                              {!hideRF && (
+                                <td
+                                  style={{
+                                    textAlign: "center",
+                                    color:
+                                      it.flag === "H" ? "#b00020" :
+                                      it.flag === "L" ? "#1976d2" :
+                                      it.flag === "A" ? "#f57c00" : "#666"
+                                  }}
+                                >
+                                  {it.flag || ""}
                                 </td>
-                                <td style={{ textAlign:"right", color: deltaColor }}>{deltaText}</td>
-                              </>
-                            )}
-
-                            <td>{it.unit || ""}</td>
-                            <td>{refText}</td>
-                            <td style={{
-                              textAlign:"center",
-                              color: it.flag==="H" ? "#b00020" : it.flag==="L" ? "#1976d2" : it.flag==="A" ? "#f57c00" : "#666"
-                            }}>
-                              {it.flag || ""}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}            
           </>
         )}
       </div>

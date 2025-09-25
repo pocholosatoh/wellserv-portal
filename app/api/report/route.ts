@@ -1,11 +1,25 @@
-// app/api/report/route.ts
+// app/api/report/route.ts | depreciated use /api/patient-results
 import { NextResponse } from "next/server";
 import {
   readResults, readRanges, readConfig, readPatients,
   buildRangeMap, filterByPatientId, filterByDate, buildReportForRow
 } from "@/lib/sheets";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function withDeprecation<T extends (...args: any[]) => Promise<Response>>(fn: T): T {
+  return (async (...args: any[]) => {
+    const res = await fn(...args);
+    const headers = new Headers(res.headers);
+    headers.set("Deprecation", "true");
+    headers.set("Sunset", "2025-12-31"); // date you plan to remove it
+    headers.set("Link", '</api/patient-results>; rel="successor-version"');
+    console.warn("[DEPRECATED] /api/results and /api/report -> use /api/patient-results instead.");
+    return new Response(await res.text(), { status: res.status, headers });
+  }) as T;
+}
+
 
 function overlayPatientFromPatients(base: any, extra: any) {
   if (!extra) return base;
@@ -26,7 +40,7 @@ function overlayPatientFromPatients(base: any, extra: any) {
   return dst;
 }
 
-export async function GET(req: Request) {
+export const GET = withDeprecation(async (req: Request) => {
   const { searchParams } = new URL(req.url);
   const patient_id = (searchParams.get("patient_id") || "").trim();
   const date = (searchParams.get("date") || "").trim();
@@ -57,4 +71,4 @@ export async function GET(req: Request) {
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
-}
+});

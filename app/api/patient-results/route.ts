@@ -1,206 +1,177 @@
 // app/api/patient-results/route.ts
-import { NextResponse } from "next/server";
-import {
-  sbReadConfig,
-  sbReadRanges,
-  sbReadResultsByPatient,
-  sbReadPatientById,
-  Row,
-} from "@/lib/supabase";
-import { buildRangeMap, buildReportForRow } from "@/lib/sheets";
 
+// TODO: move to /api/patients/[id]/reports
+
+import { NextResponse } from "next/server";
+import { getDataProvider } from "@/lib/data/provider-factory";
+
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Utility: normalize and compare strings safely
- */
-function lc(s: any) {
-  return String(s ?? "").trim().toLowerCase();
+/* ---------------- helpers ---------------- */
+function toNum(x: any): number | null {
+  if (x === null || x === undefined) return null;
+  const s = String(x).replace(/,/g, "").trim();
+  if (!s || s === "-" || s.toLowerCase() === "n/a") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
 }
-function normLabel(s: any) {
-  return lc(s).replace(/[_\-:.]+/g, " ").replace(/\s+/g, " ");
+function asStr(x: any): string {
+  if (x === null || x === undefined) return "";
+  const s = String(x);
+  return s === "null" ? "" : s;
 }
-
-/**
- * Any keys/labels we NEVER want to render as “Parameters”
- */
-const EXCLUDE_KEYS = new Set([
-  "branch",
-  "created_at",
-  "updated_at",
-  "inserted_at",
-  "modified_at",
-  "created_at_utc",
-  "updated_at_utc",
-]);
-
-const EXCLUDE_LABELS = new Set([
-  "branch",
-  "created at",
-  "updated at",
-]);
-
-function cleanBlank(v: any) {
-  const s = String(v ?? "").trim();
-  return ["", "-", "n/a", "null"].includes(s.toLowerCase()) ? "" : s;
+function coerceFlag(f: any): "" | "L" | "H" | "A" {
+  if (!f) return "";
+  const u = String(f).toUpperCase();
+  return u === "L" || u === "H" || u === "A" ? (u as any) : "";
 }
-
-const DIRECT_FIELDS = [
-  "full_name",
-  "sex",
-  "age",
-  "birthday",
-  "contact",
-  "address",
-  "email",
-  "height_ft",
-  "height_inch",
-  "weight_kg",
-  "systolic_bp",
-  "diastolic_bp",
-  "last_updated",
-  "present_illness_history",
-  "past_medical_history",
-  "past_surgical_history",
-  "chief_complaint",
-  "allergies_text",
-  "medications_current",
-  "medications",
-  "family_hx",
-  "family_history",
-];
-
-const ALIASES: Record<string, string[]> = {
-  // canonical : acceptable source keys
-  smoking_hx: ["smoking_hx", "smoking", "smoking_history", "smokingHistory"],
-  alcohol_hx: ["alcohol_hx", "alcohol", "alcohol_history", "alcoholHistory"],
-};
-
-function overlayPatient(base: any, extra: any) {
-  if (!extra) return base;
-  const dst: any = { ...base };
-
-  // 1) copy direct fields if non-blank
-  for (const f of DIRECT_FIELDS) {
-    const cv = cleanBlank(extra?.[f]);
-    if (cv) dst[f] = cv;
+// Parse common date formats→timestamp (ISO and M/D/YYYY or D/M/YYYY)
+function ts(d: string | null | undefined): number {
+  if (!d) return 0;
+  const s = String(d).trim();
+  const t = Date.parse(s);
+  if (!Number.isNaN(t)) return t;
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) {
+    let a = parseInt(m[1], 10); // a/b could be month/day or day/month
+    let b = parseInt(m[2], 10);
+    let y = m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10);
+    const isDMY = a > 12;
+    const month = (isDMY ? b : a) - 1;
+    const day   = isDMY ? a : b;
+    return new Date(y, month, day).getTime();
   }
+  return 0;
+}
 
-  // 2) copy aliases into canonical keys (so UI can always read smoking_hx/alcohol_hx)
-  for (const [canon, keys] of Object.entries(ALIASES)) {
-    for (const k of keys) {
-      const cv = cleanBlank(extra?.[k]);
-      if (cv) { dst[canon] = cv; break; }
-    }
+/* ---------- adapters to UI shape ---------- */
+function adaptPatientForUI(p: any) {
+  return {
+    patient_id: asStr(p?.patient_id),
+    full_name:  asStr(p?.full_name),
+    age:        asStr(p?.age),
+    sex:        asStr(p?.sex),
+    birthday:   asStr(p?.birthday),
+    contact:    asStr(p?.contact),
+    address:    asStr(p?.address),
+    email:      asStr(p?.email),
+
+    height_ft:    asStr(p?.height_ft),
+    height_inch:  asStr(p?.height_inch),
+    weight_kg:    asStr(p?.weight_kg),
+    systolic_bp:  asStr(p?.systolic_bp),
+    diastolic_bp: asStr(p?.diastolic_bp),
+
+    last_updated: asStr(p?.last_updated),
+
+    present_illness_history: asStr(p?.present_illness_history),
+    past_medical_history:    asStr(p?.past_medical_history),
+    past_surgical_history:   asStr(p?.past_surgical_history),
+    chief_complaint:         asStr(p?.chief_complaint),
+    allergies_text:          asStr(p?.allergies_text),
+
+    medications_current:     asStr(p?.medications_current),
+    medications:             asStr(p?.medications ?? p?.medications_current),
+
+    family_hx:       asStr(p?.family_hx ?? p?.family_history),
+    family_history:  asStr(p?.family_history ?? p?.family_hx),
+
+    smoking_hx: asStr(p?.smoking_hx),
+    alcohol_hx: asStr(p?.alcohol_hx),
+  };
+}
+
+function adaptReportForUI(report: any) {
+  return {
+    patient: adaptPatientForUI(report?.patient),
+    visit: {
+      date_of_test: asStr(report?.visit?.date_of_test),
+      barcode:      asStr(report?.visit?.barcode),
+      notes:        asStr(report?.visit?.notes),
+      branch:       asStr(report?.visit?.branch),
+    },
+    sections: (report?.sections || []).map((sec: any) => {
+      const name = asStr(sec?.name);
+      const hideRF = name === "Urinalysis" || name === "Fecalysis";
+
+      return {
+        name,
+        items: (sec?.items || []).map((it: any) => {
+          const lowNum  = toNum(it?.ref_low);
+          const highNum = toNum(it?.ref_high);
+          return {
+            key:   asStr(it?.key),
+            label: asStr(it?.label),
+            value: asStr(it?.value),
+            unit:  asStr(it?.unit),
+            flag:  hideRF ? "" : coerceFlag(it?.flag),
+            ref: hideRF
+              ? undefined
+              : {
+                  low:  lowNum === null ? undefined : lowNum,
+                  high: highNum === null ? undefined : highNum,
+                },
+          };
+        }).filter((it: any) => it.value && it.value.trim() !== ""),
+      };
+    }).filter((s: any) => s.items.length > 0),
+  };
+}
+
+/* -------- build all reports for a patient -------- */
+async function buildAllReports(patient_id: string, limit?: number, specificDate?: string) {
+  const provider = await getDataProvider();
+  const visits = await provider.getVisits(patient_id);
+
+  const dates = specificDate
+    ? visits.filter(v => v.date_of_test === specificDate).map(v => v.date_of_test)
+    : visits.map(v => v.date_of_test);
+
+  const sorted = [...dates].sort((a, b) => ts(b) - ts(a)); // newest → oldest
+  const trimmed = typeof limit === "number" ? sorted.slice(0, limit) : sorted;
+
+  const reports = [];
+  for (const d of trimmed) {
+    const rep = await provider.getReport({ patient_id, visitDate: d });
+    if (rep) reports.push(adaptReportForUI(rep));
   }
-
-  return dst;
+  const config = (await provider.getConfig?.()) ?? {};
+  return { reports, config };
 }
 
-type ReportT = {
-  patient: any;
-  visit: any;
-  sections: Array<{ name: string; items: any[] }>;
-};
-
-function buildReportForRowWithBranch(
-  row: Row,
-  rangeMap: Record<string, any[]>
-): ReportT {
-  const rep = buildReportForRow(row as any, rangeMap) as ReportT;
-
-  // Ensure branch is part of the visit block
-  const branch = String((row as any)?.branch ?? (rep?.visit as any)?.branch ?? "").trim();
-  rep.visit = { ...(rep.visit || {}), branch };
-
-  // Strip excluded keys/labels from all sections, then DROP empty sections
-  rep.sections = (rep.sections || [])
-    .map((sec: any) => {
-      const items = (sec.items || []).filter((it: any) => {
-        const k = String(it?.key || "").trim().toLowerCase();
-        const lab = String(it?.label || "")
-          .trim()
-          .toLowerCase()
-          .replace(/[_\-:.]+/g, " ")
-          .replace(/\s+/g, " ");
-
-        if (
-          ["branch","created_at","updated_at","inserted_at","modified_at","created_at_utc","updated_at_utc"]
-            .includes(k)
-        ) return false;
-        if (["branch","created at","updated at"].includes(lab)) return false;
-
-        return true;
-      });
-      return { ...sec, items };
-    })
-    .filter((sec: any) => (sec.items && sec.items.length > 0)); // drop empty sections
-
-  return rep; // ← IMPORTANT: explicitly return
-}
-
-/**
- * Build full API response for a patient (and optional date filter)
- */
-async function buildResponse(patient_id: string, date?: string) {
-  // Pull config + ranges
-  const [cfg, ranges] = await Promise.all([sbReadConfig(), sbReadRanges()]);
-  const rangeMap = buildRangeMap(ranges);
-
-  // Pull results rows for this patient
-  const rows = await sbReadResultsByPatient(patient_id);
-
-  // Optional filter by exact visit date if supplied
-  const filtered = date
-    ? rows.filter((r) => String(r?.date_of_test ?? "") === String(date))
-    : rows;
-
-  // Build reports
-  const reports: ReportT[] = filtered.map((r) =>
-    buildReportForRowWithBranch(r, rangeMap)
-  );
-
-  // Overlay patient summary fields from Patients table (if any)
-  const pat = await sbReadPatientById(patient_id);
-  if (pat) {
-    for (const rep of reports) {
-      rep.patient = overlayPatient(rep.patient, pat);
-    }
-  }
-
-  return { count: reports.length, reports, config: cfg || {} };
-}
-
-/**
- * POST: { patient_id, date? }
- */
+/* --------------- handlers --------------- */
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}));
-  const patient_id = String(body?.patient_id || "").trim();
-  const date = String(body?.date || "").trim();
-  if (!patient_id) {
-    return NextResponse.json({ error: "Missing patient_id" }, { status: 400 });
-  }
   try {
-    const json = await buildResponse(patient_id, date || undefined);
+    const body = await req.json().catch(() => ({}));
+    const patient_id = String(body?.patient_id ?? "").trim();
+    const visitDate  = body?.visitDate ? String(body.visitDate) : undefined;
+    const limit      = body?.limit != null ? Number(body.limit) : undefined;
+
+    if (!patient_id) {
+      return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
+    }
+
+    const json = await buildAllReports(patient_id, limit, visitDate);
     return NextResponse.json(json, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }
 
-/**
- * GET: /api/patient-results?patient_id=ID&date=YYYY-MM-DD (date optional)
- */
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const patient_id = String(searchParams.get("patient_id") || "").trim();
-  const date = String(searchParams.get("date") || "").trim();
-  if (!patient_id) {
-    return NextResponse.json({ error: "Missing patient_id" }, { status: 400 });
-  }
   try {
-    const json = await buildResponse(patient_id, date || undefined);
+    const { searchParams } = new URL(req.url);
+    const patient_id = String(searchParams.get("patient_id") || "").trim();
+    const visitDate  = (searchParams.get("date") ?? undefined) || undefined;
+    const limitParam = searchParams.get("limit");
+    const limit      = limitParam != null ? Number(limitParam) : undefined;
+
+    if (!patient_id) {
+      return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
+    }
+
+    const json = await buildAllReports(patient_id, limit, visitDate);
     return NextResponse.json(json, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
