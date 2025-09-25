@@ -16,6 +16,22 @@ function toNum(x: any): number | null {
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
+
+function logRequest(method: "GET" | "POST", patient_id: string, reports: any[]) {
+  try {
+    console.log(JSON.stringify({
+      route: "patient-results",
+      method,
+      patient_id,                         // ok if you’re fine logging this
+      count: reports.length,              // how many reports (visits) we returned
+      dates: reports
+        .map(r => r?.visit?.date_of_test)
+        .filter(Boolean),                 // list of visit dates
+    }));
+  } catch { /* no-op */ }
+}
+
+
 function asStr(x: any): string {
   if (x === null || x === undefined) return "";
   const s = String(x);
@@ -153,6 +169,7 @@ export async function POST(req: Request) {
     }
 
     const json = await buildAllReports(patient_id, limit, visitDate);
+    logRequest("POST", patient_id, json.reports);
     return NextResponse.json(json, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
@@ -172,6 +189,7 @@ export async function GET(req: Request) {
     }
 
     const json = await buildAllReports(patient_id, limit, visitDate);
+    logRequest("GET", patient_id, json.reports);
     return NextResponse.json(json, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });

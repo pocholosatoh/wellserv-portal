@@ -1,36 +1,136 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WELLSERV Online Portal App
 
-## Getting Started
+Patient + staff results viewer powered by Next.js (App Router) with Supabase as the **source of truth**. Google Sheets is retained only for RMT CSV hemato uploads (branch “running sheets”).
 
-First, run the development server:
+## Stack
+- **Next.js App Router** (`/app`)
+- **Supabase** (Postgres + RLS), optional **Supabase Storage** (future)
+- **Google Sheets** (RMT ingest only)
+- TypeScript, (optional) Tailwind + PostCSS
 
+## High-level flow
+UI (ReportViewer)
+⇅ JSON
+/app/api/patient-results ← unified API (Node runtime)
+⇅ DataProvider (lib/data)
+Supabase (patients, results_flat, ranges)
+
+markdown
+Copy code
+
+## Key routes
+- Patient view: `/patient-results`
+- Staff portal: `/portal`
+- Unified API (Supabase): `/api/patient-results`
+- RMT ingest (Sheets): `/rmt/hemaupload` → `/api/rmt/hema/import`
+
+## Repo layout
+/app
+/(patient)/patient-results/page.tsx
+/(portal)/portal/page.tsx
+/api/patient-results/route.ts
+/components/ReportViewer.tsx
+/lib
+/data
+data-provider.ts # interface + types
+provider-factory.ts # picks sheets/supabase by DATA_BACKEND
+supabase-provider.ts # Supabase implementation (source of truth)
+supabase.ts # create Supabase client (server)
+/public # logos, static assets
+/scripts # future ETL, migrations
+
+pgsql
+Copy code
+
+## Environment variables
+
+| Name                             | Scope   | Purpose                                     |
+|----------------------------------|---------|---------------------------------------------|
+| `SUPABASE_URL`                   | Server  | Supabase project URL                         |
+| `SUPABASE_SERVICE_ROLE_KEY`      | Server  | Service role key (server-only!)              |
+| `DATA_BACKEND`                   | Server  | `supabase` (default), `sheets` (debug only)  |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL`   | Server  | Sheets ingest only                           |
+| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | Server | Sheets ingest only (escape `\n`)            |
+| `SHEET_ID`                       | Server  | Branch running sheet ID(s)                   |
+| `NEXT_PUBLIC_SUPABASE_URL`       | Client  | only if using client SDK (optional)          |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Client  | only if using client SDK (optional)          |
+
+Create a `.env.local` with the server variables above (don’t commit it). In Vercel, set the same in Project → Settings → Environment Variables.
+
+## Development
 ```bash
+npm i
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+# open http://localhost:3000
+Smoke tests
+bash
+Copy code
+# API
+curl -X POST http://localhost:3000/api/patient-results \
+  -H "content-type: application/json" \
+  -d '{"patient_id":"<REAL_ID>"}'
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+# UI
+# - /patient-results (patient)
+# - /portal (staff)
+Logs (local & Vercel)
+We log a single line per request in /api/patient-results:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+json
+Copy code
+{"route":"patient-results","patient_id":"P-0001","count":3,"dates":["2025-09-25","2025-07-10","2025-06-02"]}
+Filter for it in Vercel Logs to spot anomalies.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Deployment (Vercel)
+Ensure /app/api/patient-results/route.ts has:
 
-## Learn More
+ts
+Copy code
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+Push to main; Vercel builds & deploys.
 
-To learn more about Next.js, take a look at the following resources:
+Set ENV vars in Vercel before/after first deploy.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Data notes
+results_flat contains one row per analyte; ranges provides label/unit/low/high and section via prefix (hema_, chem_, ua_, fa_, sero_).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+We treat "-", empty, and n/a as blank (not rendered).
 
-## Deploy on Vercel
+Flags: we show only L/H/A. Normal is blank.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Urinalysis/Fecalysis: UI hides Reference & Flag columns.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Maintenance
+Deprecated Sheets endpoints: /api/results, /api/report. Watch logs for [DEPRECATED]. Delete after a week of zero hits.
+
+Edit DEFAULT_ORDER in supabase-provider.ts (fallback ordering). If ranges.order exists, it takes precedence.
+
+Run:
+
+npx depcheck (unused deps)
+
+npx ts-prune (unused exports) — beware Next false positives (pages/layout/metadata/middleware).
+
+Glossary
+API/endpoint: URL that returns data (JSON).
+
+Adapter/Data Provider: hides the data source (Sheets vs Supabase) and returns stable shapes to the UI.
+
+JSON shape: the structure of returned fields and types.
+
+Node runtime: full Node.js environment for server routes (required for Supabase service key & Google APIs).
+
+yaml
+Copy code
+
+---
+
+## “Watch logs for a week”—put it on rails
+
+- Add the deprecation log (you already did):  
+  `console.warn("[DEPRECATED] /api/results ...");`
+- Set a calendar reminder to run:
+  ```bash
+  vercel logs https://<your-prod>.vercel.app --since 7d --filter "[DEPRECATED]"
+Or add a log drain + saved query → email/slack alert if count > 0 in last 24h.
