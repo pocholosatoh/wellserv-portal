@@ -27,9 +27,9 @@ function ts(d: string | null | undefined): number {
   // Try M/D/YYYY or D/M/YYYY
   const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
-    let a = parseInt(m[1], 10);
-    let b = parseInt(m[2], 10);
-    let y = m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10);
+    const a = parseInt(m[1], 10);
+    const b = parseInt(m[2], 10);
+    const y = m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10);
     // If first number >12, it's D/M/Y; otherwise assume M/D/Y
     const isDMY = a > 12;
     const month = isDMY ? b - 1 : a - 1;
