@@ -110,10 +110,9 @@ export default function RmtUploadPage() {
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16, display: "grid", gap: 16 }}>
       <h1 style={{ marginBottom: 0 }}>Hematology Upload</h1>
-      <p style={{ marginTop: 0, color: "#666" }}>
-        CSV headers must match these new names. Required: <code>Patient ID</code>, (different from Sample ID) plus any of:
-        {" "}
-        <code>WBC (10^9/L), Lymph% ( ), Mid% ( ), Gran% ( ), RBC (10^12/L), HGB (g/L), HCT ( ), MCV (fL), MCH (pg), MCHC (g/L), PLT (10^9/L)</code>.
+      <p style={{ marginTop: 8, color: "#666" }}>
+        Google Sheet must have these destination columns (row 1):{" "}
+        <code>patient_id, hema_wbc, hema_lymph, hema_mid, hema_gran, hema_rbc, hema_hgb, hema_hct, hema_mcv, hema_mch, hema_mchc, hema_plt</code>.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {BRANCHES.map(b => (

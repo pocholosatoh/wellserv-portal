@@ -1,231 +1,271 @@
 // lib/hema.ts
-import { google } from "googleapis";
 
-export type HemaRow = {
+/** -----------------------------
+ * Types
+ * ------------------------------*/
+export type HemaRowInternal = {
   patient_id: string;
-  WBC?: number | null;
-  Lympho?: number | null;
-  MID?: number | null;
-  Gran?: number | null;
-  RBC?: number | null;
-  Hemoglobin?: number | null;
-  Hematocrit?: number | null;
-  MCV?: number | null;
-  MCH?: number | null;
-  MCHC?: number | null;
-  Platelet?: number | null;
+  WBC?: number | "";
+  Lympho?: number | "";   // fraction 0.xx
+  MID?: number | "";      // fraction 0.xx
+  Gran?: number | "";     // fraction 0.xx
+  RBC?: number | "";
+  Hemoglobin?: number | "";
+  Hematocrit?: number | "";
+  MCV?: number | "";
+  MCH?: number | "";
+  MCHC?: number | "";
+  Platelet?: number | "";
 };
 
-const TAB = (process.env.HEMA_TAB || "Database").trim();
-const MAX_COLUMN_INDEX = 24; // Column X
-const MAX_COLUMN_A1 = colToA1(MAX_COLUMN_INDEX);
+export type HemaRowSheet = {
+  patient_id: string;
+  hema_wbc?: number | "";
+  hema_lymph?: number | "";
+  hema_mid?: number | "";
+  hema_gran?: number | "";
+  hema_rbc?: number | "";
+  hema_hgb?: number | "";
+  hema_hct?: number | "";
+  hema_mcv?: number | "";
+  hema_mch?: number | "";
+  hema_mchc?: number | "";
+  hema_plt?: number | "";
+};
 
-// exact column headers we expect in the sheet (and CSV)
-export const HEMA_HEADERS = [
-  "WBC","Lympho","MID","Gran","RBC","Hemoglobin","Hematocrit","MCV","MCH","MCHC","Platelet",
+/** -----------------------------
+ * Destination headers in Google Sheet
+ * ------------------------------*/
+export const HEMA_DEST_HEADERS: ReadonlyArray<keyof HemaRowSheet | "patient_id"> = [
+  "patient_id",
+  "hema_wbc",
+  "hema_lymph",
+  "hema_mid",
+  "hema_gran",
+  "hema_rbc",
+  "hema_hgb",
+  "hema_hct",
+  "hema_mcv",
+  "hema_mch",
+  "hema_mchc",
+  "hema_plt",
 ];
 
-// ---- Google Sheets client (RW) ----
-let _client: ReturnType<typeof google.sheets> | null = null;
-async function getSheetsRW() {
-  if (_client) return _client;
-  const email = must(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL, "GOOGLE_SERVICE_ACCOUNT_EMAIL");
-  const pk = must(process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY, "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY").replace(/\\n/g, "\n");
-  const auth = new google.auth.JWT({
-    email,
-    key: pk,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-  _client = google.sheets({ version: "v4", auth });
-  return _client;
-}
-function must(v: string | undefined, name: string) {
-  if (!v) throw new Error(`Missing env: ${name}`);
-  return v;
-}
+export const OUTPUT_ORDER = [...HEMA_DEST_HEADERS] as string[];
 
-// ---- helpers used in hema parsing ----
-function toNum(s: any): number | null {
-  const t = String(s ?? "").replace(/,/g, "").trim();
-  if (!t) return null;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
-}
+/** -----------------------------
+ * CSV Header Aliases (input side)
+ * ------------------------------*/
+const CSV_ALIASES = {
+  patient_id: ["patient_id", "PatientID", "Patient ID", "ID"] as const,
+  WBC: ["WBC", "WBC (10^9/L)"] as const,
+  Lympho: ["Lympho", "Lymph", "Lymph% ( )", "Lymph%", "Lymph %"] as const,
+  MID: ["MID", "Mid% ( )", "Mid%", "Mid %", "Mid"] as const,
+  Gran: ["Gran", "Gran% ( )", "Gran%", "Gran %", "Granulocyte"] as const,
+  RBC: ["RBC", "RBC (10^12/L)"] as const,
+  Hemoglobin: ["Hemoglobin", "HGB (g/L)", "HGB"] as const,
+  Hematocrit: ["Hematocrit", "HCT ( )", "HCT"] as const,
+  MCV: ["MCV", "MCV (fL)"] as const,
+  MCH: ["MCH", "MCH (pg)"] as const,
+  MCHC: ["MCHC", "MCHC (g/L)"] as const,
+  Platelet: ["Platelet", "PLT (10^9/L)", "PLT"] as const,
+};
 
-// round to 2 decimals; keep nulls as null
-const round2 = (n: number | null) => (n == null ? null : Math.round(n * 100) / 100);
+/** -----------------------------
+ * Internal key -> Sheet column map (output side)
+ * ------------------------------*/
+const COLUMN_MAP: Record<
+  Exclude<keyof HemaRowInternal, "patient_id">,
+  keyof HemaRowSheet
+> = {
+  WBC: "hema_wbc",
+  Lympho: "hema_lymph",
+  MID: "hema_mid",
+  Gran: "hema_gran",
+  RBC: "hema_rbc",
+  Hemoglobin: "hema_hgb",
+  Hematocrit: "hema_hct",
+  MCV: "hema_mcv",
+  MCH: "hema_mch",
+  MCHC: "hema_mchc",
+  Platelet: "hema_plt",
+};
 
-// normalize Lympho/MID/Gran to FRACTIONS (0..1) that sum to exactly 1.00
-export function normalizeTrioToFrac(a: any, b: any, c: any) {
-  const r2 = (x: number) => Math.round(x * 100) / 100; // local helper for non-nullable numbers
-
-  const A = toNum(a), B = toNum(b), C = toNum(c);
-  if (A == null && B == null && C == null) return { Lympho: null, MID: null, Gran: null };
-
-  // accept either percents (28) or fractions (0.28)
-  const asFrac = (v: number | null) => v == null ? 0 : (v > 1.0001 ? v / 100 : v);
-
-  let fA = asFrac(A), fB = asFrac(B), fC = asFrac(C);
-  const sum = fA + fB + fC;
-  if (sum <= 0) return { Lympho: null, MID: null, Gran: null };
-
-  // normalize, then round and force exact sum = 1.00
-  fA /= sum; fB /= sum; fC /= sum;
-  let L = r2(fA), M = r2(fB), G = r2(1 - L - M);
-  if (G < 0) { G = 0; L = r2(1 - M); }
-  const diff = r2(1 - (L + M + G));
-  if (diff !== 0) G = r2(G + diff);
-
-  // clamp
-  L = Math.min(1, Math.max(0, L));
-  M = Math.min(1, Math.max(0, M));
-  G = Math.min(1, Math.max(0, G));
-
-  return { Lympho: L, MID: M, Gran: G };
-}
-
-// Helper: get first non-empty value among a list of header aliases
-function pick(r: Record<string, any>, names: string[]) {
+/** -----------------------------
+ * Small utilities
+ * ------------------------------*/
+function pick(r: Record<string, any>, names: readonly string[]) { // <— accepts readonly array
   for (const n of names) {
-    // match both exact and trimmed keys
     if (n in r && r[n] != null && String(r[n]).trim() !== "") return r[n];
   }
   return null;
 }
 
-// Aliases for NEW CSV headers -> internal keys we write to the sheet
-const CSV_ALIASES = {
-  patient_id: ["patient_id", "PatientID", "Patient ID"],
+function toNum(v: any): number | null {
+  if (v == null) return null;
+  const s = String(v).replace(/[, ]+/g, "").trim();
+  if (s === "") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
 
-  WBC:        ["WBC", "WBC (10^9/L)"],
-  Lympho:     ["Lympho", "Lymph% ( )", "Lymph%", "Lymph %"],
-  MID:        ["MID", "Mid% ( )", "Mid%", "Mid %"],
-  Gran:       ["Gran", "Gran% ( )", "Gran%", "Gran %"],
-  RBC:        ["RBC", "RBC (10^12/L)"],
-  Hemoglobin: ["Hemoglobin", "HGB (g/L)", "HGB"],
-  Hematocrit: ["Hematocrit", "HCT ( )", "HCT"],
-  MCV:        ["MCV", "MCV (fL)"],
-  MCH:        ["MCH", "MCH (pg)"],
-  MCHC:       ["MCHC", "MCHC (g/L)"],
-  Platelet:   ["Platelet", "PLT (10^9/L)", "PLT"],
-};
+function round2(n: number | null | undefined): number | "" {
+  if (n == null || !Number.isFinite(n)) return "";
+  return Math.round(n * 100) / 100;
+}
 
-export function sanitizeHemaRows(rows: any[]): HemaRow[] {
+function percentishToFraction(n: number | null): number | null {
+  if (n == null) return null;
+  if (n > 1.0 + 1e-9) return n / 100; // 28 -> 0.28
+  return n;
+}
+
+/** Normalize Lympho/MID/Gran trio to fractions 0.xx that sum to exactly 1.00.
+ *  Rules:
+ *  - Inputs may be percents (e.g., 28) or fractions (0.28).
+ *  - If all three provided, we round L & M, then set G := 1 - (L + M).
+ *  - If exactly one is missing, we compute the missing one as 1 - sum(others).
+ *  - If two are missing, we keep the provided one and split the remainder as 0 for one and the rest for the last,
+ *    but in practice your CSV provides at least two, so this is a rare edge.
+ */
+export function normalizeTrioToFrac(
+  lymphIn: any,
+  midIn: any,
+  granIn: any
+): { Lympho: number | ""; MID: number | ""; Gran: number | "" } {
+  const toFrac = (v: any): number | null => {
+    const n = toNum(v);
+    if (n == null) return null;
+    return n > 1.0 + 1e-9 ? n / 100 : n; // treat >1 as percent -> fraction
+  };
+
+  let L = toFrac(lymphIn);
+  let M = toFrac(midIn);
+  let G = toFrac(granIn);
+
+  // If all empty
+  if (L == null && M == null && G == null) return { Lympho: "", MID: "", Gran: "" };
+
+  // Count provided
+  const haveL = L != null;
+  const haveM = M != null;
+  const haveG = G != null;
+  const count = (haveL ? 1 : 0) + (haveM ? 1 : 0) + (haveG ? 1 : 0);
+
+  // Helper to clamp+round
+  const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+
+  if (count >= 2) {
+    // Prefer to preserve L and M, then solve for G
+    const Lr = r2((L ?? 0));
+    const Mr = r2((M ?? 0));
+
+    // If G is the missing one OR even if present, we recompute G to force exact sum=1
+    let Gr = r2(1 - (Lr + Mr));
+
+    // Clamp
+    const Lrc = clamp01(Lr);
+    const Mrc = clamp01(Mr);
+    const Grc = clamp01(Gr);
+
+    return { Lympho: Lrc, MID: Mrc, Gran: Grc };
+  }
+
+  // If exactly one provided, set that and infer the rest as 0 and 1 - provided.
+  if (count === 1) {
+    if (haveL) {
+      const Lr = clamp01(r2(L!));
+      const rest = clamp01(r2(1 - Lr));
+      // Put rest into Gran by default, MID = 0
+      return { Lympho: Lr, MID: 0, Gran: rest };
+    }
+    if (haveM) {
+      const Mr = clamp01(r2(M!));
+      const rest = clamp01(r2(1 - Mr));
+      // Put rest into Gran by default, Lympho = 0
+      return { Lympho: 0, MID: Mr, Gran: rest };
+    }
+    if (haveG) {
+      const Gr = clamp01(r2(G!));
+      const rest = clamp01(r2(1 - Gr));
+      // Put rest into Lympho by default, MID = 0
+      return { Lympho: rest, MID: 0, Gran: Gr };
+    }
+  }
+
+  // Fallback: if we somehow get here, return zeros that sum to 1
+  return { Lympho: 0, MID: 0, Gran: 1 };
+}
+
+/** -----------------------------
+ * CSV → Internal normalization
+ * ------------------------------*/
+export function sanitizeHemaRows(rows: any[]): HemaRowInternal[] {
   return rows
     .map((r: Record<string, any>) => {
       const pid = String(pick(r, CSV_ALIASES.patient_id) ?? "").trim();
       if (!pid) return null;
 
-      // Trio normalization: accepts % (e.g., 28) or fraction (0.28); returns 0.xx and sums to 1.00
       const trio = normalizeTrioToFrac(
         pick(r, CSV_ALIASES.Lympho),
         pick(r, CSV_ALIASES.MID),
         pick(r, CSV_ALIASES.Gran)
       );
 
-      const obj: HemaRow = {
+      const obj: HemaRowInternal = {
         patient_id: pid,
-        WBC:        round2(toNum(pick(r, CSV_ALIASES.WBC))),
-        Lympho:     trio.Lympho,  // 0.xx
-        MID:        trio.MID,     // 0.xx
-        Gran:       trio.Gran,    // 0.xx
-        RBC:        round2(toNum(pick(r, CSV_ALIASES.RBC))),
+        WBC: round2(toNum(pick(r, CSV_ALIASES.WBC))),
+        Lympho: trio.Lympho,
+        MID: trio.MID,
+        Gran: trio.Gran,
+        RBC: round2(toNum(pick(r, CSV_ALIASES.RBC))),
         Hemoglobin: round2(toNum(pick(r, CSV_ALIASES.Hemoglobin))),
         Hematocrit: round2(toNum(pick(r, CSV_ALIASES.Hematocrit))),
-        MCV:        round2(toNum(pick(r, CSV_ALIASES.MCV))),
-        MCH:        round2(toNum(pick(r, CSV_ALIASES.MCH))),
-        MCHC:       round2(toNum(pick(r, CSV_ALIASES.MCHC))),
-        Platelet:   round2(toNum(pick(r, CSV_ALIASES.Platelet))),
+        MCV: round2(toNum(pick(r, CSV_ALIASES.MCV))),
+        MCH: round2(toNum(pick(r, CSV_ALIASES.MCH))),
+        MCHC: round2(toNum(pick(r, CSV_ALIASES.MCHC))),
+        Platelet: round2(toNum(pick(r, CSV_ALIASES.Platelet))),
       };
+
       return obj;
     })
-    .filter(Boolean) as HemaRow[];
+    .filter(Boolean) as HemaRowInternal[];
 }
 
-/**
- * Update the Database tab of the given sheet by matching patient_id and writing hema columns.
- * - Does not append new rows.
- * - Does not create new columns: returns missingHeaders if any are not found.
- */
-export async function updateHemaToDatabase(sheetId: string, rows: HemaRow[]) {
-  if (!rows.length) return { updatedRows: 0, notFound: [] as string[], missingHeaders: [] as string[] };
-
-  const api = await getSheetsRW();
-
-  // read entire tab
-  const { data } = await api.spreadsheets.values.get({
-    spreadsheetId: sheetId,
-    range: `${TAB}!A:${MAX_COLUMN_A1}`,
-    valueRenderOption: "UNFORMATTED_VALUE",
-    dateTimeRenderOption: "FORMATTED_STRING",
-    majorDimension: "ROWS",
+/** -----------------------------
+ * Internal → Sheet row mapping
+ * ------------------------------*/
+export function toSheetRow(internal: HemaRowInternal): HemaRowSheet {
+  const out: HemaRowSheet = { patient_id: internal.patient_id };
+  (Object.keys(COLUMN_MAP) as Array<keyof typeof COLUMN_MAP>).forEach((k) => {
+    const dest = COLUMN_MAP[k];
+    (out as any)[dest] = (internal as any)[k] ?? "";
   });
-
-  const matrixRaw: any[][] = (data.values as any[][]) || [];
-  const matrix = matrixRaw.map(row => row.slice(0, MAX_COLUMN_INDEX));
-  const headers: string[] = (matrix[0] || []).map(h => String(h).trim());
-  if (!headers.length) throw new Error(`Sheet ${sheetId} "${TAB}" has no header row`);
-
-  // indexes
-  const colIndex = new Map<string, number>();
-  headers.forEach((h, i) => colIndex.set(h, i));
-  const pidCol = colIndex.get("patient_id");
-  if (pidCol == null) throw new Error(`"${TAB}" tab must have a "patient_id" header`);
-
-  // ensure hema headers exist
-  const missingHeaders = HEMA_HEADERS.filter(h => !colIndex.has(h));
-  if (missingHeaders.length) {
-    return { updatedRows: 0, notFound: [], missingHeaders };
-  }
-
-  // build patient_id -> row number (1-based)
-  const rowIndexByPid = new Map<string, number>();
-  for (let r = 1; r < matrix.length; r++) {
-    const pid = String(matrix[r]?.[pidCol] ?? "").trim().toLowerCase();
-    if (pid) rowIndexByPid.set(pid, r + 1); // include header offset
-  }
-
-  // prepare updates per row (write a full row back to avoid per-cell spam)
-  const updates: Array<{ range: string; values: any[][] }> = [];
-  const notFound: string[] = [];
-  for (const hema of rows) {
-    const key = hema.patient_id.trim().toLowerCase();
-    const r1 = rowIndexByPid.get(key);
-    if (!r1) { notFound.push(hema.patient_id); continue; }
-
-    // existing row values
-    const row0 = (matrix[r1 - 1] || []).slice();
-    while (row0.length < MAX_COLUMN_INDEX) row0.push("");
-    row0.splice(MAX_COLUMN_INDEX);
-
-    // set only our hema headers
-    for (const h of HEMA_HEADERS) {
-      const i = colIndex.get(h)!;
-      (row0 as any[])[i] = (hema as any)[h] ?? ""; // write number or empty
-    }
-
-    updates.push({
-      range: `${TAB}!A${r1}:${MAX_COLUMN_A1}${r1}`,
-      values: [row0],
-    });
-  }
-
-  if (updates.length) {
-    await api.spreadsheets.values.batchUpdate({
-      spreadsheetId: sheetId,
-      requestBody: {
-        valueInputOption: "RAW",
-        data: updates,
-      },
-    });
-  }
-
-  return { updatedRows: updates.length, notFound, missingHeaders };
+  return out;
 }
 
-function colToA1(n: number) {
-  // 1 -> A, 2 -> B ... 27 -> AA
-  let s = "";
-  while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
-  return s;
+export function toValuesArray(sheetRow: HemaRowSheet): any[] {
+  return OUTPUT_ORDER.map((h) => (sheetRow as any)[h] ?? "");
+}
+
+/** -----------------------------
+ * Sheet header helpers
+ * ------------------------------*/
+export function assertHemaHeaders(headersRow0: string[]) {
+  const missing = HEMA_DEST_HEADERS.filter((h) => !headersRow0.includes(h));
+  if (missing.length) {
+    throw new Error(`Missing headers in sheet: ${missing.join(", ")}`);
+  }
+}
+
+export function makeIndexMap(headersRow0: string[]) {
+  const map: Record<string, number> = {};
+  for (const h of headersRow0) map[h] = headersRow0.indexOf(h);
+  return map;
+}
+
+/** Convenience: bulk transform to values[][] */
+export function buildValuesForSheet(internals: HemaRowInternal[]): any[][] {
+  return internals.map((row) => toValuesArray(toSheetRow(row)));
 }
