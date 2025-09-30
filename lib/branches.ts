@@ -62,5 +62,5 @@ export type BranchOption = { key: "SI" | "SL" | "GC"; label: string };
 export const BRANCHES: BranchOption[] = [
   { key: "SI", label: "San Isidro" },
   { key: "SL", label: "San Leonardo" },
-  { key: "GC", label: "Gapan City" },
+  { key: "GC", label: "Glochem" },
 ];
