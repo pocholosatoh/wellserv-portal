@@ -369,7 +369,7 @@ export default function ReportViewer({
         new Set<string>(
           reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean)
         )
-      ).sort((a: string, b: string) => b.localeCompare(a));
+      ).sort((a: string, b: string) => ts(b) - ts(a));
       setSelectedDate(dates[0] ?? "");
     } catch (e: any) {
       setErr(e?.message || "Network error.");
@@ -476,7 +476,7 @@ export default function ReportViewer({
       new Set<string>(
         reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean)
       )
-    ).sort((a: string, b: string) => b.localeCompare(a));
+    ).sort((a: string, b: string) => ts(b) - ts(a));
     setSelectedDate(dates[0] ?? "");
   } catch (e: any) {
     setErr(e?.message || "Network error.");
