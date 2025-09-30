@@ -24,6 +24,7 @@ const PREVIEW_HEADERS = [
 function Panel({ label, sheetKey }: { label: string; sheetKey: string }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [status, setStatus] = useState("");
+  const UPLOAD_SECRET = process.env.NEXT_PUBLIC_RMT_UPLOAD_SECRET || "";
 
   function handleFile(file: File) {
     setStatus("Parsing…");
@@ -40,24 +41,39 @@ function Panel({ label, sheetKey }: { label: string; sheetKey: string }) {
 
   async function upload() {
     setStatus("Uploading…");
+    if (!UPLOAD_SECRET) {
+      setStatus("Error: NEXT_PUBLIC_RMT_UPLOAD_SECRET is missing in .env.local");
+      return;
+    }
+
     const res = await fetch("/api/rmt/hema/import", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-rmt-secret": process.env.NEXT_PUBLIC_RMT_UPLOAD_SECRET || "",
-      },
-      body: JSON.stringify({ sheetKey, rows }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sheetKey,
+        rows,
+        sheetName: "Results",               // optional; our API defaults to "Database"
+        secret: UPLOAD_SECRET,               // <-- send secret in BODY (not header)
+      }),
     });
-    const json = await res.json();
-    if (!res.ok) { setStatus(json.error || "Upload failed"); return; }
 
-    const miss: string[] = json.missingHeaders || [];
-    const nf: string[] = json.notFound || [];
+    const data = await res.json().catch(() => ({} as any));
 
-    let msg = `Done. Updated rows: ${json.updatedRows || 0}`;
-    if (miss.length) msg += ` • Missing headers: ${miss.join(", ")}`;
-    if (nf.length) msg += ` • Patient IDs not found: ${nf.slice(0, 10).join(", ")}${nf.length > 10 ? "…" : ""}`;
-    setStatus(msg);
+    if (!res.ok || !data?.ok) {
+      const mh = Array.isArray(data?.missingHeaders)
+        ? ` Missing headers: ${data.missingHeaders.join(", ")}`
+        : "";
+      setStatus(`Error: ${data?.error || res.statusText}.${mh}`);
+      return;
+    }
+
+    const updatedExisting = Number(data.updatedExisting ?? 0);
+    const appended = Number(data.appended ?? 0);
+    const total = updatedExisting + appended;
+
+    setStatus(
+      `Done. Updated: ${total} (modified existing: ${updatedExisting}, added new: ${appended})`
+    );
   }
 
   return (
