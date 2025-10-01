@@ -893,7 +893,9 @@ export default function ReportViewer({
                           return (
                             <tr key={it.key}>
                               <td>{it.label}</td>
-                              <td style={{ textAlign: "right" }}>{it.value}</td>
+                              <td style={{ textAlign: "right" }}>
+                              {cur != null ? fmt(cur) : String(it.value ?? "")}
+                            </td>
 
                               {compareOn && (
                                 <>
