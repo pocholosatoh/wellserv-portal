@@ -54,7 +54,7 @@ export default async function PrintRxPage({ params }: Props) {
       <div className="flex items-center gap-3 mb-2">
         {/* Local asset: /public/logo.png */}
         <div className="relative" style={{ width: 44, height: 44 }}>
-          <Image src="/logo.png" alt="Logo" fill sizes="44px" priority />
+          <Image src="/wellserv-logo.png" alt="Logo" fill sizes="44px" priority />
         </div>
         <div>
           <div className="text-lg font-semibold leading-tight">WellServ Diagnostics</div>

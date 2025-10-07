@@ -15,6 +15,14 @@ export function getSupabase(): SupabaseClient {
   });
 }
 
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; // public-safe
+
+export function getSupabaseBrowser(): SupabaseClient {
+  return createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+    auth: { autoRefreshToken: true, persistSession: true },
+  });
+}
+
 // ---------- helpers ----------
 function snake<T extends Row>(row: T): T {
   const out: Row = {};
