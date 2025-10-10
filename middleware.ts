@@ -1,50 +1,54 @@
 // middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 
-const DOCTOR_PREFIX = "/doctor";
-const DOCTOR_LOGIN_PATH = "/doctor/login";
+const COOKIE_NAME = "doctor_session";
 
-// Any doctor-only API routes you want to allow without the cookie gate:
-const DOCTOR_API_PREFIXES = ["/api/doctor/login", "/api/doctor/logout"];
+// If you prefer to only check the cookie's presence (no JWT verify), set this to false.
+const VERIFY_JWT = true;
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
-  // Always set "noindex" header on responses
-  const res = NextResponse.next();
-  res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  // Only guard /doctor/*, but allow the login page itself
+  const isDoctorArea = pathname.startsWith("/doctor");
+  const isLoginPage = pathname === "/doctor/login";
 
-  // --- Doctor gate (MVP cookie guard) -----------------------
-  // Only guard /doctor* pages (not assets), and skip the login page itself,
-  // and skip doctor auth APIs to avoid redirect loops.
-  const isDoctorArea = pathname.startsWith(DOCTOR_PREFIX);
-  const isDoctorLogin = pathname === DOCTOR_LOGIN_PATH;
-  const isDoctorAuthApi = DOCTOR_API_PREFIXES.some((p) => pathname.startsWith(p));
+  if (!isDoctorArea || isLoginPage) {
+    return NextResponse.next();
+  }
 
-  if (isDoctorArea && !isDoctorLogin && !isDoctorAuthApi) {
-    const cookie = req.cookies.get("doctor_auth")?.value;
+  const token = req.cookies.get(COOKIE_NAME)?.value;
 
-    if (!cookie) {
-      // Not logged in → redirect to /doctor/login, preserve intended path
-      const url = req.nextUrl.clone();
-      url.pathname = DOCTOR_LOGIN_PATH;
-      if (pathname !== "/doctor") {
-        // pass the original path back as ?next=...
-        const nextTarget = pathname + (search || "");
-        url.searchParams.set("next", nextTarget);
-      }
+  if (!token) {
+    // Not logged in → send to login with next=<current path+query>
+    const url = new URL("/doctor/login", req.url);
+    url.searchParams.set("next", pathname + (search || ""));
+    return NextResponse.redirect(url);
+  }
+
+  if (VERIFY_JWT) {
+    const secretRaw = process.env.DOCTOR_SESSION_SECRET || "";
+    if (!secretRaw) {
+      // Fail open in dev to avoid loops if you forgot the env var; set to redirect if you prefer strict.
+      console.warn("[middleware] DOCTOR_SESSION_SECRET missing; skipping JWT verify.");
+      return NextResponse.next();
+    }
+    try {
+      await jwtVerify(token, new TextEncoder().encode(secretRaw));
+    } catch {
+      // Invalid/expired token → force login
+      const url = new URL("/doctor/login", req.url);
+      url.searchParams.set("next", pathname + (search || ""));
       return NextResponse.redirect(url);
     }
   }
-  // ---------------------------------------------------------
 
-  return res;
+  return NextResponse.next();
 }
 
-// Keep your original matcher that skips static assets & images.
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|ico)).*)',
-  ],
+  // Guard every /doctor/* page; middleware does its own allowlist for /doctor/login
+  matcher: ["/doctor/:path*"],
 };

@@ -8,6 +8,7 @@ type Consult = {
   id: string;
   patient_id: string;
   doctor_id: string | null;
+  doctor_name_at_time?: string | null;
   visit_at: string;              // ISO string
   plan_shared: string | null;
   doctor?: {
@@ -75,7 +76,7 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
                 ? `${d.full_name || d.display_name || ""}${
                     d.credentials ? `, ${d.credentials}` : ""
                   }`
-                : "—";
+                : (c.doctor_name_at_time || "—");
 
               return (
                 <button

@@ -1,74 +1,58 @@
-// app/api/consultations/details/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const id = (url.searchParams.get("id") || "").trim();
+    const id = req.nextUrl.searchParams.get("id");
     if (!id) {
-      return NextResponse.json({ error: "Missing consultation id" }, { status: 400 });
+      return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
 
     const supabase = getSupabase();
 
-    // 1) Load consultation itself
-    const { data: consultation, error: consultErr } = await supabase
+    // 1) Load the consultation row (adjust selected columns as you like)
+    const { data: consultation, error: cErr } = await supabase
       .from("consultations")
-      .select("*")
+      .select("id, patient_id, doctor_id, visit_at")
       .eq("id", id)
-      .maybeSingle();
-    if (consultErr) throw consultErr;
-    if (!consultation)
-      return NextResponse.json({ error: "Consultation not found" }, { status: 404 });
+      .single();
 
-    // 2) Load notes tied to this consultation_id only
-    const { data: notes } = await supabase
+    if (cErr || !consultation) {
+      return NextResponse.json(
+        { error: cErr?.message || "Consultation not found" },
+        { status: 404 }
+      );
+    }
+
+    // 2) Load notes (either markdown or SOAP JSON)
+    // If your table is named differently, change "consultation_notes" below.
+    const { data: notesRow } = await supabase
       .from("doctor_notes")
-      .select("*")
+      .select("notes_markdown, notes_soap")
       .eq("consultation_id", id)
-      .order("updated_at", { ascending: false })
-      .limit(1)
       .maybeSingle();
 
-    // 3) Load prescriptions tied strictly to this consultation_id
-    const { data: prescriptions, error: rxErr } = await supabase
+    const notes = notesRow || null;
+
+    // 3) Load prescriptions + items
+    // If your schema differs, adjust names:
+    //   prescriptions table and prescription_items child table.
+    const { data: prescriptions } = await supabase
       .from("prescriptions")
-      .select(
-        "id, consultation_id, patient_id, doctor_id, status, show_prices, notes_for_patient, created_at"
-      )
+      .select("id, status, notes_for_patient, created_at, items:prescription_items(*)")
       .eq("consultation_id", id)
       .order("created_at", { ascending: false });
 
-    if (rxErr) throw rxErr;
-
-    // 4) Gather prescription_items for those Rx only
-    let itemsByRx: Record<string, any[]> = {};
-    if (prescriptions && prescriptions.length) {
-      const ids = prescriptions.map((r) => r.id);
-      const { data: items } = await supabase
-        .from("prescription_items")
-        .select("*")
-        .in("prescription_id", ids)
-        .order("created_at", { ascending: true });
-
-      for (const it of items || []) {
-        (itemsByRx[it.prescription_id] ||= []).push(it);
-      }
-    }
-
-    const presWithItems = (prescriptions || []).map((r) => ({
-      ...r,
-      items: itemsByRx[r.id] || [],
-    }));
-
     return NextResponse.json({
       consultation,
-      notes: notes || null,
-      prescriptions: presWithItems,
+      notes,
+      prescriptions: prescriptions || [],
     });
   } catch (e: any) {
-    console.error("[consultations/details]", e);
-    return NextResponse.json({ error: e.message || "Server error" }, { status: 500 });
+    console.error("GET /api/consultations/details error:", e);
+    return NextResponse.json(
+      { error: e?.message || "Unexpected error" },
+      { status: 500 }
+    );
   }
 }

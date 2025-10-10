@@ -1,13 +1,19 @@
 // app/api/doctor/logout/route.ts
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+const COOKIE = "doctor_session";
+
 export async function POST() {
-  const cookieStore = await cookies();
-  // Overwrite the cookie with empty value + immediate expiry
-  cookieStore.set("doctor_auth", "", {
+  const store = await cookies();
+
+  // delete the session cookie
+  store.set(COOKIE, "", {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge: 0,
