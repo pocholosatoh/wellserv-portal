@@ -1,4 +1,8 @@
 // app/(doctor)/doctor/patient/[patientId]/page.tsx
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
+
 import { redirect } from "next/navigation";
 import { getDoctorSession } from "@/lib/doctorSession";
 
@@ -10,11 +14,6 @@ import OtherLabsViewer from "@/components/OtherLabsViewer";
 import LogoutButton from "@/app/(doctor)/doctor/LogoutButton";
 import OtherLabsCard from "./OtherLabsCard";
 import QuickPatientJump from "./QuickPatientJump";
-
-
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
-export const revalidate = 0;
 
 type Props = { params: { patientId: string } };
 
