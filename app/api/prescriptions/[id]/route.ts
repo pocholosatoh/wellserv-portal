@@ -1,5 +1,5 @@
 // app/api/prescriptions/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 const supabase = typeof getSupabaseAdmin === "function" ? getSupabaseAdmin() : (getSupabaseAdmin as any);
@@ -40,15 +40,18 @@ function buildPatientName(p: any): string | null {
   );
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  try {
-    const rxId = params.id;
+export async function GET(
+    req: NextRequest,
+    context: { params: Promise<{ id: string }> }   // 👈 new pattern
+    ) {
+    const { id } = await context.params;
+    try {
 
     // 1) Prescription
     const { data: rx, error: rxErr } = await supabase
       .from("prescriptions")
       .select("id, patient_id, doctor_id, notes_for_patient, created_at")
-      .eq("id", rxId)
+      .eq("id", id)
       .single();
 
     if (rxErr || !rx) {
@@ -103,7 +106,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       .select(
         "id, generic_name, strength, form, route, dose_amount, dose_unit, frequency_code, duration_days, quantity, instructions, created_at"
       )
-      .eq("prescription_id", rxId)
+      .eq("prescription_id", id)
       .order("created_at", { ascending: true });
     if (iErr) console.warn("items fetch error:", iErr.message);
 
