@@ -21,8 +21,9 @@ export async function GET(req: Request) {
     const sb = supabaseAdmin();
     const { data, error } = await sb
       .from("external_results")
-      .select("id, patient_id, url, content_type, provider, taken_at, uploaded_at, uploaded_by, note")
+      .select("id, patient_id, url, content_type, type, provider, taken_at, uploaded_at, uploaded_by, note")
       .ilike("patient_id", raw)               // 👈 case-insensitive compare
+      .order("type", { ascending: true })
       .order("taken_at", { ascending: false })
       .order("uploaded_at", { ascending: false });
 

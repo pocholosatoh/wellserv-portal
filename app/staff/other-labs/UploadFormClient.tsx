@@ -3,6 +3,39 @@
 import * as React from "react";
 import { useEffect, useRef, useState } from "react";
 import UploadControls from "./UploadControls";
+import { useFormStatus } from "react-dom";
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className={[
+        "inline-flex items-center gap-2 rounded-lg",
+        "bg-[var(--accent,#2f7cff)] px-4 py-2 font-medium text-white",
+        "shadow transition",
+        "hover:brightness-105 hover:shadow-md",
+        "active:brightness-95",
+        "focus:outline-none focus:ring-2 focus:ring-[color:var(--accent,#2f7cff)]/40",
+        "disabled:opacity-50 disabled:cursor-not-allowed",
+      ].join(" ")}
+      title={pending ? "Uploading…" : undefined}
+    >
+      {pending ? (
+        <>
+          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          </svg>
+          Uploading…
+        </>
+      ) : (
+        <>Upload</>
+      )}
+    </button>
+  );
+}
 
 type Props = {
   action: (formData: FormData) => Promise<void>; // server action coming from page.tsx
@@ -73,6 +106,25 @@ export default function UploadFormClient({ action }: Props) {
           />
         </label>
 
+        <label className="block">
+          <span className="text-sm font-medium">Type (required)</span>
+          <select
+            name="type"
+            required
+            className="mt-1 w-full rounded-lg border p-2 bg-white"
+            defaultValue=""
+          >
+            <option value="" disabled>
+              Select type…
+            </option>
+            <option value="Lab Tests (3rd Party)">Lab Tests (3rd Party)</option>
+            <option value="Imaging Reports (X-ray, Ultrasound, etc.)">
+              Imaging Reports (X-ray, Ultrasound, etc.)
+            </option>
+            <option value="Other">Other</option>
+          </select>
+        </label>
+
         <div className={`text-sm ${color}`}>
           {status === "idle" && "Enter a Patient ID to check…"}
           {status === "checking" && "Checking Patient ID…"}
@@ -126,20 +178,9 @@ export default function UploadFormClient({ action }: Props) {
         <UploadControls />
       </div>
 
-      <button
-        className="rounded-lg border px-4 py-2 hover:bg-gray-50"
-        type="submit"
-        disabled={status === "missing" || status === "invalid" || status === "checking"}
-        title={
-          status === "missing"
-            ? "No patient found"
-            : status === "checking"
-            ? "Checking patient…"
-            : undefined
-        }
-      >
-        Upload
-      </button>
+      <div className="pt-1">
+        <SubmitButton />
+      </div>
     </form>
   );
 }
