@@ -1,5 +1,7 @@
 // app/(doctor)/doctor/login/page.tsx
 "use client";
+export const dynamic = "force-dynamic";
+export const revalidate = false;
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
