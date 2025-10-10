@@ -5,11 +5,20 @@ import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
+// If you used an enum in DB later, you can tighten this union.
+// For now keep it string to work with text column or backfilled rows.
+export type OtherLabType =
+  | "Lab Tests (3rd Party)"
+  | "Imaging Reports (X-ray, Ultrasound, etc.)"
+  | "Other"
+  | (string & {}); // allows future values without TS errors
+
 export type OtherLabItem = {
   id: string;
   patient_id: string;
   url: string;
   content_type: string;
+  type: OtherLabType;              // <-- NEW (required in UI)
   provider?: string | null;
   taken_at?: string | null;
   uploaded_at?: string | null;
@@ -177,12 +186,20 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
   const grouped = useMemo(() => {
     if (!items) return {} as Record<string, OtherLabItem[]>;
     const by: Record<string, OtherLabItem[]> = {};
-    for (const it of items) (by[(it.provider || "Unknown Provider").trim()] ||= []).push(it);
+    for (const it of items) {
+      const key = (it.type || "Uncategorized").trim();
+      (by[key] ||= []).push(it);
+    }
     for (const k of Object.keys(by)) {
-      by[k].sort((a,b)=> new Date(b.taken_at || b.uploaded_at || 0).getTime() - new Date(a.taken_at || a.uploaded_at || 0).getTime());
+      by[k].sort(
+        (a, b) =>
+          new Date(b.taken_at || b.uploaded_at || 0).getTime() -
+          new Date(a.taken_at || a.uploaded_at || 0).getTime()
+      );
     }
     return by;
   }, [items]);
+
   const providers = useMemo(()=>Object.keys(grouped),[grouped]);
   const [active, setActive] = useState<string | null>(null);
   useEffect(()=>{ if (providers.length && !active) setActive(providers[0]); },[providers, active]);
@@ -249,7 +266,10 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
                           <div className="text-xs text-gray-500">{item.content_type || "file"} • {fmtDate(item.taken_at)}</div>
                         </a>
                       )}
-                      <div className="mt-1 text-xs text-gray-500">{fmtDate(item.taken_at)}</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {fmtDate(item.taken_at)}
+                        {item.provider ? ` • ${item.provider}` : ""}
+                      </div>
                     </div>
                   );
                 })}
