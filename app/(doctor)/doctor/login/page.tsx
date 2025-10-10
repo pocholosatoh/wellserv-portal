@@ -1,7 +1,5 @@
 // app/(doctor)/doctor/login/page.tsx
 "use client";
-export const dynamic = "force-dynamic";
-export const revalidate = false;
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -18,7 +16,8 @@ export default function DoctorLoginPage() {
 
   async function onRegularLogin(e: React.FormEvent) {
     e.preventDefault();
-    setErr(null); setLoading(true);
+    setErr(null);
+    setLoading(true);
     try {
       const res = await fetch("/api/doctor/login", {
         method: "POST",
@@ -26,7 +25,11 @@ export default function DoctorLoginPage() {
         body: JSON.stringify({ code, pin }),
       });
       const j = await res.json();
-      if (!res.ok) { setErr(j?.error || "Login failed."); setLoading(false); return; }
+      if (!res.ok) {
+        setErr(j?.error || "Login failed.");
+        setLoading(false);
+        return;
+      }
       window.location.href = next;
     } catch {
       setErr("Network error. Try again.");
@@ -43,7 +46,8 @@ export default function DoctorLoginPage() {
 
   async function onRelieverLogin(e: React.FormEvent) {
     e.preventDefault();
-    setReliefErr(null); setReliefLoading(true);
+    setReliefErr(null);
+    setReliefLoading(true);
     try {
       const res = await fetch("/api/doctor/reliever/login", {
         method: "POST",
@@ -55,7 +59,11 @@ export default function DoctorLoginPage() {
         }),
       });
       const j = await res.json();
-      if (!res.ok) { setReliefErr(j?.error || "Invalid passcode."); setReliefLoading(false); return; }
+      if (!res.ok) {
+        setReliefErr(j?.error || "Invalid passcode.");
+        setReliefLoading(false);
+        return;
+      }
       window.location.href = next;
     } catch {
       setReliefErr("Network error. Try again.");
