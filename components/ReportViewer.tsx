@@ -574,6 +574,23 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
         .content { flex: 1 0 auto; }
         th, td { padding: var(--row-pad); }
 
+        .date-select {
+          font-size: 16px;                 /* slightly bigger text */
+          padding: 10px 12px;              /* larger click target */
+          border: 1px solid var(--accent); /* brand accent */
+          border-radius: 8px;
+          box-shadow: 0 0 0 2px rgba(15,118,110,.08);
+          background: #fff;
+        }
+        .date-select:focus {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(15,118,110,.20);
+        }
+        .controls .label {
+          font-weight: 700;                /* bolder label for visibility */
+          color: var(--brand);
+        }
+
         /* clinic header */
         .clinic { display:flex; align-items:center; gap:12px; margin: 8px 0 12px 0; }
         .clinic img { height: var(--logo-height); width:auto; object-fit: contain; display:block; }
@@ -872,19 +889,23 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
 
             {visitDates.length > 0 && (
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <label style={{ fontSize:14 }}>Visit date:</label>
+                <label className="label" style={{ fontSize: 15 }}>Visit date:</label>
                 <select
                   value={selectedDate || ""}
                   onChange={(e)=>setSelectedDate(e.target.value)}
-                  style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6 }}
+                  className="date-select"
                 >
-                  {visitDates.map(d => <option key={d} value={d}>{d}</option>)}
+                  {visitDates.map(d => (
+                    <option key={d} value={d}>
+                      {formatTestDate(d)}{/* nicer, human-readable label */}
+                    </option>
+                  ))}
                 </select>
 
                 <button
                   onClick={() => window.print()}
                   className="print:hidden"
-                  style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6 }}
+                  style={{ padding:"10px 12px", border:"1px solid var(--border)", borderRadius:8 }}
                 >
                   Print / Save as PDF
                 </button>
@@ -1030,7 +1051,8 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
               }}
             >
               {footerLines.map((line, i) => (
-                <div key={i} style={{ marginTop: i === 0 ? 0 : footerGapPx }}>{line}</div>
+                <div key={i} style={{ marginTop: i === 0 ? 0 : footerGapPx,
+                ...(i === 2 || i === 3 ? { color: "var(--accent)" } : {}),}}>{line}</div>
               ))}
             </div>
           )}

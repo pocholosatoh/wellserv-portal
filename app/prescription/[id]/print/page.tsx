@@ -1,156 +1,144 @@
-// app/prescription/[id]/print/page.tsx
 import Image from "next/image";
-import { getSupabase } from "@/lib/supabase";
-import { fmtManila } from "@/lib/time";
-import PrintButton from "./PrintButton";
+import { headers } from "next/headers";
+import { describeFrequency } from "@/lib/rx";
+import "./print.css";
 
-type Props = { params: { id: string } };
-
-export default async function PrintRxPage({ params }: Props) {
-  const { id } = params;
-  const supabase = getSupabase();
-
-  // Rx header
-  const { data: rx } = await supabase
-    .from("prescriptions")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-  if (!rx) return <div className="p-6 text-red-600">Prescription not found.</div>;
-
-  // Lines
-  const { data: items } = await supabase
-    .from("prescription_items")
-    .select("*")
-    .eq("prescription_id", id)
-    .order("created_at", { ascending: true });
-
-  // Patient (optional)
-  const { data: patient } = await supabase
-    .from("patients")
-    .select("patient_id, full_name, age, sex")
-    .eq("patient_id", rx.patient_id)
-    .maybeSingle();
-
-  // Doctor (signature block)
-  let doctor: any = null;
-  if (rx.doctor_id) {
-    const { data } = await supabase
-      .from("doctors")
-      .select("full_name, credentials, specialty, affiliations, prc_no, ptr_no, s2_no, signature_image_url")
-      .eq("id", rx.doctor_id)
-      .maybeSingle();
-    doctor = data;
-  }
-
-  function DocLine({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null;
-  return <div className="text-[11px] text-gray-700">{label}: {value}</div>;
+// Next 15+: headers() is async
+async function getBaseUrl(): Promise<string> {
+  const h = await headers();
+  const host =
+    h.get("x-forwarded-host") ??
+    h.get("host") ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "localhost:3000";
+  const proto =
+    h.get("x-forwarded-proto") ??
+    (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
 }
 
+async function getRx(id: string) {
+  const base = await getBaseUrl();
+  const res = await fetch(`${base}/api/prescriptions/${id}`, { cache: "no-store" });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error("Rx fetch failed", res.status, text);
+    throw new Error(`Failed to load prescription (${res.status})`);
+  }
+  return res.json();
+}
+
+function calcAge(iso?: string | null): number | null {
+  if (!iso) return null;
+  const dob = new Date(iso);
+  if (Number.isNaN(+dob)) return null;
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const m = now.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
+  return age;
+}
+
+export default async function PrintRxPage({ params }: { params: { id: string } }) {
+  const data = await getRx(params.id);
+
+  // map patient fields (birthday + sex) from API
+  const name = data.patient?.full_name ?? "Unknown";
+  const dobISO = data.patient?.birthday ?? null;
+  const age = calcAge(dobISO);
+  const dobStr = dobISO ? new Date(dobISO).toLocaleDateString("en-PH") : null;
+  const sex = data.patient?.sex ?? null;
+
   return (
-    <div className="p-6 print:p-0">
-      {/* Header with logo */}
-      <div className="flex items-center gap-3 mb-2">
-        {/* Local asset: /public/logo.png */}
-        <div className="relative" style={{ width: 44, height: 44 }}>
-          <Image src="/wellserv-logo.png" alt="Logo" fill sizes="44px" priority />
+    <div className="rx a5 mx-auto bg-white text-gray-900">
+      {/* Header: logo + date under it; add a bit more bottom padding */}
+      <div className="pt-2 pb-4 border-b">
+        <div className="flex items-center justify-center">
+          <Image
+            src="/wellserv-logo.png"
+            alt="WELLSERV"
+            width={360}
+            height={96}
+            className="h-16 w-auto"
+            priority
+            unoptimized
+          />
         </div>
-        <div>
-          <div className="text-lg font-semibold leading-tight">WellServ Diagnostics</div>
-          <div className="text-xs text-gray-600 leading-tight">Prescription</div>
+        <div className="text-xs text-right mt-1 pr-1">
+          Date: {new Date(data.created_at).toLocaleDateString("en-PH")}
         </div>
       </div>
 
-      {/* Patient meta */}
-      <div className="text-sm mb-3 grid grid-cols-2 gap-2">
-        <div><b>Date:</b> {fmtManila(rx.created_at)}</div>
-        <div><b>Patient ID:</b> {rx.patient_id}</div>
-        {patient?.full_name && (
-          <div className="col-span-2"><b>Patient:</b> {patient.full_name}</div>
-        )}
-      </div>
-
-      {/* Items (NO prices on print) */}
-      <div className="mb-3">
-        <div className="font-medium mb-1">Items</div>
-        <ol className="text-sm list-decimal pl-6 space-y-1">
-          {(items || []).map((ln: any, idx: number) => (
-            <li key={idx}>
-              <span className="font-medium">{ln.generic_name}</span>{" "}
-              — {ln.strength} {ln.form} · {ln.route || "PO"} · {ln.dose_amount} {ln.dose_unit}{" "}
-              {ln.frequency_code} · {ln.duration_days} days · Qty {ln.quantity}
-              {ln.instructions ? ` — ${ln.instructions}` : ""}
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      {/* Instructions */}
-      {rx.notes_for_patient && (
-        <div className="text-sm mb-6">
-          <b>Shared instructions:</b> {rx.notes_for_patient}
+      {/* Patient block: big name + age/sex/DOB */}
+      <div className="mt-2 border-b pb-2">
+        <div className="text-lg font-semibold">{name}</div>
+        <div className="text-sm text-gray-700">
+          {age != null ? `${age} y/o` : "—"}
+          {sex ? ` • ${sex}` : ""}
+          {dobStr ? ` • DOB: ${dobStr}` : ""}
         </div>
-      )}
+      </div>
+
+      {/* Rx list */}
+      <ol className="mt-3 space-y-2 list-decimal pl-5 text-[13px]">
+        {data.items.map((ln: any) => (
+          <li key={ln.id} className="leading-snug">
+            <div className="font-medium">
+              {ln.generic_name} — {ln.strength} {ln.form}
+            </div>
+            <div className="text-[12px]">
+              {ln.route || "PO"} · {ln.dose_amount} {ln.dose_unit} ·{" "}
+              {describeFrequency(ln.frequency_code)} · {ln.duration_days} days · Qty {ln.quantity}
+            </div>
+            {ln.instructions ? (
+              <div className="text-[12px] italic">Instruction: {ln.instructions}</div>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+
+      {/* Doctor notes */}
+      {data.notes_for_patient ? (
+        <div className="mt-3 p-2 border rounded text-[12px]">
+          <div className="font-medium">Doctor’s Notes</div>
+          <div>{data.notes_for_patient}</div>
+        </div>
+      ) : null}
 
       {/* Signature block */}
-      <div className="mt-10 grid grid-cols-2 gap-6 items-end">
-        <div />
-        <div className="mt-8 text-center">
-          {/* signature image if you plan to store it */}
-          {rx.doctor?.signature_image_url ? (
-            <div className="h-10">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={rx.doctor.signature_image_url}
-                alt="signature"
-                className="h-10 mx-auto object-contain"
-              />
-            </div>
-          ) : <div className="h-10" />}
-
-          <div className="font-medium">
-            {rx.doctor?.full_name || rx.doctor?.display_name || ""}
-            {rx.doctor?.credentials ? `, ${rx.doctor.credentials}` : ""}
-          </div>
-
-          {rx.doctor?.specialty && (
-            <div className="text-sm text-gray-700">{rx.doctor.specialty}</div>
+      <div className="mt-8 flex items-end">
+        <div>
+          {data.doctor?.signature_url ? (
+            <img src={data.doctor.signature_url} alt="Signature" style={{ height: 42 }} />
+          ) : (
+            <div className="text-[11px] text-gray-500 italic">No signature on file</div>
           )}
-
-          <div className="mt-1 space-y-0.5">
-            <DocLine label="PRC" value={rx.doctor?.prc_no} />
-            <DocLine label="PTR" value={rx.doctor?.ptr_no} />
-            <DocLine label="S2"  value={rx.doctor?.s2_no} />
+          <div className="border-t border-gray-800 mt-1 w-56" />
+          <div className="text-[12px] leading-tight">
+            <div className="font-medium">{data.doctor?.display_name || "Attending Physician"}</div>
+            {data.doctor?.designations ? <div>{data.doctor.designations}</div> : null}
+            {data.doctor?.prc_no ? <div>PRC No.: {data.doctor.prc_no}</div> : null}
           </div>
+        </div>
+
+        <div className="ml-auto text-right text-[10px] text-gray-500">
+          This prescription is valid as issued by the prescribing physician. You can verify by calling branch below.
         </div>
       </div>
 
-      {/* Print button */}
-      <div className="mt-6 print-hide">
-        <PrintButton />
+      {/* Footer (your text) */}
+      <div className="mt-6 text-[10px] text-gray-600 border-t pt-1 flex items-center justify-between">
+        <div>San Isidro, NE • Tel: 0993-985-4927 | San Leonardo, NE • Tel: 0994-276-0253</div>
+        <div>Rx ID: {data.id}</div>
       </div>
 
-      {/* Watermark + print CSS */}
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            body::before {
-              content: "";
-              position: fixed;
-              inset: 0;
-              background: url("/watermark.png") center / 420px no-repeat;
-              opacity: 0.06;
-              pointer-events: none;
-            }
-            @media print {
-              @page { margin: 12mm; }
-              .print-hide { display: none !important; }
-              body::before { opacity: 0.08; }
-            }
-          `,
-        }}
-      />
+      {/* Watermark pinned to lower-left */}
+      <div className="rx-watermark-svg" aria-hidden>
+        <svg viewBox="0 0 100 120" preserveAspectRatio="none">
+          {/* x=0, y=100 = bottom-left of the SVG box */}
+          <text x="2" y="125">℞</text>
+        </svg>
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { fmtManila } from "@/lib/time";
+import { describeFrequency } from "@/lib/rx";
 
 type Rx = any;
 
@@ -135,7 +136,7 @@ export default function StaffPrescriptionsPage() {
                       <li key={ln.id}>
                         <span className="font-medium">{ln.generic_name}</span>{" "}
                         — {ln.strength} {ln.form} · {ln.route || "PO"} ·{" "}
-                        {ln.dose_amount} {ln.dose_unit} {ln.frequency_code} ·{" "}
+                        {ln.dose_amount} {ln.dose_unit} {describeFrequency(ln.frequency_code)} ·{" "}
                         {ln.duration_days} days · Qty {ln.quantity}
                         {ln.instructions ? ` — ${ln.instructions}` : ""}
                         {ln.unit_price != null && ln.quantity != null ? (
