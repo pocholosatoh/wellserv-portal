@@ -122,10 +122,20 @@ export default async function PrintRxPage({ params }: { params: { id: string } }
             <div className="text-[11px] text-gray-500 italic">No signature on file</div>
           )}
           <div className="border-t border-gray-800 mt-1 w-56" />
+
           <div className="text-[12px] leading-tight">
-            <div className="font-medium">{data.doctor?.display_name || "Attending Physician"}</div>
-            {data.doctor?.designations ? <div>{data.doctor.designations}</div> : null}
+            {/* Name line: full_name, credentials  (falls back to display_name) */}
+            <div className="font-medium">
+              {(data.doctor?.full_name || data.doctor?.display_name || "Consulting Physician")}
+              {data.doctor?.credentials ? `, ${data.doctor.credentials}` : ""}
+            </div>
+
+            {/* Optional lines (only render if present) */}
+            {data.doctor?.specialty ? <div>{data.doctor.specialty}</div> : null}
+            {data.doctor?.affiliations ? <div>{data.doctor.affiliations}</div> : null}
             {data.doctor?.prc_no ? <div>PRC No.: {data.doctor.prc_no}</div> : null}
+            {data.doctor?.ptr_no ? <div>PTR No.: {data.doctor.ptr_no}</div> : null}
+            {data.doctor?.s2_no ? <div>S2 No.: {data.doctor.s2_no}</div> : null}
           </div>
         </div>
 
