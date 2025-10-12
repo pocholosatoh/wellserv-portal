@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 // ---------- types ----------
 type RefInfo = { low?: number; high?: number; normal_values?: string };
@@ -207,15 +207,29 @@ function ts(d?: string | null): number {
   return 0;
 }
 
-export default function ReportViewer({
-  initialPatientId,
-  apiPath = "/api/results",
-  autoFetch = false
-}: {
+type ReportViewerProps = {
   initialPatientId?: string;
   apiPath?: string;
   autoFetch?: boolean;
-}) {
+
+  // NEW (optional, non-breaking):
+  headerOverride?: ReactNode;   // custom header JSX from parent
+  watermarkSizePx?: number;     // e.g., 320 (overrides size for screen/print)
+  watermarkOpacity?: number;    // e.g., 0.05 (applies to screen & print)
+};
+
+export default function ReportViewer(props: ReportViewerProps) {
+  const {
+    initialPatientId,
+    apiPath = "/api/results",
+    autoFetch = false,
+
+    // NEW overrides
+    headerOverride,
+    watermarkSizePx,
+    watermarkOpacity,
+  } = props;
+
   const [patientId, setPatientId] = useState(initialPatientId ?? "");
 
   useEffect(() => {
@@ -287,6 +301,17 @@ export default function ReportViewer({
   const wmAngleDeg = Number(cfg?.watermark_angle_deg || -30);
   const wmSize = (cfg?.watermark_size || "40vw");
   const wmFallbackText = (cfg?.watermark_default_text || (reports.length === 0 ? "WELLSERV" : "")).trim();
+
+  // --- Prop overrides (optional) ---
+  const wmSizeEffective =
+    typeof watermarkSizePx === "number" ? `${watermarkSizePx}px` : wmSize;
+
+  const wmOpacityScreenEffective =
+    typeof watermarkOpacity === "number" ? watermarkOpacity : wmOpacityScreen;
+
+  const wmOpacityPrintEffective =
+    typeof watermarkOpacity === "number" ? watermarkOpacity : wmOpacityPrint;
+
   const hasWm = Boolean(wmText || wmImgUrl || wmFallbackText);
 
   const showVisitNotes = (cfg?.show_visit_notes || "").toLowerCase() === "true";
@@ -490,8 +515,20 @@ export default function ReportViewer({
   // signers + logo (computed BEFORE return)
   const { rmts, pathos } = getSignersFromConfig(cfg);
   const signers = [...rmts, ...pathos];
-  const { primary: logoPrimary, fallback: logoFallback } = driveImageUrls(cfg.clinic_logo_url);
-  const logoSrc = logoPrimary;
+
+  const rawLogo = (cfg?.clinic_logo_url || "").trim();
+  let logoSrc = "";
+  let logoFallback = "";
+
+if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
+  // Local public path (e.g., "/wellserv-logo.png") or direct URL
+  logoSrc = rawLogo;
+} else {
+  // Google Drive ID / URL (existing behavior)
+  const d = driveImageUrls(rawLogo);
+  logoSrc = d.primary;
+  logoFallback = d.fallback;
+}
 
   useEffect(() => {
     setLogoLoaded(false);
@@ -537,6 +574,23 @@ export default function ReportViewer({
         .content { flex: 1 0 auto; }
         th, td { padding: var(--row-pad); }
 
+        .date-select {
+          font-size: 16px;                 /* slightly bigger text */
+          padding: 10px 12px;              /* larger click target */
+          border: 1px solid var(--accent); /* brand accent */
+          border-radius: 8px;
+          box-shadow: 0 0 0 2px rgba(15,118,110,.08);
+          background: #fff;
+        }
+        .date-select:focus {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(15,118,110,.20);
+        }
+        .controls .label {
+          font-weight: 700;                /* bolder label for visibility */
+          color: var(--brand);
+        }
+
         /* clinic header */
         .clinic { display:flex; align-items:center; gap:12px; margin: 8px 0 12px 0; }
         .clinic img { height: var(--logo-height); width:auto; object-fit: contain; display:block; }
@@ -544,7 +598,15 @@ export default function ReportViewer({
         .clinic-sub { color:#444; }
 
         /* toolbar with title + search (moves search next to the title) */
-        .toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin: 6px 0 8px; }
+        .toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: center;   /* ✅ center the whole group */
+          gap: 12px;                  /* space between title and input/button */
+          margin: 6px auto 8px;       /* keep it centered as a block */
+          flex-wrap: wrap;            /* wrap nicely on narrow screens */
+          width: 100%;
+        }
         .toolbar h1 { margin: 0; }
         .searchbar { display:flex; gap:8px; align-items:center; }
 
@@ -627,10 +689,10 @@ export default function ReportViewer({
           data-print={wmShowPrint ? "on" : "off"}
           style={{
             display: wmShowScreen ? "flex" : "none",
-            ["--wm-opacity" as any]: String(wmOpacityScreen),
-            ["--wm-opacity-print" as any]: String(wmOpacityPrint),
+            ["--wm-opacity" as any]: String(wmOpacityScreenEffective),
+            ["--wm-opacity-print" as any]: String(wmOpacityPrintEffective),
             ["--wm-angle" as any]: `${wmAngleDeg}deg`,
-            ["--wm-size" as any]: wmSize,
+            ["--wm-size" as any]: wmSizeEffective,
           }}
           aria-hidden="true"
         >
@@ -652,27 +714,31 @@ export default function ReportViewer({
       )}
 
       <div className="container content" style={{ opacity: showSplash ? 0 : 1, pointerEvents: showSplash ? "none" : "auto" }}>
-        {/* ---------- CLINIC HEADER ---------- */}
-        {(cfg.clinic_name || cfg.clinic_logo_url || cfg.clinic_address || cfg.clinic_phone) && (
-          <div className="clinic" style={{ flexDirection:"column", alignItems:"center", textAlign:"center" }}>
-            {logoSrc ? (
-              <img
-                src={logoSrc}
-                alt=""
-                referrerPolicy="no-referrer"
-                style={{ display: "block", margin: "0 auto", maxHeight: 120 }}
-                onError={(e) => {
-                  const img = e.currentTarget as HTMLImageElement;
-                  if (logoFallback && img.src !== logoFallback) img.src = logoFallback; else img.style.display = "none";
-                }}
-              />
-            ) : null}
-            <div>
-              {cfg.clinic_name && <div className="clinic-name">{cfg.clinic_name}</div>}
-              {cfg.clinic_address && <div className="clinic-sub">{cfg.clinic_address}</div>}
-              {cfg.clinic_phone && <div className="clinic-sub">{cfg.clinic_phone}</div>}
+        {/* ---------- CLINIC HEADER (override-able) ---------- */}
+        {headerOverride ? (
+          <div className="mb-2">{headerOverride}</div>
+        ) : (
+          (cfg.clinic_name || cfg.clinic_logo_url || cfg.clinic_address || cfg.clinic_phone) && (
+            <div className="clinic" style={{ flexDirection:"column", alignItems:"center", textAlign:"center" }}>
+              {logoSrc ? (
+                <img
+                  src={logoSrc}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  style={{ display: "block", margin: "0 auto", maxHeight: 120 }}
+                  onError={(e) => {
+                    const img = e.currentTarget as HTMLImageElement;
+                    if (logoFallback && img.src !== logoFallback) img.src = logoFallback; else img.style.display = "none";
+                  }}
+                />
+              ) : null}
+              <div>
+                {cfg.clinic_name && <div className="clinic-name">{cfg.clinic_name}</div>}
+                {cfg.clinic_address && <div className="clinic-sub">{cfg.clinic_address}</div>}
+                {cfg.clinic_phone && <div className="clinic-sub">{cfg.clinic_phone}</div>}
+              </div>
             </div>
-          </div>
+          )
         )}
 
         {/* ---------- Title + Search (STAFF ONLY) ---------- */}
@@ -807,38 +873,46 @@ export default function ReportViewer({
           </div>
         )}
 
-        {/* ---------- Controls (unchanged: compare, visit date, print) ---------- */}
-        <div className="controls">
-          <label style={{ display:"flex", alignItems:"center", gap:6 }}>
-            <input
-              type="checkbox"
-              checked={compareOn}
-              onChange={(e)=>setCompareOn(e.target.checked)}
-            />
-            Compare with prev. visit/s
-          </label>
+        {/* ---------- Controls: show ONLY after a report is loaded ---------- */}
+        {report && (
+          <div className="controls">
+            {visitDates.length > 1 && (
+              <label style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <input
+                  type="checkbox"
+                  checked={compareOn}
+                  onChange={(e)=>setCompareOn(e.target.checked)}
+                />
+                Compare with prev. visit/s
+              </label>
+            )}
 
-          {visitDates.length > 0 && (
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <label style={{ fontSize:14 }}>Visit date:</label>
-              <select
-                value={selectedDate || ""}
-                onChange={(e)=>setSelectedDate(e.target.value)}
-                style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6 }}
-              >
-                {visitDates.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+            {visitDates.length > 0 && (
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <label className="label" style={{ fontSize: 15 }}>Visit date:</label>
+                <select
+                  value={selectedDate || ""}
+                  onChange={(e)=>setSelectedDate(e.target.value)}
+                  className="date-select"
+                >
+                  {visitDates.map(d => (
+                    <option key={d} value={d}>
+                      {formatTestDate(d)}{/* nicer, human-readable label */}
+                    </option>
+                  ))}
+                </select>
 
-              <button
-                onClick={() => window.print()}
-                className="print:hidden"
-                style={{ padding:"8px 10px", border:"1px solid var(--border)", borderRadius:6 }}
-              >
-                Print / Save as PDF
-              </button>
-            </div>
-          )}
-        </div>
+                <button
+                  onClick={() => window.print()}
+                  className="print:hidden"
+                  style={{ padding:"10px 12px", border:"1px solid var(--border)", borderRadius:8 }}
+                >
+                  Print / Save as PDF
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {err && <div style={{ color:"#b00020", marginTop:4 }}>{err}</div>}
 
@@ -977,7 +1051,8 @@ export default function ReportViewer({
               }}
             >
               {footerLines.map((line, i) => (
-                <div key={i} style={{ marginTop: i === 0 ? 0 : footerGapPx }}>{line}</div>
+                <div key={i} style={{ marginTop: i === 0 ? 0 : footerGapPx,
+                ...(i === 2 || i === 3 ? { color: "var(--accent)" } : {}),}}>{line}</div>
               ))}
             </div>
           )}
