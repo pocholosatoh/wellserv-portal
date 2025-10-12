@@ -233,8 +233,11 @@ export default function PatientHistoryPage() {
     }
   };
 
-  const viewerHref = initial ? `/patient-results?patient_id=${encodeURIComponent(initial.patient_id)}` : "#";
-  const rxHref = initial ? `/prescriptions?patient_id=${encodeURIComponent(initial.patient_id)}` : "#";
+  const viewerHref = initial ? `/staff/portal` : "#";
+  // '/patient-results?patient_id=${encodeURIComponent(initial.patient_id)}` : "#";
+  const rxHref = initial ? `/staff/prescriptions` : "#";
+  // /prescriptions?patient_id=${encodeURIComponent(initial.patient_id)}` : "#";
+  const otherLabs = initial ? `/staff/other-labs` : "#";
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
@@ -253,7 +256,7 @@ export default function PatientHistoryPage() {
         >
             <input
             className="flex-1 rounded-xl border px-3 py-2"
-            placeholder="e.g., ABELLON121870"
+            placeholder="e.g., SATOH010596"
             value={searchId}
             onChange={(e) => setSearchId(e.target.value.toUpperCase())}  // normalize
             />
@@ -272,6 +275,7 @@ export default function PatientHistoryPage() {
           <span className="text-sm text-neutral-600">Quick open:</span>
           <a className="underline text-sm" href={viewerHref} target="_blank">Results Viewer</a>
           <a className="underline text-sm" href={rxHref} target="_blank">Prescriptions</a>
+          <a className="underline text-sm" href={otherLabs} target="_blank">Other Labs/Sendouts</a>
           <span className="text-xs text-neutral-500">(You can wire these to your actual routes later.)</span>
         </div>
       )}
