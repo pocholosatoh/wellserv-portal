@@ -7,18 +7,17 @@ import { redirect } from "next/navigation";
 import { getDoctorSession } from "@/lib/doctorSession";
 
 import ClientReportViewer from "./ClientReportViewer";
-import NotesPanel from "./NotesPanel";
-import RxPanel from "./RxPanel";
 import PastConsultations from "./PastConsultations";
 import OtherLabsViewer from "@/components/OtherLabsViewer";
 import LogoutButton from "@/app/(doctor)/doctor/LogoutButton";
 import OtherLabsCard from "./OtherLabsCard";
 import QuickPatientJump from "./QuickPatientJump";
+import ConsultationSection from "./ConsultationSection"; // ✅ new composed section
 
 type Props = { params: { patientId: string } };
 
 export default async function DoctorPatientPage({ params }: Props) {
-  const session = await getDoctorSession();  // ✅ server-side
+  const session = await getDoctorSession(); // ✅ server-side
   if (!session) {
     const nextUrl = `/doctor/patient/${encodeURIComponent(params.patientId)}`;
     redirect(`/doctor/login?next=${encodeURIComponent(nextUrl)}`);
@@ -38,21 +37,20 @@ export default async function DoctorPatientPage({ params }: Props) {
             Patient Workspace <span className="text-xs align-middle text-[#44969b]">v1</span>
           </h1>
           <p className="text-sm text-gray-600 mt-1">
-            Patient ID: <b>{patientId}</b> 
+            Patient ID: <b>{patientId.toUpperCase()}</b>
           </p>
-          
         </div>
         <div className="flex items-center gap-2">
           <QuickPatientJump accent="#44969b" />
           <span className="text-sm text-gray-700">
             Signed in as <b>{docName}</b>
           </span>
-          
           <LogoutButton />
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Left column: results + other labs */}
         <div className="lg:col-span-7 space-y-5">
           <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
             <header className="px-4 py-3 border-b border-gray-100">
@@ -75,19 +73,16 @@ export default async function DoctorPatientPage({ params }: Props) {
           </section>
         </div>
 
+        {/* Right column: Notes & Rx (gated by Start consultation) */}
         <section className="lg:col-span-5 rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
           <header className="px-4 py-3 border-b border-gray-100">
             <h2 className="font-medium text-gray-800">Notes & Prescriptions</h2>
           </header>
           <div className="p-4 space-y-6">
-            <div>
-              <h3 className="font-medium mb-2">Doctor Notes</h3>
-              <NotesPanel patientId={patientId} />
-            </div>
-            <div>
-              <h3 className="font-medium mb-2">Prescription</h3>
-              <RxPanel patientId={patientId} />
-            </div>
+            <ConsultationSection
+              patientId={patientId}
+              initialConsultationId={null} // keep null; doctor presses "Start consultation"
+            />
           </div>
         </section>
       </div>

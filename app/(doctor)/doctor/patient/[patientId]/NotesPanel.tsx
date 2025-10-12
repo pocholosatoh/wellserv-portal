@@ -1,171 +1,158 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
-type Soap = { S: string; O: string; A: string; P: string };
+import { useEffect, useState } from "react";
 
 export default function NotesPanel({
   patientId,
-  consultationId: cidProp,
+  consultationId,
+  modeDefault = "markdown",
+  autosave = false,
 }: {
   patientId: string;
-  consultationId?: string | null;
+  consultationId: string | null;
+  modeDefault?: "markdown" | "soap";
+  autosave?: boolean;
 }) {
-  const [mode, setMode] = useState<"markdown" | "soap">("markdown");
-  const [consultationId, setConsultationId] = useState<string | null>(cidProp ?? null);
-
-  const [markdown, setMarkdown] = useState("");
-  const [soap, setSoap] = useState<Soap>({ S: "", O: "", A: "", P: "" });
-
+  const [mode, setMode] = useState<"markdown" | "soap">(modeDefault as any);
+  const [md, setMd] = useState("");
+  const [soap, setSoap] = useState<{ S?: string; O?: string; A?: string; P?: string }>({});
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
+  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const saveTimer = useRef<number | null>(null);
 
-  // When parent gives us a consultationId, save it and load any existing notes once.
   useEffect(() => {
-    if (!cidProp) return;
-    setConsultationId(cidProp);
-    (async () => {
-      try {
-        const r = await fetch(`/api/consultations/details?id=${encodeURIComponent(cidProp)}`);
-        const j = await r.json();
-        if (r.ok && j?.notes) {
-          if (j.notes.notes_markdown) {
-            setMode("markdown");
-            setMarkdown(j.notes.notes_markdown || "");
-          } else if (j.notes.notes_soap) {
-            setMode("soap");
-            setSoap({
-              S: j.notes.notes_soap.S || "",
-              O: j.notes.notes_soap.O || "",
-              A: j.notes.notes_soap.A || "",
-              P: j.notes.notes_soap.P || "",
-            });
-          }
-        }
-        setErr(null);
-      } catch (e) {
-        console.error(e);
-        setErr("Failed to load existing notes.");
-      }
-    })();
-  }, [cidProp]);
+    setMode(modeDefault as any);
+  }, [modeDefault]);
 
-  // Fallback (rare): if no consultationId was provided, create one ourselves.
+  // 👉 Prefill editor when consultationId becomes available (or changes)
   useEffect(() => {
-    if (cidProp != null) return; // parent already handled it
-    (async () => {
-      try {
-        const res = await fetch("/api/consultations/upsert-today", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ patientId }),
-        });
-        const json = await res.json();
-        if (res.ok && json?.consultation?.id) {
-          const cid = json.consultation.id as string;
-          setConsultationId(cid);
-          // Load existing notes, if any
-          const r = await fetch(`/api/consultations/details?id=${encodeURIComponent(cid)}`);
-          const j = await r.json();
-          if (r.ok && j?.notes) {
-            if (j.notes.notes_markdown) {
-              setMode("markdown");
-              setMarkdown(j.notes.notes_markdown || "");
-            } else if (j.notes.notes_soap) {
-              setMode("soap");
-              setSoap({
-                S: j.notes.notes_soap.S || "",
-                O: j.notes.notes_soap.O || "",
-                A: j.notes.notes_soap.A || "",
-                P: j.notes.notes_soap.P || "",
-              });
-            }
-          }
-          setErr(null);
-        } else {
-          setErr(json?.error || "Failed to create consultation.");
-        }
-      } catch (e) {
-        console.error(e);
-        setErr("Network error while creating consultation.");
-      }
-    })();
-  }, [cidProp, patientId]);
-
-  function queueSave() {
-    setSaving("saving");
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(async () => {
+    let cancelled = false;
+    async function load() {
       if (!consultationId) return;
-      const body =
-        mode === "markdown"
-          ? { consultationId, mode, notesMarkdown: markdown }
-          : { consultationId, mode, notesSOAP: soap };
-      const res = await fetch("/api/doctor-notes/upsert", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      setSaving(res.ok ? "saved" : "idle");
-    }, 800);
+      setLoading(true);
+      setErr(null);
+      try {
+        const res = await fetch(`/api/doctor-notes/get?consultation_id=${encodeURIComponent(consultationId)}`);
+        const j = await res.json();
+        if (!res.ok) throw new Error(j?.error || "Failed to load notes.");
+
+        // Only update if this effect hasn't been superseded
+        if (cancelled) return;
+
+        const gotMd = (j?.notes_markdown ?? "") as string;
+        const gotSoap = (j?.notes_soap ?? null) as any;
+
+        setMd(gotMd || "");
+        setSoap(gotSoap || {});
+
+        // Choose a sensible mode based on what exists (don’t override user preference if both empty)
+        if (gotMd && !gotSoap) setMode("markdown");
+        else if (!gotMd && gotSoap) setMode("soap");
+        // else keep current mode
+
+      } catch (e: any) {
+        if (!cancelled) setErr(e.message || "Failed to load notes.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [consultationId]);
+
+  async function save() {
+    if (!consultationId) return;
+    setSaving("saving");
+    setErr(null);
+    const res = await fetch("/api/doctor-notes/upsert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        consultationId,
+        mode,
+        notesMarkdown: mode === "markdown" ? md : undefined,
+        notesSOAP: mode === "soap" ? soap : undefined,
+      }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setSaving("saved");
+    } else {
+      setSaving("idle");
+      setErr(j?.error || "Failed to save notes.");
+    }
   }
 
-  return (
-    <div>
-      {err && <p className="text-sm text-red-600 mb-2">{err}</p>}
+  // Optional autosave (kept off by default)
+  useEffect(() => {
+    if (!autosave || !consultationId) return;
+    const t = setTimeout(save, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autosave, consultationId, mode, md, soap]);
 
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-sm text-gray-600">Notes mode:</span>
-        <button
-          className={`px-2 py-1 rounded border ${mode === "markdown" ? "bg-black text-white" : ""}`}
-          onClick={() => setMode("markdown")}
-          type="button"
-        >
-          Markdown
-        </button>
-        <button
-          className={`px-2 py-1 rounded border ${mode === "soap" ? "bg-black text-white" : ""}`}
-          onClick={() => setMode("soap")}
-          type="button"
-        >
-          SOAP
-        </button>
+  return (
+    <div className="space-y-2">
+      {err && <div className="text-sm text-red-600">{err}</div>}
+
+      <div className="flex items-center gap-2">
+        <div className="text-sm">Notes mode:</div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setMode("markdown")}
+            className={`px-2 py-1 rounded border text-sm ${mode === "markdown" ? "bg-black text-white" : ""}`}
+          >
+            Markdown
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("soap")}
+            className={`px-2 py-1 rounded border text-sm ${mode === "soap" ? "bg-black text-white" : ""}`}
+          >
+            SOAP
+          </button>
+        </div>
 
         <span className="ml-auto text-xs text-gray-500">
-          {saving === "saving" && "Saving…"}
-          {saving === "saved" && "Saved"}
+          {loading ? "Loading…" : saving === "saving" ? "Saving…" : saving === "saved" ? "Saved" : ""}
         </span>
       </div>
 
       {mode === "markdown" ? (
         <textarea
-          className="w-full h-48 border rounded p-2 text-sm"
+          className="w-full border rounded p-2 h-48 text-sm"
           placeholder="Type doctor notes… (Markdown allowed: bullets, headings)"
-          value={markdown}
-          onChange={(e) => {
-            setMarkdown(e.target.value);
-            queueSave();
-          }}
+          value={md}
+          onChange={(e) => setMd(e.target.value)}
+          disabled={!consultationId}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
           {(["S", "O", "A", "P"] as const).map((k) => (
             <div key={k}>
-              <label className="text-xs text-gray-600">{k}</label>
+              <label className="block text-xs text-gray-600 mb-1">{k}</label>
               <textarea
-                className="w-full h-20 border rounded p-2 text-sm"
-                value={(soap as any)[k]}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setSoap((prev) => ({ ...prev, [k]: v }));
-                  queueSave();
-                }}
+                className="w-full border rounded p-2 h-24"
+                value={(soap as any)[k] || ""}
+                onChange={(e) => setSoap((prev) => ({ ...prev, [k]: e.target.value }))}
+                disabled={!consultationId}
               />
             </div>
           ))}
         </div>
       )}
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          className="rounded border px-3 py-2 text-sm"
+          onClick={save}
+          disabled={!consultationId}
+        >
+          Save Notes
+        </button>
+      </div>
     </div>
   );
 }

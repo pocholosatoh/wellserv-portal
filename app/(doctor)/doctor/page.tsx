@@ -10,7 +10,9 @@ import { getSupabase } from "@/lib/supabase";
 
 const ACCENT = "#44969b";
 
-type Props = { searchParams?: { patient?: string } };
+type Props = {
+  searchParams?: { [key: string]: string | string[] | undefined };
+};
 
 type Med = {
   id: string;
@@ -20,6 +22,7 @@ type Med = {
   is_active: boolean | null;
 };
 
+// 👇 Replace your function header with this
 export default async function DoctorHome({ searchParams }: Props) {
   // Guard
   const session = await getDoctorSession();
@@ -27,10 +30,14 @@ export default async function DoctorHome({ searchParams }: Props) {
     redirect(`/doctor/login?next=${encodeURIComponent("/doctor")}`);
   }
 
-  // If a patient was searched, jump directly to their workspace
-  const candidate = (searchParams?.patient || "").trim();
-  if (candidate) {
-    redirect(`/doctor/patient/${encodeURIComponent(candidate)}`);
+  // ✅ Normalize ?patient=... and send the user straight to the workspace
+  const raw =
+    (Array.isArray(searchParams?.patient)
+      ? searchParams?.patient?.[0]
+      : searchParams?.patient) || "";
+  const q = raw.trim();
+  if (q) {
+    redirect(`/doctor/patient/${encodeURIComponent(q.toUpperCase())}`);
   }
 
   // Build display name
