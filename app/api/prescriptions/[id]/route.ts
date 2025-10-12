@@ -95,7 +95,19 @@ export async function GET(
     const d = await db
       .from("doctors")
       .select(
-        "doctor_id, display_name, designations:credentials, prc_no, signature_url:signature_image_url"
+        [
+          "doctor_id",
+          "display_name",
+          "full_name",
+          "credentials",
+          "designations:credentials",          // alias for backwards-compat
+          "specialty",
+          "affiliations",
+          "prc_no",
+          "ptr_no",
+          "s2_no",
+          "signature_url:signature_image_url", // alias → signature_url
+        ].join(", ")
       )
       .eq("doctor_id", docKey)
       .maybeSingle();
@@ -123,7 +135,19 @@ export async function GET(
         const d2 = await db
           .from("doctors")
           .select(
-            "doctor_id, display_name, designations:credentials, prc_no, signature_url:signature_image_url"
+            [
+              "doctor_id",
+              "display_name",
+              "full_name",
+              "credentials",
+              "designations:credentials",
+              "specialty",
+              "affiliations",
+              "prc_no",
+              "ptr_no",
+              "s2_no",
+              "signature_url:signature_image_url",
+            ].join(", ")
           )
           .eq("doctor_id", c.data.doctor_id)
           .maybeSingle();
