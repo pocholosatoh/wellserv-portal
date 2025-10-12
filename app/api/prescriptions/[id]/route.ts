@@ -1,146 +1,125 @@
 // app/api/prescriptions/[id]/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin as getSupabaseAdmin } from "@/lib/supabaseAdmin";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const supabase = typeof getSupabaseAdmin === "function" ? getSupabaseAdmin() : (getSupabaseAdmin as any);
-const DEFAULT_SIGNATURE_BUCKET = "dr_signatures";
+import { NextResponse } from "next/server";
+import { getSupabase } from "@/lib/supabase";
 
-function toBucketPath(raw: string | null | undefined): { bucket: string; path: string } | null {
-  if (!raw) return null;
-  const s = String(raw).trim();
-  if (!s.startsWith("http://") && !s.startsWith("https://")) {
-    if (s.includes("/")) {
-      const [bucket, ...rest] = s.split("/");
-      return { bucket, path: rest.join("/") };
-    }
-    return { bucket: DEFAULT_SIGNATURE_BUCKET, path: s };
-  }
-  const marker = "/object/";
-  const i = s.indexOf(marker);
-  if (i === -1) return null;
-  const tail = s.slice(i + marker.length);
-  const parts = tail.split("/");
-  if (parts.length >= 3 && (parts[0] === "public" || parts[0] === "private")) {
-    return { bucket: parts[1], path: parts.slice(2).join("/") };
-  }
-  if (parts.length >= 2) {
-    return { bucket: parts[0], path: parts.slice(1).join("/") };
-  }
-  return null;
-}
+// Build a signed, absolute URL string for a private signature file.
+// Always return a STRING (never an object), or null.
+async function getSignedSignatureUrl(
+  db: ReturnType<typeof getSupabase>,
+  key?: string | null
+): Promise<string | null> {
+  if (!key) return null;
 
-function buildPatientName(p: any): string | null {
-  if (!p) return null;
-  return (
-    p.full_name ||
-    p.name ||
-    [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(" ") ||
-    [p.last_name, p.first_name].filter(Boolean).join(", ") ||
-    null
-  );
-}
-
-export async function GET(
-    req: NextRequest,
-    context: { params: Promise<{ id: string }> }   // 👈 new pattern
-    ) {
-    const { id } = await context.params;
+  // If somehow an object sneaks in, try to unwrap the most likely field.
+  if (typeof key !== "string") {
     try {
+      const anyKey = (key as any)?.signedUrl ?? (key as any)?.url ?? String(key);
+      if (typeof anyKey === "string") key = anyKey;
+    } catch { /* ignore */ }
+  }
 
-    // 1) Prescription
-    const { data: rx, error: rxErr } = await supabase
-      .from("prescriptions")
-      .select("id, patient_id, doctor_id, notes_for_patient, created_at")
-      .eq("id", id)
-      .single();
+  // Already absolute?
+  if (typeof key === "string" && /^https?:\/\//i.test(key)) return key;
 
-    if (rxErr || !rx) {
-      return NextResponse.json({ error: "Prescription not found" }, { status: 404 });
+  try {
+    const { data, error } = await db.storage
+      .from("dr_signatures")             // <-- your PRIVATE bucket
+      .createSignedUrl(String(key), 60 * 60 * 12); // 12h validity
+    if (error) {
+      console.warn("Signed URL error:", error.message);
+      return null;
     }
+    return data?.signedUrl ?? null;      // <-- ensure we return a STRING
+  } catch (e) {
+    console.warn("Signed URL exception:", e);
+    return null;
+  }
+}
 
-    // 2) Patient (case-insensitive match on patient_id)
-    const pid = String(rx.patient_id ?? "").trim();
-    const { data: patient, error: pErr } = await supabase
-      .from("patients")
-      .select("*")
-      // ilike = case-insensitive; no % means exact match ignoring case
-      .ilike("patient_id", pid)
+export async function GET(_: Request, { params }: { params: { id: string } }) {
+  const db = getSupabase();
+  const rxId = params.id;
+
+  // 1) Rx
+  const rx = await db
+    .from("prescriptions")
+    .select("id, consultation_id, patient_id, doctor_id, status, notes_for_patient, created_at")
+    .eq("id", rxId)
+    .maybeSingle();
+  if (rx.error) return NextResponse.json({ error: rx.error.message }, { status: 400 });
+  if (!rx.data) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // 2) Items
+  const items = await db
+    .from("prescription_items")
+    .select("id, prescription_id, med_id, generic_name, brand_name, strength, form, route, dose_amount, dose_unit, frequency_code, duration_days, quantity, instructions, unit_price")
+    .eq("prescription_id", rxId)
+    .order("created_at", { ascending: true });
+  if (items.error) return NextResponse.json({ error: items.error.message }, { status: 400 });
+
+  // 3) Patient
+  const patient = await db
+    .from("patients")
+    .select("patient_id, full_name, sex, birthday")
+    .eq("patient_id", rx.data.patient_id)
+    .maybeSingle();
+
+  // 4) Doctor — query by doctor_id, alias to what the print page expects
+  let doctor: any = null;
+  const docKey = rx.data.doctor_id ?? null;
+
+  if (docKey) {
+    const d = await db
+      .from("doctors")
+      .select(
+        // changed: alias credentials -> designations, signature_image_url -> signature_url
+        "doctor_id, display_name, designations:credentials, prc_no, signature_url:signature_image_url"
+      )
+      .eq("doctor_id", docKey)
+      .maybeSingle();
+    if (!d.error && d.data) {
+      doctor = d.data;
+      doctor.signature_url = await getSignedSignatureUrl(db, doctor.signature_url);
+    }
+  }
+
+  // Fallback to consultation snapshot if still null
+  if (!doctor) {
+    const c = await db
+      .from("consultations")
+      .select("doctor_id, doctor_name_at_time")
+      .eq("id", rx.data.consultation_id)
       .maybeSingle();
 
-    if (pErr) {
-      console.warn("patient fetch error:", pErr.message, "patient_id:", rx.patient_id);
+    if (!c.error && c.data) {
+      if (!doctor && c.data.doctor_id && c.data.doctor_id !== docKey) {
+        const d2 = await db
+          .from("doctors")
+          .select(
+            // same aliases here
+            "doctor_id, display_name, designations:credentials, prc_no, signature_url:signature_image_url"
+          )
+          .eq("doctor_id", c.data.doctor_id)
+          .maybeSingle();
+        if (!d2.error) doctor = d2.data ?? null;
+        if (!d2.error && d2.data) {
+          doctor = d2.data;
+          doctor.signature_url = await getSignedSignatureUrl(db, doctor.signature_url);
+        }
+      }  
     }
-    // If ilike didn’t return (some drivers require %), try robust OR with upper/lower
-    let p = patient;
-    if (!p) {
-      const { data: p2, error: pErr2 } = await supabase
-        .from("patients")
-        .select("*")
-        .or(
-          [
-            `patient_id.eq.${pid}`,
-            `patient_id.eq.${pid.toUpperCase()}`,
-            `patient_id.eq.${pid.toLowerCase()}`
-          ].join(",")
-        )
-        .maybeSingle();
-      if (pErr2) console.warn("patient fallback fetch error:", pErr2.message);
-      p = p2 ?? null;
-    }
-
-    const patient_name = buildPatientName(p);
-    const patient_birthday = p?.birthday ?? null;
-    const patient_sex = p?.sex ?? p?.gender ?? null;
-
-    // 3) Doctor
-    const { data: doctor, error: dErr } = await supabase
-      .from("doctors")
-      .select("display_name, credentials, specialty, prc_no, signature_image_url")
-      .eq("doctor_id", rx.doctor_id)
-      .single();
-    if (dErr) console.warn("doctor fetch error:", dErr.message);
-
-    // 4) Items
-    const { data: items, error: iErr } = await supabase
-      .from("prescription_items")
-      .select(
-        "id, generic_name, strength, form, route, dose_amount, dose_unit, frequency_code, duration_days, quantity, instructions, created_at"
-      )
-      .eq("prescription_id", id)
-      .order("created_at", { ascending: true });
-    if (iErr) console.warn("items fetch error:", iErr.message);
-
-    // 5) Signed signature URL (24h)
-    let signature_url: string | null = null;
-    const bp = toBucketPath(doctor?.signature_image_url);
-    if (bp) {
-      const { data: signed, error: sErr } = await supabase.storage
-        .from(bp.bucket)
-        .createSignedUrl(bp.path, 60 * 60 * 24);
-      if (!sErr && signed?.signedUrl) signature_url = signed.signedUrl;
-      else if (sErr) console.warn("signature sign error:", sErr.message);
-    }
-
-    return NextResponse.json({
-      id: rx.id,
-      created_at: rx.created_at,
-      notes_for_patient: rx.notes_for_patient ?? null,
-      patient: {
-        id: p?.patient_id ?? null,  // expose your PK
-        full_name: patient_name,
-        birthday: patient_birthday,
-        sex: patient_sex,
-      },
-      doctor: {
-        display_name: doctor?.display_name ?? null,
-        designations: [doctor?.credentials, doctor?.specialty].filter(Boolean).join(", "),
-        prc_no: doctor?.prc_no ?? null,
-        signature_url,
-      },
-      items: items ?? [],
-    });
-  } catch (e: any) {
-    console.error("Error in /api/prescriptions/[id]:", e);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
+
+  return NextResponse.json({
+    id: rx.data.id,
+    created_at: rx.data.created_at,
+    status: rx.data.status,
+    notes_for_patient: rx.data.notes_for_patient ?? "",
+    patient: patient.data ?? null,
+    doctor, // now has display_name / prc_no / signature_url
+    items: items.data ?? [],
+  });
 }

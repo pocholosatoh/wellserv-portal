@@ -1,6 +1,6 @@
 // app/api/staff/prescriptions/route.ts
-// GET /api/staff/prescriptions?patient_id=XYZ
-// Returns SIGNED prescriptions + their items for the given patient_id.
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
@@ -8,51 +8,66 @@ import { getSupabase } from "@/lib/supabase";
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const patientId = (url.searchParams.get("patient_id") || "").trim();
+    const patientRaw = url.searchParams.get("patient_id") || "";
+    const patientId = patientRaw.trim().toUpperCase();
+
     if (!patientId) {
       return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
     }
 
-    const supabase = getSupabase();
+    const db = getSupabase();
 
-    // 1) Pull signed prescriptions for this patient
-    const { data: rx, error: rxErr } = await supabase
+    // If you have a FK from prescription_items.prescription_id -> prescriptions.id,
+    // Postgrest can embed with "items:prescription_items(*)".
+    const { data, error } = await db
       .from("prescriptions")
-      .select("*")
+      .select(`
+        id,
+        consultation_id,
+        patient_id,
+        doctor_id,
+        status,
+        notes_for_patient,
+        show_prices,
+        discount_type,
+        discount_value,
+        discount_expires_at,
+        discount_applied_by,
+        final_total,
+        created_at,
+        updated_at,
+        want_pharmacy_order,
+        order_requested_at,
+        delivery_address,
+        items:prescription_items!prescription_items_prescription_id_fkey(
+          id,
+          prescription_id,
+          med_id,
+          generic_name,
+          strength,
+          form,
+          route,
+          dose_amount,
+          dose_unit,
+          frequency_code,
+          duration_days,
+          quantity,
+          instructions,
+          unit_price,
+          created_at,
+          updated_at
+        )
+      `)
       .eq("patient_id", patientId)
       .eq("status", "signed")
       .order("created_at", { ascending: false });
 
-    if (rxErr) throw rxErr;
-    if (!rx || rx.length === 0) return NextResponse.json({ prescriptions: [] });
-
-    const ids = rx.map(r => r.id);
-
-    // 2) Pull items for those prescriptions
-    const { data: items, error: itErr } = await supabase
-      .from("prescription_items")
-      .select("*")
-      .in("prescription_id", ids)
-      .order("created_at", { ascending: true });
-
-    if (itErr) throw itErr;
-
-    // Group items by prescription_id
-    const byRx: Record<string, any[]> = {};
-    for (const it of items || []) {
-      const k = it.prescription_id;
-      (byRx[k] ||= []).push(it);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Attach
-    const result = rx.map(r => ({
-      ...r,
-      items: byRx[r.id] || [],
-    }));
-
-    return NextResponse.json({ prescriptions: result });
+    return NextResponse.json({ prescriptions: data ?? [] });
   } catch (e: any) {
-    console.error(e);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }

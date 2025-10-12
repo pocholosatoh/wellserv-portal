@@ -1,3 +1,4 @@
+// app/prescription/[id]/print/page.tsx
 import Image from "next/image";
 import { headers } from "next/headers";
 import { describeFrequency } from "@/lib/rx";
@@ -84,7 +85,14 @@ export default async function PrintRxPage({ params }: { params: { id: string } }
         {data.items.map((ln: any) => (
           <li key={ln.id} className="leading-snug">
             <div className="font-medium">
-              {ln.generic_name} — {ln.strength} {ln.form}
+              {ln.generic_name}
+              {ln.brand_name ? (
+                <>
+                  {" "}
+                  (<span className="text-gray-600 italic">{ln.brand_name}</span>)
+                </>
+              ) : null}
+              {" — "} {ln.strength} {ln.form}
             </div>
             <div className="text-[12px]">
               {ln.route || "PO"} · {ln.dose_amount} {ln.dose_unit} ·{" "}
