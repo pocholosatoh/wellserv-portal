@@ -14,6 +14,12 @@ const BTN =
 
 const supabase = getSupabaseBrowser();
 
+function toPH(s?: string | null) {
+  if (!s) return "";
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return String(s);
+  return d.toLocaleString("en-PH", { timeZone: "Asia/Manila", hour12: false });
+}
 
 type Patient = {
   patient_id: string;
@@ -45,7 +51,6 @@ type Patient = {
 
 const EDITABLE_FIELDS: (keyof Patient)[] = [
   // keep keys NOT editable: patient_id, full_name, birthday
-  "age",
   "sex",
   "contact",
   "address",
@@ -66,7 +71,7 @@ const EDITABLE_FIELDS: (keyof Patient)[] = [
   "alcohol_hx",
 ];
 
-const READONLY_FIELDS: (keyof Patient)[] = ["patient_id", "full_name", "birthday", "last_updated", "created_at", "updated_at"];
+const READONLY_FIELDS: (keyof Patient)[] = ["patient_id", "full_name", "birthday", "age", "last_updated", "created_at", "updated_at"];
 
 const LABELS: Record<keyof Patient, string> = {
   patient_id: "Patient ID",
@@ -96,6 +101,21 @@ const LABELS: Record<keyof Patient, string> = {
   updated_at: "Updated At",
 };
 
+const HELP: Partial<Record<keyof Patient, string>> = {
+  chief_complaint: "Ano pong pinaka-iniinda ngayon? (hal. sakit ng ulo, ubo, lagnat)",
+  present_illness_history: "Kailan nagsimula? Gaano kadalas? May nagpapalala o nagpapagaan?",
+  past_medical_history: "Mga dating sakit? (hal. hika, alta presyon, diabetes)",
+  past_surgical_history: "May naoperahan na ba dati? Kailan at bakit?",
+  allergies_text: "Allergy sa gamot/ pagkain/ iba? Anong reaksyon?",
+  medications_current: "Anong gamot ang iniinom ngayon? Dose at gaano kadalas?",
+  family_hx: "May lahi ba sa pamilya? (hal. Diabetes, Hypertension, cancer)",
+  smoking_hx: "Naninigarilyo ba? Ilang stick per day at gaano katagal?",
+  alcohol_hx: "Umiinom ba ng alak? Gaano kadalas at gaano karami?",
+  contact: "Active na number na matatawagan",
+  address: "Brgy., City",
+  email: "Kung mayroong aktibo na email",
+};
+
 const NUMERIC_FIELDS = new Set<keyof Patient>([
   "age",
   "height_ft",
@@ -123,24 +143,57 @@ export default function PatientHistoryPage() {
 
   const [initial, setInitial] = React.useState<Patient | null>(null);
   const [form, setForm] = React.useState<Partial<Patient>>({});
-  const pid = searchId.trim();   
 
-  const onRetrieve = async () => {
+  // New state for create panel
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [creating, setCreating] = React.useState(false);
+  const [newSurname, setNewSurname] = React.useState("");
+  const [newFirstname, setNewFirstname] = React.useState("");
+  const [newBirthday, setNewBirthday] = React.useState(""); // "YYYY-MM-DD"
+
+
+
+  function asciiUpperNoSpaces(s: string) {
+    return s
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .replace(/[^A-Za-z0-9]/g, "") // remove spaces, hyphens, apostrophes
+      .toUpperCase();
+  }
+
+  function mmddyy(dateStr: string) {
+    // dateStr: "YYYY-MM-DD"
+    const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return "";
+    const [, yyyy, mm, dd] = m;
+    return `${mm}${dd}${yyyy.slice(-2)}`;
+  }
+
+  function mmddyyyy(dateStr: string) {
+    const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return "";
+    const [, yyyy, mm, dd] = m;
+    return `${mm}/${dd}/${yyyy}`; // matches your existing data
+  }
+
+  const onRetrieve = async (idOverride?: string) => {
     setError(null);
     setFound(false);
     setInitial(null);
     setForm({});
-    if (!searchId.trim()) {
+
+    const target = (idOverride ?? searchId).trim();
+    if (!target) {
       setError("Please enter a Patient ID.");
       return;
     }
+
     setLoading(true);
     const { data, error } = await supabase
       .from("patients")
       .select("*")
-      .ilike("patient_id", pid) 
-      .maybeSingle();
-
+      .eq("patient_id", target)   // exact match (we already uppercase the input)
+      .single();
     setLoading(false);
 
     if (error) {
@@ -155,7 +208,6 @@ export default function PatientHistoryPage() {
     setFound(true);
     setInitial(data as Patient);
 
-    // Prefill the form with EXACT current values so leaving it alone won’t change anything.
     const copy: Partial<Patient> = {};
     for (const k of [...EDITABLE_FIELDS, ...READONLY_FIELDS]) {
       copy[k] = (data as any)[k] ?? null;
@@ -243,16 +295,164 @@ export default function PatientHistoryPage() {
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <h1 className="text-2xl font-semibold">Staff · Patient History / Editor</h1>
 
+      {/* Create New Patient (collapsible) */}
+      <div className="rounded-2xl border p-4 space-y-3">
+        <button
+          type="button"
+          className="flex items-center justify-between w-full"
+          onClick={() => setShowCreate((s) => !s)}
+        >
+          <span className="text-sm font-medium">Create New Patient</span>
+          <span className="text-xl">{showCreate ? "▾" : "▸"}</span>
+        </button>
+
+        {showCreate && (
+          <div className="grid md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="block text-sm font-medium">Surname</label>
+              <input
+                className="w-full rounded-xl border px-3 py-2"
+                value={newSurname}
+                onChange={(e) => setNewSurname(e.target.value)}
+                placeholder="Apelyido"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium">First name</label>
+              <input
+                className="w-full rounded-xl border px-3 py-2"
+                value={newFirstname}
+                onChange={(e) => setNewFirstname(e.target.value)}
+                placeholder="Pangalan"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium">Birthday</label>
+              <input
+                type="date"
+                className="w-full rounded-xl border px-3 py-2"
+                value={newBirthday}
+                onChange={(e) => setNewBirthday(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-3">
+              <button
+                className={BTN}
+                disabled={creating || !newSurname.trim() || !newFirstname.trim() || !newBirthday}
+                onClick={async () => {
+                  setError(null);
+                  setCreating(true);
+                  try {
+                    const SUR = asciiUpperNoSpaces(newSurname);
+                    const FST = asciiUpperNoSpaces(newFirstname);
+                    const bdayISO = newBirthday; // "YYYY-MM-DD" from <input type="date">
+
+                    if (!SUR || !FST || !bdayISO) throw new Error("Please complete Surname, First name, and Birthday.");
+
+                    // 1) Check for an existing person (exact name + birthday)
+                    const fullName = `${SUR}, ${FST}`;
+                    {
+                      const { data: dupRows, error: dupErr } = await supabase
+                        .from("patients")
+                        .select("patient_id, full_name, birthday")
+                        .eq("full_name", fullName)
+                        .eq("birthday", bdayISO)
+                        .limit(1);
+                      if (dupErr) throw dupErr;
+
+                      if (dupRows && dupRows.length > 0) {
+                        const existingId = dupRows[0].patient_id;
+                        const open = window.confirm(
+                          `Mukhang existing na ang pasyente na ito (ID: ${existingId}).\n\n` +
+                          `Open existing record instead? (OK = Open, Cancel = Create new anyway)`
+                        );
+                        if (open) {
+                          setSearchId(existingId);
+                          setShowCreate(false);
+                          setNewSurname(""); setNewFirstname(""); setNewBirthday("");
+                          // load the form for existing ID (reuse your loader)
+                          await onRetrieve(existingId);
+                          return;
+                        }
+                        // else: continue to create anyway (go to suffix flow)
+                      }
+                    }
+
+                    // 2) Build base patient_id and resolve collisions
+                    const code = mmddyy(bdayISO);
+                    let candidate = `${SUR}${code}`;
+                    let suffix = 0;
+
+                    async function idExists(id: string) {
+                      const { count, error } = await supabase
+                        .from("patients")
+                        .select("patient_id", { count: "exact", head: true })
+                        .eq("patient_id", id);
+                      if (error) throw error;
+                      return (count ?? 0) > 0;
+                    }
+
+                    if (await idExists(candidate)) {
+                      // First collision: ask user before we suffix
+                      const ok = window.confirm(
+                        `Patient ID ${candidate} is already taken.\n\n` +
+                        `We will create a new ID with a suffix (e.g., ${candidate}-1).\n` +
+                        `Proceed?`
+                      );
+                      if (!ok) { setCreating(false); return; }
+                      while (await idExists(candidate)) {
+                        suffix += 1;
+                        candidate = `${SUR}${code}-${suffix}`;
+                      }
+                    }
+
+                    // 3) Insert minimal row (birthday as DATE ISO)
+                    const { data: ins, error: insErr } = await supabase
+                      .from("patients")
+                      .insert({
+                        patient_id: candidate,
+                        full_name: fullName,
+                        birthday: bdayISO,  // DATE column expects YYYY-MM-DD
+                      })
+                      .select("*")
+                      .single();
+                    if (insErr) throw insErr;
+
+                    // 4) Load the editor for the new patient
+                    setSearchId(candidate);
+                    setShowCreate(false);
+                    setNewSurname(""); setNewFirstname(""); setNewBirthday("");
+
+                    setInitial(ins as Patient);
+                    const copy: Partial<Patient> = {};
+                    for (const k of [...EDITABLE_FIELDS, ...READONLY_FIELDS]) {
+                      copy[k] = (ins as any)[k] ?? null;
+                    }
+                    setForm(copy);
+
+                    alert(`Created: ${candidate}`);
+                  } catch (e: any) {
+                    setError(e?.message || String(e));
+                  } finally {
+                    setCreating(false);
+                  }
+                }}
+              >
+                {creating ? "Creating…" : "Create & Open"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Search */}
       <div className="rounded-2xl border p-4 space-y-3">
         <label className="block text-sm font-medium">Enter Patient ID</label>
 
         <form
             className="flex gap-2"
-            onSubmit={(e) => {
-            e.preventDefault();
-            onRetrieve();
-            }}
+            onSubmit={(e) => { e.preventDefault(); onRetrieve(); }}
         >
             <input
             className="flex-1 rounded-xl border px-3 py-2"
@@ -301,11 +501,11 @@ export default function PatientHistoryPage() {
               <div className="space-y-1">
                 <label className="block text-sm font-medium">{LABELS.age}</label>
                 <input
-                  type="number"
-                  className="w-full rounded-xl border px-3 py-2"
+                  className="w-full rounded-xl border px-3 py-2 bg-neutral-100"
                   value={(form.age ?? "") as any}
-                  onChange={(e) => onChange("age", e.target.value)}
+                  readOnly
                 />
+                <p className="text-xs text-neutral-500">Auto-computed from Birthday.</p>
               </div>
               <div className="space-y-1">
                 <label className="block text-sm font-medium">{LABELS.sex}</label>
@@ -318,6 +518,7 @@ export default function PatientHistoryPage() {
               </div>
               <div className="space-y-1">
                 <label className="block text-sm font-medium">{LABELS.contact}</label>
+                {HELP.contact && <p className="text-xs text-neutral-500">{HELP.contact}</p>}
                 <input
                   className="w-full rounded-xl border px-3 py-2"
                   value={(form.contact ?? "") as any}
@@ -326,6 +527,7 @@ export default function PatientHistoryPage() {
               </div>
               <div className="space-y-1">
                 <label className="block text-sm font-medium">{LABELS.email}</label>
+                {HELP.email && <p className="text-xs text-neutral-500">{HELP.email}</p>}
                 <input
                   className="w-full rounded-xl border px-3 py-2"
                   value={(form.email ?? "") as any}
@@ -334,6 +536,7 @@ export default function PatientHistoryPage() {
               </div>
               <div className="md:col-span-2 space-y-1">
                 <label className="block text-sm font-medium">{LABELS.address}</label>
+                {HELP.address && <p className="text-xs text-neutral-500">{HELP.address}</p>}
                 <input
                   className="w-full rounded-xl border px-3 py-2"
                   value={(form.address ?? "") as any}
@@ -413,6 +616,7 @@ export default function PatientHistoryPage() {
               ] as (keyof Patient)[]).map((f) => (
                 <div key={f} className="space-y-1">
                   <label className="block text-sm font-medium">{LABELS[f]}</label>
+                  {HELP[f] && <p className="text-xs text-neutral-500">{HELP[f]}</p>}
                   <textarea
                     rows={f === "chief_complaint" ? 2 : 3}
                     className="w-full rounded-xl border px-3 py-2"
@@ -431,8 +635,7 @@ export default function PatientHistoryPage() {
                 <label className="block text-sm font-medium">{LABELS[f]}</label>
                 <input
                   className="w-full rounded-xl border px-3 py-2 bg-neutral-100"
-                  value={(form[f] ?? "") as any}
-                  onChange={(e) => onChange(f, e.target.value)}
+                  value={toPH((form[f] ?? "") as string)}
                   readOnly
                 />
               </div>
