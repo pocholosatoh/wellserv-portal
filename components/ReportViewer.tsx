@@ -233,8 +233,8 @@ export default function ReportViewer(props: ReportViewerProps) {
   const [patientId, setPatientId] = useState(initialPatientId ?? "");
 
   useEffect(() => {
-  if (initialPatientId) setPatientId(initialPatientId);
-}, [initialPatientId]);
+    if (initialPatientId) setPatientId(initialPatientId);
+  }, [initialPatientId]);
 
   const [data, setData] = useState<ReportResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -318,15 +318,15 @@ export default function ReportViewer(props: ReportViewerProps) {
 
   // Visits
   const visitDates = useMemo(() => {
-  const dates = Array.from(
-    new Set(
-      reports
-        .map((r: any) => String(r?.visit?.date_of_test ?? ""))
-        .filter(Boolean)
-    )
-  ).sort((a, b) => ts(b) - ts(a)); // ← real date sort
-  return dates;
-}, [reports]);
+    const dates = Array.from(
+      new Set(
+        reports
+          .map((r: any) => String(r?.visit?.date_of_test ?? ""))
+          .filter(Boolean)
+      )
+    ).sort((a, b) => ts(b) - ts(a)); // ← real date sort
+    return dates;
+  }, [reports]);
 
   const report = useMemo(() => {
     if (!Array.isArray(reports) || reports.length === 0) return undefined;
@@ -358,7 +358,6 @@ export default function ReportViewer(props: ReportViewerProps) {
           text = await res.text();
         }
       } catch {
-        // parsing failed — try reading text for debugging
         try { text = await res.text(); } catch {}
       }
 
@@ -370,7 +369,6 @@ export default function ReportViewer(props: ReportViewerProps) {
         return;
       }
 
-      // normalize possible shapes
       const reports: any[] =
         (Array.isArray(json?.reports) && json.reports) ||
         (Array.isArray(json?.rows) && json.rows) ||
@@ -405,12 +403,11 @@ export default function ReportViewer(props: ReportViewerProps) {
     }
   }
 
-
-    useEffect(() => {
-        if (autoFetch && patientId) {
-        fetchReports(patientId);
-        }
-    }, [autoFetch, patientId]);
+  useEffect(() => {
+    if (autoFetch && patientId) {
+      fetchReports(patientId);
+    }
+  }, [autoFetch, patientId]);
 
   // Build index for previous values
   const valueIndex = useMemo(() => {
@@ -465,52 +462,52 @@ export default function ReportViewer(props: ReportViewerProps) {
   }
 
   async function search() {
-  if (!patientId) return;
-  setErr("");
-  setLoading(true);
-  try {
-    const res = await fetch(`/api/report?patient_id=${encodeURIComponent(patientId)}`);
-    const json: any = await res.json();
+    if (!patientId) return;
+    setErr("");
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/report?patient_id=${encodeURIComponent(patientId)}`);
+      const json: any = await res.json();
 
-    const reports: any[] =
-      (Array.isArray(json?.reports) && json.reports) ||
-      (Array.isArray(json?.rows) && json.rows) ||
-      (Array.isArray(json?.data) && json.data) ||
-      [];
+      const reports: any[] =
+        (Array.isArray(json?.reports) && json.reports) ||
+        (Array.isArray(json?.rows) && json.rows) ||
+        (Array.isArray(json?.data) && json.data) ||
+        [];
 
-    if (!res.ok) {
-      setErr(json?.error || "Something went wrong.");
+      if (!res.ok) {
+        setErr(json?.error || "Something went wrong.");
+        setData(null);
+        setSelectedDate("");
+        return;
+      }
+      if (reports.length === 0) {
+        setErr("No matching patient ID, please try again.");
+        setData(null);
+        setSelectedDate("");
+        return;
+      }
+
+      const payload: ReportResponse = { count: reports.length, reports };
+      if (json?.config && typeof json.config === "object") {
+        payload.config = json.config as Record<string, string>;
+      }
+      setData(payload);
+
+      const dates: string[] = Array.from(
+        new Set<string>(
+          reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean)
+        )
+      ).sort((a: string, b: string) => ts(b) - ts(a));
+      setSelectedDate(dates[0] ?? "");
+    } catch (e: any) {
+      setErr(e?.message || "Network error.");
       setData(null);
       setSelectedDate("");
-      return;
+    } finally {
+      setLoading(false);
     }
-    if (reports.length === 0) {
-      setErr("No matching patient ID, please try again.");
-      setData(null);
-      setSelectedDate("");
-      return;
-    }
-
-    const payload: ReportResponse = { count: reports.length, reports };
-    if (json?.config && typeof json.config === "object") {
-      payload.config = json.config as Record<string, string>;
-    }
-    setData(payload);
-
-    const dates: string[] = Array.from(
-      new Set<string>(
-        reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean)
-      )
-    ).sort((a: string, b: string) => ts(b) - ts(a));
-    setSelectedDate(dates[0] ?? "");
-  } catch (e: any) {
-    setErr(e?.message || "Network error.");
-    setData(null);
-    setSelectedDate("");
-  } finally {
-    setLoading(false);
   }
-}
 
   // signers + logo (computed BEFORE return)
   const { rmts, pathos } = getSignersFromConfig(cfg);
@@ -520,15 +517,15 @@ export default function ReportViewer(props: ReportViewerProps) {
   let logoSrc = "";
   let logoFallback = "";
 
-if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
-  // Local public path (e.g., "/wellserv-logo.png") or direct URL
-  logoSrc = rawLogo;
-} else {
-  // Google Drive ID / URL (existing behavior)
-  const d = driveImageUrls(rawLogo);
-  logoSrc = d.primary;
-  logoFallback = d.fallback;
-}
+  if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
+    // Local public path (e.g., "/wellserv-logo.png") or direct URL
+    logoSrc = rawLogo;
+  } else {
+    // Google Drive ID / URL (existing behavior)
+    const d = driveImageUrls(rawLogo);
+    logoSrc = d.primary;
+    logoFallback = d.fallback;
+  }
 
   useEffect(() => {
     setLogoLoaded(false);
@@ -575,9 +572,9 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
         th, td { padding: var(--row-pad); }
 
         .date-select {
-          font-size: 16px;                 /* slightly bigger text */
-          padding: 10px 12px;              /* larger click target */
-          border: 1px solid var(--accent); /* brand accent */
+          font-size: 16px;
+          padding: 10px 12px;
+          border: 1px solid var(--accent);
           border-radius: 8px;
           box-shadow: 0 0 0 2px rgba(15,118,110,.08);
           background: #fff;
@@ -587,7 +584,7 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
           box-shadow: 0 0 0 3px rgba(15,118,110,.20);
         }
         .controls .label {
-          font-weight: 700;                /* bolder label for visibility */
+          font-weight: 700;
           color: var(--brand);
         }
 
@@ -597,18 +594,31 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
         .clinic-name { font-weight: 700; font-size: 20px; line-height: 1.2; }
         .clinic-sub { color:#444; }
 
-        /* toolbar with title + search (moves search next to the title) */
+        /* toolbar with title + search */
         .toolbar {
           display: flex;
           align-items: center;
-          justify-content: center;   /* ✅ center the whole group */
-          gap: 12px;                  /* space between title and input/button */
-          margin: 6px auto 8px;       /* keep it centered as a block */
-          flex-wrap: wrap;            /* wrap nicely on narrow screens */
+          justify-content: center;
+          gap: 12px;
+          margin: 6px auto 8px;
+          flex-wrap: wrap;
           width: 100%;
         }
-        .toolbar h1 { margin: 0; }
-        .searchbar { display:flex; gap:8px; align-items:center; }
+        .toolbar {
+          display: flex;
+          flex-direction: column;     /* title on top, controls below */
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          margin: 12px auto 14px;
+          width: 100%;
+         }
+        .searchbar {
+          display: flex;
+          align-items: center;
+          justify-content: center;    /* centers input + button */
+          gap: 8px;
+        }
 
         /* patient header (name, sex/age/DOB) */
         .patient-head {
@@ -619,7 +629,7 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
         .ph-name { font-size: 20px; font-weight: 800; letter-spacing: .2px; }
         .ph-meta { color:#444; }
 
-        /* controls row under summary */
+        /* controls row */
         .controls { display:flex; gap:12px; margin:12px 0; flex-wrap:wrap; }
 
         /* footer */
@@ -633,10 +643,190 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
         thead th { border-bottom: 1px solid var(--border); }
         tbody td { border-bottom: 1px solid rgba(0,0,0,0.04); }
 
+        /* Utility: print-only/screen-only (no Tailwind dependency) */
+        .print-only { display: none; }
+        .screen-only { display: block; }
+
         @media print {
+          /* ==== A5 portrait setup ==== */
+          @page { size: A5 portrait; margin: 10mm; }
+
+          :root{
+            --font-base: 11px;
+            --font-heading: 13px;
+            --font-title: 13px;
+            --row-pad: 4px;
+            --sig-height: 22px;
+            --logo-height: 64px;
+          }
+
+          body { margin: 0; font-size: var(--font-base); }
+
+          .container { max-width: none; padding: 0; margin: 0; }
           .toolbar, .controls { display:none !important; }
+          .clinic { margin: 0 0 6px 0; text-align: center; }
+          .clinic img { max-height: 64px !important; }
+          h3 { margin: 6px 0; break-after: avoid-page; }
+
+          /* Allow splitting to avoid large white gaps */
+          .section-block { break-inside: auto !important; page-break-inside: auto !important; }
+          table { page-break-inside: auto !important; }
+          thead { display: table-header-group !important; }   /* repeat headers on new page */
+          tfoot { display: table-footer-group !important; }
+          tr, td, th { page-break-inside: avoid; }  
+
+          /* Footer/signers shouldn’t split */
           .report-footer { page-break-inside: avoid; }
-          body { margin: 0; }
+
+          /* Hide Patient Summary Card on print */
+          .ps-card { display: none !important; }
+
+          /* Utilities */
+          .print-only { display: block !important; }
+          .screen-only { display: none !important; }
+
+          /* PRINT — force smaller footer and signatures (overrides inline with !important) */
+          .footer-lines { font-size: 8px !important; line-height: 1.15 !important; }   /* footer text */
+          .report-footer { margin-top: 10px !important; }                               /* breathing room */
+
+          .sig-row{
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+            gap: 4px 10px !important;
+            justify-items: center !important;
+          }
+          .sig{ text-align: center !important; }
+          .sig img{ max-height: 12px !important; margin: 0 0 2px 0 !important; }
+          .sig strong{ font-size: 10.5px !important; line-height: 1.15 !important; }
+          .muted{ font-size: 9.5px !important; line-height: 1.15 !important; }
+        }
+
+        @media print {
+        /* ==== extra print refinements (PRINT ONLY) ==== */
+
+          /* 1 & 4) Smaller header name and logo */
+          .clinic-name { font-size: 14px !important; line-height: 1.15; }
+          .clinic img   { max-height: 54px !important; } /* was 64px */
+
+          /* 1) Footer + signatures smaller */
+          .report-footer { font-size: 5px !important; border-top: none !important; }
+          .sig img       { max-height: 16px !important; }  /* signature images smaller */
+          .sig strong    { font-size: 11px !important; font-weight: 700; }
+          .muted         { font-size: 10px !important; }
+
+          /* 3) Remove gray backgrounds on print */
+          .ps-card,
+          .patient-head,
+          .clinic,
+          .container,
+          table,
+          body {
+            background: #fff !important;
+          }
+
+          /* 5) Remove heavy borders on print */
+          .patient-head,
+          .report-footer,
+          table thead th,
+          table tbody td {
+            border: none !important;
+          }
+
+          /* utility: anything marked .print-hide won’t show on print */
+          .print-hide { display: none !important; }
+
+          /* ==== A5 compact page + spacing overrides (PRINT ONLY) ==== */
+          @page { size: A5 portrait; margin: 6mm; }  /* was 10mm */
+
+          :root{
+            --font-base: 11px;
+            --row-pad: 3px;          /* tighter cell padding */
+          }
+
+          .container { padding: 0 !important; margin: 0 !important; }
+          h3 { margin: 4px 0 !important; }
+          .patient-head { margin: 6px 0 6px !important; padding: 6px 8px !important; }
+          .report-footer { margin-top: 8px !important; }
+
+          .page,
+          .container,
+          .content,
+          section,
+          .ps-card,
+          .patient-head,
+          .report-footer,
+          table,
+          .card,
+          .panel,
+          .box {
+            border: none !important;
+            box-shadow: none !important;
+            outline: none !important;
+            border-radius: 0 !important;
+            background: #fff !important;   /* ensure no gray fill */
+
+          /* Optional: keep a very light table underline; or comment out if you want zero lines */
+          table thead th { border-bottom: 1px solid rgba(0,0,0,0.08) !important; }
+          table tbody td { border-bottom: 1px solid rgba(0,0,0,0.06) !important; }
+          }
+
+          /* === PRINT: center signatures + tighter layout === */
+
+          /* Turn off the flex page layout only on print so footer doesn't get pushed down */
+          .page { display: block !important; min-height: auto !important; }
+
+          /* Footer spacing: override the 'auto' push and keep it tight */
+          .report-footer {
+            margin-top: 4px !important;     /* was auto; tighten further to reduce wasted space */
+            line-height: 1.15 !important;
+          }
+
+          /* Make the signatures a compact 2-column GRID and center them */
+          .sig-row{
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+            gap: 4px 10px !important;
+            align-items: end !important;
+            justify-items: center !important;  /* center grid items */
+          }
+          .sig{
+            min-width: 0 !important;
+            margin-top: 0 !important;
+            text-align: center !important;     /* center the text under the sig */
+          }
+          .sig img{
+            max-height: 12px !important;       /* smaller signature image */
+            margin: 0 auto 2px !important;     /* center the image */
+          }
+          .sig strong{
+            font-size: 10.5px !important;
+            line-height: 1.15 !important;
+          }
+          .muted{
+            font-size: 9.5px !important;
+            line-height: 1.15 !important;
+          }
+
+          /* Footer text block (the gray lines under names) — tighten vertical gaps
+            This targets the <div> lines inside your footerLines container. */
+          .report-footer > div > div {
+            margin-top: 2px !important;        /* override inline margins */
+          }
+
+          /* Keep tables from forcing big jumps; allow normal flow to fill the page */
+          .section-block { break-inside: auto !important; page-break-inside: auto !important; }
+          thead { display: table-header-group !important; }
+          tfoot { display: table-footer-group !important; }
+          tr, td, th { page-break-inside: avoid; }
+
+          /* PRINT: gentle space before footer/signatures */
+          .section-block { margin-bottom: 8px !important; }   /* small gap after last table */
+          table { margin-bottom: 6px !important; }           /* safety gap if no wrapper */
+
+          .report-footer {
+            margin-top: 10px !important;     /* was tighter; add a tad of space */
+            line-height: 1.2 !important;
+          }
         }
 
         /* --- Watermark layer --- */
@@ -658,7 +848,7 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
         .splash-dot { width: 6px; height: 6px; border-radius: 9999px; background: #222; margin: 6px auto 0; animation: pulse 1s ease-in-out infinite; }
         @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: .4; } 50% { transform: scale(1.3); opacity: 1; } }
 
-        /* Patient Summary Card */
+        /* Patient Summary Card (screen only by default) */
         .ps-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin: 10px 0 14px; background: #fafafa; }
         .ps-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
         .ps-title { font-weight: 700; }
@@ -669,8 +859,6 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
         .ps-multi { white-space:pre-wrap; line-height:1.25; }
         .ps-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #ddd; background:#fff; }
         .ps-sep { grid-column:1 / -1; height:1px; background:#e9e9e9; margin:6px 0; }
-
-        @media print { .ps-card { page-break-inside: avoid; background: #fff; } }
       `}</style>
 
       {showSplash && (
@@ -743,7 +931,7 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
 
         {/* ---------- Title + Search (STAFF ONLY) ---------- */}
         {!autoFetch && (
-          <div className="toolbar print:hidden">
+          <div className="toolbar screen-only">
             <h1>View Lab Results</h1>
             <div className="searchbar">
               <input
@@ -779,7 +967,7 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
           </div>
         )}
 
-        {/* ---------- Patient Summary Card ---------- */}
+        {/* ---------- Patient Summary Card (hidden on print) ---------- */}
         {report && (() => {
           const p: any = report.patient || {};
 
@@ -837,7 +1025,6 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
                 {!!email && (<div><div className="ps-label">Email</div><div className="ps-value">{email}</div></div>)}
                 {!!addr  && (<div><div className="ps-label">Address</div><div className="ps-value ps-multi">{addr}</div></div>)}
 
-                {/* subtle divider between contact/address and narratives */}
                 {(hasContact && hasNarr) && <div className="ps-sep" />}
 
                 {/* NARRATIVES */}
@@ -852,11 +1039,11 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
             </section>
           );
         })()}
-        
-        {/* Print-only Test date between Patient Summary and Results */}
+
+        {/* Print-only Test date & branch (replaces Tailwind "hidden print:block") */}
         {(report?.visit?.date_of_test || report?.visit?.branch) && (
-          <div className="hidden print:block mt-3 mb-4">
-            <div style={{ paddingTop: 8, fontSize: 14 }}>
+          <div className="print-only" style={{ margin: "12px 0 16px" }}>
+            <div style={{ paddingTop: 8, fontSize: 12 }}>
               {report?.visit?.date_of_test && (
                 <>
                   <span style={{ fontWeight: 600 }}>Test date:</span>{" "}
@@ -897,14 +1084,14 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
                 >
                   {visitDates.map(d => (
                     <option key={d} value={d}>
-                      {formatTestDate(d)}{/* nicer, human-readable label */}
+                      {formatTestDate(d)}
                     </option>
                   ))}
                 </select>
 
                 <button
                   onClick={() => window.print()}
-                  className="print:hidden"
+                  className="screen-only"
                   style={{ padding:"10px 12px", border:"1px solid var(--border)", borderRadius:8 }}
                 >
                   Print / Save as PDF
@@ -919,12 +1106,12 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
         {report && (
           <>
             {report.sections
-              .filter(sec => (sec?.items?.length ?? 0) > 0) // ← skip empty sections
+              .filter(sec => (sec?.items?.length ?? 0) > 0)
               .map(section => {
-                const hideRF = section.name === "Urinalysis" || section.name === "Fecalysis"; // ← hide columns for UA/FA
+                const hideRF = section.name === "Urinalysis" || section.name === "Fecalysis";
 
                 return (
-                  <div key={section.name} style={{ marginTop: 18 }}>
+                  <div key={section.name} className="section-block" style={{ marginTop: 18 }}>
                     <h3 style={{ margin: "10px 0" }}>{section.name}</h3>
                     <table>
                       <thead>
@@ -942,7 +1129,6 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
                         {section.items.map(it => {
                           if (!it.value) return null;
 
-                          // extra defensive hide (in case old payloads sneak in)
                           const labelLc = String(it.label || "").trim().toLowerCase();
                           if (labelLc === "branch" || labelLc === "created at" || labelLc === "updated at") {
                             return null;
@@ -968,8 +1154,8 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
                             <tr key={it.key}>
                               <td>{it.label}</td>
                               <td style={{ textAlign: "right" }}>
-                              {cur != null ? fmt(cur) : String(it.value ?? "")}
-                            </td>
+                                {cur != null ? fmt(cur) : String(it.value ?? "")}
+                              </td>
 
                               {compareOn && (
                                 <>
@@ -1008,7 +1194,7 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
                     </table>
                   </div>
                 );
-              })}            
+              })}
           </>
         )}
       </div>
@@ -1042,6 +1228,7 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
 
           {footerLines.length > 0 && (
             <div
+              className="footer-lines"
               style={{
                 textAlign: footerAlign,
                 marginTop: 10,
@@ -1051,8 +1238,15 @@ if (rawLogo.startsWith("/") || /^https?:\/\//i.test(rawLogo)) {
               }}
             >
               {footerLines.map((line, i) => (
-                <div key={i} style={{ marginTop: i === 0 ? 0 : footerGapPx,
-                ...(i === 2 || i === 3 ? { color: "var(--accent)" } : {}),}}>{line}</div>
+                <div
+                  key={i}
+                  style={{
+                    marginTop: i === 0 ? 0 : footerGapPx,
+                    ...(i === 2 || i === 3 ? { color: "var(--accent)" } : {}),
+                  }}
+                >
+                  {line}
+                </div>
               ))}
             </div>
           )}
