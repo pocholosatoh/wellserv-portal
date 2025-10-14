@@ -93,17 +93,19 @@ export default function StaffPortalPage() {
 
         {/* Right: appears only after clicking View (or pressing Enter) with a non-empty ID */}
         <div className="lg:col-span-1 space-y-4">
-          {showOtherLabs && activePid ? (
-            <section className="rounded-xl border bg-white/95 shadow-sm overflow-hidden">
-              <header className="px-4 py-3 border-b">
-                <h2 className="font-medium text-gray-800">Other Labs</h2>
-              </header>
-              <div className="p-4">
-                <OtherLabsViewer patientId={activePid} showIfEmpty={true}
-                  emptyText="No other labs available."/>
-              </div>
-            </section>
-          ) : null}
+          <div className="print-hide">
+            {showOtherLabs && activePid ? (
+              <section className="rounded-xl border bg-white/95 shadow-sm overflow-hidden">
+                <header className="px-4 py-3 border-b">
+                  <h2 className="font-medium text-gray-800">Other Labs</h2>
+                </header>
+                <div className="p-4">
+                  <OtherLabsViewer patientId={activePid} showIfEmpty={true}
+                    emptyText="No other labs available."/>
+                </div>
+              </section>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
