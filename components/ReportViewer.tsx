@@ -211,6 +211,7 @@ type ReportViewerProps = {
   initialPatientId?: string;
   apiPath?: string;
   autoFetch?: boolean;
+  useSession?: boolean; 
 
   // NEW (optional, non-breaking):
   headerOverride?: ReactNode;   // custom header JSX from parent
@@ -221,8 +222,9 @@ type ReportViewerProps = {
 export default function ReportViewer(props: ReportViewerProps) {
   const {
     initialPatientId,
-    apiPath = "/api/results",
+    apiPath = "/api/patient-results",
     autoFetch = false,
+    useSession = false,          // if true, hides patient ID input (expects session to provide it)
 
     // NEW overrides
     headerOverride,
@@ -403,11 +405,80 @@ export default function ReportViewer(props: ReportViewerProps) {
     }
   }
 
+  async function fetchSessionReports() {
+    setErr("");
+    setLoading(true);
+    try {
+      const res = await fetch(apiPath, {
+        method: "GET",                     // session derives patient_id; GET is fine
+        cache: "no-store",
+      });
+
+      const ct = res.headers.get("content-type") || "";
+      let json: any = null;
+      let text = "";
+      try {
+        if (ct.includes("application/json")) {
+          json = await res.json();
+        } else {
+          text = await res.text();
+        }
+      } catch {
+        try { text = await res.text(); } catch {}
+      }
+
+      if (!res.ok) {
+        const msg = json?.error || text || `Request failed (${res.status})`;
+        setErr(msg);
+        setData(null);
+        setSelectedDate("");
+        return;
+      }
+
+      const reports: any[] =
+        (Array.isArray(json?.reports) && json.reports) ||
+        (Array.isArray(json?.rows) && json.rows) ||
+        (Array.isArray(json?.data) && json.data) ||
+        [];
+
+      if (reports.length === 0) {
+        setErr("No reports found.");
+        setData(null);
+        setSelectedDate("");
+        return;
+      }
+
+      const payload: ReportResponse = { count: reports.length, reports };
+      if (json?.config && typeof json.config === "object") {
+        payload.config = json.config as Record<string, string>;
+      }
+      setData(payload);
+
+      const dates: string[] = Array.from(
+        new Set<string>(
+          reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean)
+        )
+      ).sort((a: string, b: string) => ts(b) - ts(a));
+      setSelectedDate(dates[0] ?? "");
+    } catch (e: any) {
+      setErr(e?.message || "Network error.");
+      setData(null);
+      setSelectedDate("");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+
   useEffect(() => {
-    if (autoFetch && patientId) {
+    if (!autoFetch) return;
+    if (useSession) {
+      // session-derived patient; no ID required
+      fetchSessionReports();
+    } else if (patientId) {
       fetchReports(patientId);
     }
-  }, [autoFetch, patientId]);
+  }, [autoFetch, useSession, patientId, apiPath]);
 
   // Build index for previous values
   const valueIndex = useMemo(() => {
@@ -594,30 +665,35 @@ export default function ReportViewer(props: ReportViewerProps) {
         .clinic-name { font-weight: 700; font-size: 20px; line-height: 1.2; }
         .clinic-sub { color:#444; }
 
-        /* toolbar with title + search */
-        .toolbar {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          margin: 6px auto 8px;
-          flex-wrap: wrap;
-          width: 100%;
+        /* SCREEN: title + search on ONE line, centered */
+        .toolbar{
+          display:flex;
+          align-items:center;
+          justify-content:center;   /* center the whole group */
+          gap:12px;
+          margin:12px auto 14px;
+          width:100%;
+          flex-wrap:nowrap;         /* keep on one line */
         }
-        .toolbar {
-          display: flex;
-          flex-direction: column;     /* title on top, controls below */
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          margin: 12px auto 14px;
-          width: 100%;
-         }
-        .searchbar {
-          display: flex;
-          align-items: center;
-          justify-content: center;    /* centers input + button */
-          gap: 8px;
+        .toolbar h1{
+          margin:0;
+          flex:0 0 auto;            /* don't stretch; keep content width */
+        }
+        .toolbar .searchbar{
+          flex:0 0 auto;            /* don't stretch; keep content width */
+        }
+
+        /* keep the searchbar centered too */
+        .searchbar{
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          gap:8px;
+        }
+
+        /* optional: on very narrow screens stack them */
+        @media (max-width: 560px){
+          .toolbar{ flex-direction:wrap; }
         }
 
         /* patient header (name, sex/age/DOB) */
@@ -702,132 +778,116 @@ export default function ReportViewer(props: ReportViewerProps) {
         }
 
         @media print {
-        /* ==== extra print refinements (PRINT ONLY) ==== */
-
-          /* 1 & 4) Smaller header name and logo */
-          .clinic-name { font-size: 14px !important; line-height: 1.15; }
-          .clinic img   { max-height: 54px !important; } /* was 64px */
-
-          /* 1) Footer + signatures smaller */
-          .report-footer { font-size: 5px !important; border-top: none !important; }
-          .sig img       { max-height: 16px !important; }  /* signature images smaller */
-          .sig strong    { font-size: 11px !important; font-weight: 700; }
-          .muted         { font-size: 10px !important; }
-
-          /* 3) Remove gray backgrounds on print */
-          .ps-card,
-          .patient-head,
-          .clinic,
-          .container,
-          table,
-          body {
-            background: #fff !important;
-          }
-
-          /* 5) Remove heavy borders on print */
-          .patient-head,
-          .report-footer,
-          table thead th,
-          table tbody td {
-            border: none !important;
-          }
-
-          /* utility: anything marked .print-hide won’t show on print */
-          .print-hide { display: none !important; }
-
-          /* ==== A5 compact page + spacing overrides (PRINT ONLY) ==== */
-          @page { size: A5 portrait; margin: 6mm; }  /* was 10mm */
+          /* ==== A5 portrait + compact sizing ==== */
+          @page { size: A5 portrait; margin: 6mm; }
 
           :root{
             --font-base: 11px;
-            --row-pad: 3px;          /* tighter cell padding */
+            --font-heading: 13px;
+            --font-title: 13px;
+            --row-pad: 3px;
+            --sig-height: 22px;
+            --logo-height: 64px;
           }
 
-          .container { padding: 0 !important; margin: 0 !important; }
-          h3 { margin: 4px 0 !important; }
-          .patient-head { margin: 6px 0 6px !important; padding: 6px 8px !important; }
-          .report-footer { margin-top: 8px !important; }
+          body { margin: 0; font-size: var(--font-base); }
 
-          .page,
-          .container,
-          .content,
-          section,
-          .ps-card,
-          .patient-head,
-          .report-footer,
-          table,
-          .card,
-          .panel,
-          .box {
-            border: none !important;
+          .page { display: block !important; min-height: auto !important; }
+          .container { max-width: none; padding: 0 !important; margin: 0 !important; }
+
+          /* Hide on print */
+          .toolbar, .controls { display: none !important; }
+          .print-hide { display: none !important; }
+          .screen-only { display: none !important; }
+
+          /* Show on print */
+          .print-only { display: block !important; }
+
+          /* Header compaction */
+          .clinic { margin: 0 0 6px 0; text-align: center; }
+          .clinic img   { max-height: 54px !important; }
+          .clinic-name  { font-size: 14px !important; line-height: 1.15; }
+
+          /* White paper look ONLY on print */
+          html, body, main, #__next,
+          .page, .container, .content,
+          section, article,
+          table, thead, tbody, tr, th, td {
+            background: #fff !important;
+          }
+          /* strip card/border look */
+          .page, .container, .content, section,
+          .card, .panel, .box, .patient-head, .ps-card, .report-footer, table {
             box-shadow: none !important;
-            outline: none !important;
             border-radius: 0 !important;
-            background: #fff !important;   /* ensure no gray fill */
+            border: none !important;
+          }
 
-          /* Optional: keep a very light table underline; or comment out if you want zero lines */
+          /* keep subtle table lines (OPTIONAL) */
           table thead th { border-bottom: 1px solid rgba(0,0,0,0.08) !important; }
           table tbody td { border-bottom: 1px solid rgba(0,0,0,0.06) !important; }
-          }
 
-          /* === PRINT: center signatures + tighter layout === */
+          /* Allow content to split across pages (avoid big white gaps) */
+          .section-block { break-inside: auto !important; page-break-inside: auto !important; margin-bottom: 8px !important; }
+          table { page-break-inside: auto !important; margin-bottom: 6px !important; }
+          thead { display: table-header-group !important; }
+          tfoot { display: table-footer-group !important; }
+          tr, td, th { page-break-inside: avoid; }
 
-          /* Turn off the flex page layout only on print so footer doesn't get pushed down */
-          .page { display: block !important; min-height: auto !important; }
+          /* Hide Patient Summary on print */
+          .ps-card { display: none !important; }
 
-          /* Footer spacing: override the 'auto' push and keep it tight */
-          .report-footer {
-            margin-top: 4px !important;     /* was auto; tighten further to reduce wasted space */
-            line-height: 1.15 !important;
-          }
+          /* Footer & signatures: smaller, centered, 2 columns */
+          .report-footer { page-break-inside: avoid; margin-top: 10px !important; line-height: 1.2 !important; }
+          .footer-lines  { font-size: 8.5px !important; line-height: 1.15 !important; }
 
-          /* Make the signatures a compact 2-column GRID and center them */
           .sig-row{
             display: grid !important;
             grid-template-columns: repeat(2, minmax(0,1fr)) !important;
             gap: 4px 10px !important;
             align-items: end !important;
-            justify-items: center !important;  /* center grid items */
+            justify-items: center !important;
           }
           .sig{
             min-width: 0 !important;
             margin-top: 0 !important;
-            text-align: center !important;     /* center the text under the sig */
+            text-align: center !important;
           }
-          .sig img{
-            max-height: 12px !important;       /* smaller signature image */
-            margin: 0 auto 2px !important;     /* center the image */
-          }
-          .sig strong{
-            font-size: 10.5px !important;
-            line-height: 1.15 !important;
-          }
-          .muted{
-            font-size: 9.5px !important;
-            line-height: 1.15 !important;
-          }
+          .sig img{ max-height: 12px !important; margin: 0 0 2px 0 !important; }
+          .sig strong{ font-size: 10.5px !important; line-height: 1.15 !important; }
+          .muted{ font-size: 9.5px !important; line-height: 1.15 !important; }
 
-          /* Footer text block (the gray lines under names) — tighten vertical gaps
-            This targets the <div> lines inside your footerLines container. */
-          .report-footer > div > div {
-            margin-top: 2px !important;        /* override inline margins */
-          }
+          /* PRINT: a little more space above footer/signatures */
+            table{ margin-bottom: 12px !important; }         /* was 6px */
+            .section-block{ margin-bottom: 12px !important; }/* was 8px */
+            .report-footer{ margin-top: 14px !important; }   /* more air */
 
-          /* Keep tables from forcing big jumps; allow normal flow to fill the page */
-          .section-block { break-inside: auto !important; page-break-inside: auto !important; }
-          thead { display: table-header-group !important; }
-          tfoot { display: table-footer-group !important; }
-          tr, td, th { page-break-inside: avoid; }
-
-          /* PRINT: gentle space before footer/signatures */
-          .section-block { margin-bottom: 8px !important; }   /* small gap after last table */
-          table { margin-bottom: 6px !important; }           /* safety gap if no wrapper */
-
-          .report-footer {
-            margin-top: 10px !important;     /* was tighter; add a tad of space */
-            line-height: 1.2 !important;
-          }
+            /* PRINT: signatures perfectly centered under names */
+            .sig-row{
+              display:grid !important;
+              grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+              column-gap:12px !important;
+              row-gap:6px !important;
+              justify-items:center !important;  /* centers each signer block */
+              align-items:end !important;
+            }
+            .sig{
+              display:flex !important;
+              flex-direction:column !important;
+              align-items:center !important;    /* centers image + text */
+              text-align:center !important;
+              min-width:0 !important;
+              margin-top:0 !important;
+            }
+            .sig img{
+              display:block !important;
+              max-height:12px !important;
+              margin:0 0 4px 0 !important;      /* small gap above the name */
+            }
+            .sig strong{ font-size:10.5px !important; line-height:1.15 !important; }
+            .muted{      font-size: 9.5px !important; line-height:1.15 !important; }
         }
+
 
         /* --- Watermark layer --- */
         .page { position: relative; }
@@ -859,6 +919,7 @@ export default function ReportViewer(props: ReportViewerProps) {
         .ps-multi { white-space:pre-wrap; line-height:1.25; }
         .ps-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #ddd; background:#fff; }
         .ps-sep { grid-column:1 / -1; height:1px; background:#e9e9e9; margin:6px 0; }
+        
       `}</style>
 
       {showSplash && (
@@ -932,7 +993,6 @@ export default function ReportViewer(props: ReportViewerProps) {
         {/* ---------- Title + Search (STAFF ONLY) ---------- */}
         {!autoFetch && (
           <div className="toolbar screen-only">
-            <h1>View Lab Results</h1>
             <div className="searchbar">
               <input
                 value={patientId}
