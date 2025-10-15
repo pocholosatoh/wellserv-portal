@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import UploadFormClient from "./UploadFormClient";
 import BrowseOtherLabs from "./BrowseOtherLabs";
+import StaffNavi from "@/app/staff/_components/StaffNavi";
 
 export const dynamic = "force-dynamic";
 

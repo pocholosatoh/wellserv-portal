@@ -36,7 +36,7 @@ export default function LoginPage() {
   useEffect(() => { setReady(true); }, []);
   const router = useRouter();
 
-  // pull config (clinic header + optional portal_access_code + optional custom privacy copy)
+  // pull config (clinic header + optional custom privacy copy)
   useEffect(() => {
     let ignore = false;
     (async () => {
@@ -52,65 +52,52 @@ export default function LoginPage() {
   const { primary: logoPrimary, fallback: logoFallback } = driveImageUrls(cfg.clinic_logo_url);
   const logoSrc = logoPrimary;
 
-  const requiredAccessCode: string = useMemo(() => {
-    const fromConfig = (cfg.portal_access_code || "").trim();
-    if (fromConfig) return fromConfig;
-    if (typeof window !== "undefined") {
-      const fromEnv = (process.env.NEXT_PUBLIC_PORTAL_ACCESS_CODE || "").trim();
-      if (fromEnv) return fromEnv;
-    }
-    return "";
-  }, [cfg.portal_access_code]);
-
-const needsCode = !!requiredAccessCode?.trim();
+  // Always require an Access Code (server will validate via PATIENT_PORTAL_ACCESS_CODE)
+  const needsCode = true;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const patient_id = pid.trim();
-    const token = code.trim();
+    const access_code = code.trim();
 
     setErr(null);
 
-    // client-side privacy + access checks (simple & minimal)
+    // client-side privacy + minimal checks
     if (!patient_id) {
       setErr("Please enter your Patient ID.");
+      return;
+    }
+    if (needsCode && !access_code) {
+      setErr("Please enter the Access Code.");
       return;
     }
     if (!consent) {
       setErr("Please tick the consent checkbox to continue.");
       return;
     }
-    if (requiredAccessCode && token.toLowerCase() !== requiredAccessCode.toLowerCase()) {
-      setErr("Invalid access code. Please try again.");
-      return;
-    }
 
     setLoading(true);
     try {
-      // validate patient exists (your existing API)
-      const res = await fetch("/api/patient-exists", {
+      // server validates access code + patient existence, sets httpOnly cookie, returns {ok:true}
+      const res = await fetch("/api/auth/patient/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ patient_id }),
+        body: JSON.stringify({ patient_id, access_code, remember: true }),
       });
 
+      const j = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        if (res.status === 404) {
-          setErr("No matching Patient ID. Please check and try again.");
-        } else {
-          const j = await res.json().catch(() => ({}));
-          setErr(j?.error || "Something went wrong. Please try again.");
-        }
+        // mirror common errors
+        if (res.status === 401) setErr("Invalid access code. Please try again.");
+        else if (res.status === 404) setErr("No matching Patient ID. Please check and try again.");
+        else setErr(j?.error || "Something went wrong. Please try again.");
         setLoading(false);
         return;
       }
 
-      // save session bits (short-lived)
-      document.cookie = `patient_id=${encodeURIComponent(patient_id)}; path=/; max-age=86400`;
-      if (requiredAccessCode) {
-        document.cookie = `portal_token=1; path=/; max-age=86400`; // flag that the check passed
-      }
-      router.push("/patient-results");
+      // success: cookie already set by server → go to new landing page
+      router.push("/patient");
     } catch {
       setErr("Network error. Please try again.");
       setLoading(false);
@@ -220,12 +207,15 @@ requests (access, correction, deletion), contact our Data Protection Officer via
       {/* Login card */}
       <div style={card}>
         <header style={{ marginBottom: 16 }}>
+          <img
+            src="/wellserv-logo.png"
+            alt="WELLSERV"
+            style={{ display: "block", margin: "0 auto 20px", height: 120, objectFit: "contain" }}
+          />
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Patient Portal</h1>
-            <p style={{ margin: "6px 0 0 0", color: "#000000ff", fontSize: 13 }}>
-              {ready && (
-                <>Enter your Patient ID {needsCode ? "and Access Code " : ""} to view your results.</>
-              )}
-            </p>
+          <p style={{ margin: "6px 0 0 0", color: "#000000ff", fontSize: 13 }}>
+            {ready && (<>Enter your Patient ID and Access Code to view your results.</>)}
+          </p>
         </header>
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
@@ -242,21 +232,19 @@ requests (access, correction, deletion), contact our Data Protection Officer via
             style={input}
           />
 
-          {/* Access Code (Password) */}
-          {true && (
-            <>
-              <label htmlFor="pcode" style={label}>Access Code</label>
-              <input
-                id="pcode"
-                type="password"
-                autoComplete="off"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="Access Code (ask staff 😉)"
-                style={input}
-              />
-            </>
-          )}
+          {/* Access Code */}
+          <>
+            <label htmlFor="pcode" style={label}>Access Code</label>
+            <input
+              id="pcode"
+              type="password"
+              autoComplete="off"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Access Code (ask staff 😉)"
+              style={input}
+            />
+          </>
 
           {/* Consent */}
           <label style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13, color: "#444", marginTop: 4 }}>

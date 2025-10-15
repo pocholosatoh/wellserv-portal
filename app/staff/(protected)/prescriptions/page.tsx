@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { fmtManila } from "@/lib/time";
 import { describeFrequency } from "@/lib/rx";
+import StaffNavi from "@/app/staff/_components/StaffNavi";
 
 type Rx = any;
 

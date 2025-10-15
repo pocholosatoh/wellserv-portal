@@ -11,14 +11,14 @@ export type OtherLabType =
   | "Lab Tests (3rd Party)"
   | "Imaging Reports (X-ray, Ultrasound, etc.)"
   | "Other"
-  | (string & {}); // allows future values without TS errors
+  | (string & {});
 
 export type OtherLabItem = {
   id: string;
   patient_id: string;
   url: string;
   content_type: string;
-  type: OtherLabType;              // <-- NEW (required in UI)
+  type: OtherLabType;              // required in UI
   provider?: string | null;
   taken_at?: string | null;
   uploaded_at?: string | null;
@@ -27,7 +27,11 @@ export type OtherLabItem = {
 };
 
 export type OtherLabsViewerProps = {
-  patientId: string;
+  /** If omitted, component fetches via session (/api/patient/other-labs) */
+  patientId?: string;
+  /** Force session mode even if patientId is provided (rare) */
+  useSession?: boolean;
+  apiPath?: string;
   title?: string;
   className?: string;
   showIfEmpty?: boolean;
@@ -158,7 +162,17 @@ function PdfLightbox({ src, onClose }: { src: string; onClose: () => void }) {
 }
 
 export default function OtherLabsViewer(props: OtherLabsViewerProps) {
-  const { patientId, title="Other Labs", className="", showIfEmpty=false, initiallyCollapsed=false, emptyText = "No outside lab results uploaded yet.", } = props;
+  const {
+    patientId,
+    useSession = !patientId,             // default to session mode when no patientId is passed
+    apiPath = "/api/patient/other-labs",
+    title = "Other Labs",
+    className = "",
+    showIfEmpty = false,
+    initiallyCollapsed = false,
+    emptyText = "No outside lab results uploaded yet.",
+  } = props;
+
   const [items, setItems] = useState<OtherLabItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(!initiallyCollapsed);
@@ -166,22 +180,30 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
   const [pdfSrc, setPdfSrc] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!patientId) return;
     let abort = false;
     setError(null);
     setItems(null);
+
     (async () => {
       try {
-        const res = await fetch(`/api/patient/other-labs?patient_id=${encodeURIComponent(patientId)}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as OtherLabItem[];
-        if (!abort) setItems(data);
+        const url = useSession
+          ? `${apiPath}`                                  // session-based
+          : `${apiPath}?patient_id=${encodeURIComponent(String(patientId || ""))}`; // explicit PID
+
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j?.error || `HTTP ${res.status}`);
+        }
+        const data = (await res.json()) as OtherLabItem[]; // API returns an array
+        if (!abort) setItems(Array.isArray(data) ? data : []);
       } catch (e: any) {
         if (!abort) setError(e?.message || "Failed to load");
       }
     })();
+
     return () => { abort = true; };
-  }, [patientId]);
+  }, [patientId, useSession]);
 
   const grouped = useMemo(() => {
     if (!items) return {} as Record<string, OtherLabItem[]>;
@@ -200,21 +222,21 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
     return by;
   }, [items]);
 
-  const providers = useMemo(()=>Object.keys(grouped),[grouped]);
+  const providers = useMemo(() => Object.keys(grouped), [grouped]);
   const [active, setActive] = useState<string | null>(null);
-  useEffect(()=>{ if (providers.length && !active) setActive(providers[0]); },[providers, active]);
+  useEffect(() => { if (providers.length && !active) setActive(providers[0]); }, [providers, active]);
 
   if (!showIfEmpty && items && items.length === 0) return null;
 
   return (
-    <section className={"rounded-2xl border bg-white/70 backdrop-blur p-4 md:p-5 shadow-sm "+className}>
+    <section className={"rounded-2xl border bg-white/70 backdrop-blur p-4 md:p-5 shadow-sm " + className}>
       <header className="flex items-center justify-between gap-3">
         <h2 className="text-lg md:text-xl font-semibold flex items-center gap-2">
           <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" /> {title}
         </h2>
         <div className="flex items-center gap-2">
-          {items && items.length>0 && <span className="text-xs text-gray-500 hidden sm:inline">{items.length} file{items.length>1?"s":""}</span>}
-          <button onClick={()=>setOpen(v=>!v)} className="text-sm px-3 py-1.5 rounded-full border hover:bg-gray-50" aria-expanded={open}>
+          {items && items.length > 0 && <span className="text-xs text-gray-500 hidden sm:inline">{items.length} file{items.length > 1 ? "s" : ""}</span>}
+          <button onClick={() => setOpen(v => !v)} className="text-sm px-3 py-1.5 rounded-full border hover:bg-gray-50" aria-expanded={open}>
             {open ? "Hide" : "Show"}
           </button>
         </div>
@@ -225,33 +247,51 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
           {!items && !error && <div className="text-sm text-gray-500">Loading other lab files…</div>}
           {error && <div className="text-sm text-red-600">Failed to load: {error}</div>}
           {/* Empty */}
-            {items && items.length === 0 && (
+          {items && items.length === 0 && (
             <div className="text-sm text-gray-500">{emptyText}</div>
-            )}
+          )}
 
-          {items && items.length>0 && (
+          {items && items.length > 0 && (
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-2">
-                {providers.map((p)=>(
-                  <button key={p} onClick={()=>setActive(p)} className={`px-3 py-1.5 rounded-full border text-sm ${active===p?"bg-gray-900 text-white":"hover:bg-gray-50"}`}>{p}</button>
+                {providers.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setActive(p)}
+                    className={`px-3 py-1.5 rounded-full border text-sm ${active === p ? "bg-gray-900 text-white" : "hover:bg-gray-50"}`}
+                  >
+                    {p}
+                  </button>
                 ))}
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {(grouped[active || providers[0]] || []).map((item)=> {
+                {(grouped[active || providers[0]] || []).map((item) => {
                   const isImg = item.content_type?.startsWith("image/");
                   const isPdf = item.content_type === "application/pdf" || item.url.toLowerCase().endsWith(".pdf");
                   return (
                     <div key={item.id} className="group relative">
                       {isImg ? (
-                        <button type="button" onClick={()=>setImgSrc(item.url)} className="block w-full overflow-hidden rounded-xl border bg-gray-50"
-                                title={`${fmtDate(item.taken_at)} — ${fileNameFromUrl(item.url)}`}>
-                          <img src={item.url} alt={item.note || fileNameFromUrl(item.url)} className="aspect-[4/3] w-full object-cover group-hover:opacity-90" loading="lazy"/>
+                        <button
+                          type="button"
+                          onClick={() => setImgSrc(item.url)}
+                          className="block w-full overflow-hidden rounded-xl border bg-gray-50"
+                          title={`${fmtDate(item.taken_at)} — ${fileNameFromUrl(item.url)}`}
+                        >
+                          <img
+                            src={item.url}
+                            alt={item.note || fileNameFromUrl(item.url)}
+                            className="aspect-[4/3] w-full object-cover group-hover:opacity-90"
+                            loading="lazy"
+                          />
                         </button>
                       ) : isPdf ? (
-                        <button type="button" onClick={()=>setPdfSrc(item.url)}
-                                className="group flex w-full items-center gap-3 p-3 rounded-xl border hover:shadow transition bg-white text-left"
-                                title={fileNameFromUrl(item.url)}>
+                        <button
+                          type="button"
+                          onClick={() => setPdfSrc(item.url)}
+                          className="group flex w-full items-center gap-3 p-3 rounded-xl border hover:shadow transition bg-white text-left"
+                          title={fileNameFromUrl(item.url)}
+                        >
                           <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-50 border">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6"><path d="M6 2h7l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="currentColor"/></svg>
                           </div>
@@ -279,8 +319,8 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
         </div>
       )}
 
-      {imgSrc && <ImageLightbox src={imgSrc} onClose={()=>setImgSrc(null)} />}
-      {pdfSrc && <PdfLightbox src={pdfSrc} onClose={()=>setPdfSrc(null)} />}
+      {imgSrc && <ImageLightbox src={imgSrc} onClose={() => setImgSrc(null)} />}
+      {pdfSrc && <PdfLightbox src={pdfSrc} onClose={() => setPdfSrc(null)} />}
     </section>
   );
 }
