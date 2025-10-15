@@ -6,6 +6,7 @@ import React from "react";
 
 // NEW (safe)
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import StaffNavi from "@/app/staff/_components/StaffNavi";
 
 const BTN =
   "rounded-xl bg-[#44969b] text-white px-4 py-2 font-medium shadow-card transition-all " +

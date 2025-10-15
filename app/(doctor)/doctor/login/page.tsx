@@ -74,6 +74,11 @@ export default function DoctorLoginPage() {
   return (
     <div className="min-h-[70vh] flex items-start sm:items-center justify-center px-4 py-10">
       <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <img
+            src="/wellserv-logo.png"
+            alt="WELLSERV"
+            style={{ display: "block", margin: "35px auto 20px", height: 120, objectFit: "contain" }}
+          />
         <div className="px-6 py-5 border-b border-gray-100">
           <h1 className="text-lg font-semibold">Doctor Sign In</h1>
           <p className="text-xs text-gray-600 mt-1">

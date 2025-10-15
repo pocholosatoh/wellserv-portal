@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { getDataProvider } from "@/lib/data/provider-factory";
+import { getSession } from "@/lib/session"; // ← NEW: read patient_id from server session
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +31,6 @@ function logRequest(method: "GET" | "POST", patient_id: string, reports: any[]) 
     }));
   } catch { /* no-op */ }
 }
-
 
 function asStr(x: any): string {
   if (x === null || x === undefined) return "";
@@ -157,16 +157,18 @@ async function buildAllReports(patient_id: string, limit?: number, specificDate?
 }
 
 /* --------------- handlers --------------- */
+// CHANGED: derive patient_id from session; ignore client-provided IDs.
 export async function POST(req: Request) {
   try {
+    const session = await getSession();
+    if (!session || session.role !== "patient") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const patient_id = String(session.sub); // canonical patients.patient_id (UPPERCASE)
+
     const body = await req.json().catch(() => ({}));
-    const patient_id = String(body?.patient_id ?? "").trim();
     const visitDate  = body?.visitDate ? String(body.visitDate) : undefined;
     const limit      = body?.limit != null ? Number(body.limit) : undefined;
-
-    if (!patient_id) {
-      return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
-    }
 
     const json = await buildAllReports(patient_id, limit, visitDate);
     logRequest("POST", patient_id, json.reports);
@@ -176,17 +178,19 @@ export async function POST(req: Request) {
   }
 }
 
+// CHANGED: derive patient_id from session; ignore query param.
 export async function GET(req: Request) {
   try {
+    const session = await getSession();
+    if (!session || session.role !== "patient") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const patient_id = String(session.sub);
+
     const { searchParams } = new URL(req.url);
-    const patient_id = String(searchParams.get("patient_id") || "").trim();
     const visitDate  = (searchParams.get("date") ?? undefined) || undefined;
     const limitParam = searchParams.get("limit");
     const limit      = limitParam != null ? Number(limitParam) : undefined;
-
-    if (!patient_id) {
-      return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
-    }
 
     const json = await buildAllReports(patient_id, limit, visitDate);
     logRequest("GET", patient_id, json.reports);

@@ -1,54 +1,55 @@
-// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-const COOKIE_NAME = "doctor_session";
+const COOKIE = process.env.SESSION_COOKIE_NAME || "wellserv_session";
+const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
 
-// If you prefer to only check the cookie's presence (no JWT verify), set this to false.
-const VERIFY_JWT = true;
+const guards = [
+  { match: (p: string) => p.startsWith("/doctor"),          roles: ["doctor"] as const,  login: "/doctor/login"  },
+  { match: (p: string) => p === "/patient" || p.startsWith("/patient/"), roles: ["patient"] as const, login: "/login" },
+  { match: (p: string) => p === "/results",                 roles: ["patient"] as const, login: "/login" },
+  { match: (p: string) => p === "/prescriptions",           roles: ["patient"] as const, login: "/login" },
+  { match: (p: string) => p.startsWith("/staff"),           roles: ["staff"] as const,   login: "/staff/login"   },
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
+  const guard = guards.find(g => g.match(pathname));
+  if (!guard) return NextResponse.next();
 
-  // Only guard /doctor/*, but allow the login page itself
-  const isDoctorArea = pathname.startsWith("/doctor");
-  const isLoginPage = pathname === "/doctor/login";
+  // allow the role's login page itself
+  if (pathname === guard.login) return NextResponse.next();
 
-  if (!isDoctorArea || isLoginPage) {
-    return NextResponse.next();
-  }
-
-  const token = req.cookies.get(COOKIE_NAME)?.value;
-
+  const token = req.cookies.get(COOKIE)?.value;
   if (!token) {
-    // Not logged in → send to login with next=<current path+query>
-    const url = new URL("/doctor/login", req.url);
+    const url = new URL(guard.login, req.url);
     url.searchParams.set("next", pathname + (search || ""));
     return NextResponse.redirect(url);
   }
 
-  if (VERIFY_JWT) {
-    const secretRaw = process.env.DOCTOR_SESSION_SECRET || "";
-    if (!secretRaw) {
-      // Fail open in dev to avoid loops if you forgot the env var; set to redirect if you prefer strict.
-      console.warn("[middleware] DOCTOR_SESSION_SECRET missing; skipping JWT verify.");
-      return NextResponse.next();
-    }
-    try {
-      await jwtVerify(token, new TextEncoder().encode(secretRaw));
-    } catch {
-      // Invalid/expired token → force login
-      const url = new URL("/doctor/login", req.url);
-      url.searchParams.set("next", pathname + (search || ""));
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    if (!(guard.roles as readonly string[]).includes((payload.role as string))) {
+      const url = new URL(guard.login, req.url);
       return NextResponse.redirect(url);
     }
+    return NextResponse.next();
+  } catch {
+    const url = new URL(guard.login, req.url);
+    url.searchParams.set("next", pathname + (search || ""));
+    return NextResponse.redirect(url);
   }
-
-  return NextResponse.next();
 }
 
+// Important: matcher must cover these standalone routes
 export const config = {
-  // Guard every /doctor/* page; middleware does its own allowlist for /doctor/login
-  matcher: ["/doctor/:path*"],
+  matcher: [
+    "/doctor/:path*",
+    "/patient",
+    "/patient/:path*",
+    "/results",
+    "/prescriptions",
+    "/staff/:path*",
+  ],
 };
