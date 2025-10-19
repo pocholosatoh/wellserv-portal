@@ -47,3 +47,39 @@ body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .btn-outline { @apply inline-flex items-center justify-center rounded-2xl px-5 py-3 font-medium border border-accent text-accent hover:bg-accent/10 transition; }
 .pill { @apply inline-flex items-center gap-2 rounded-full bg-accent/10 text-accent px-3 py-1 text-sm font-medium; }
 }
+
+:root {
+  --accent: #44969b;         /* main brand */
+  --accent-600: #3d878d;     /* hover/darker */
+  --accent-700: #35757b;     /* active/pressed */
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: white;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1rem; /* py-2.5 px-4 */
+}
+.btn-accent:hover { background: var(--accent-600); }
+.btn-accent:active { background: var(--accent-700); }
+
+.pill-accent {
+  background: color-mix(in oklab, var(--accent), white 85%);
+  color: color-mix(in oklab, var(--accent), black 25%);
+  border-radius: 999px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem; /* text-sm */
+}
+
+.link-accent { color: var(--accent); }
+.link-accent:hover { text-decoration: underline; }
+
+.pill-accent {
+  background: #E6F4F5;       /* soft of your #44969b */
+  color: #256266;
+  border: 1px solid #C8E5E7;
+  border-radius: 9999px;
+  padding: 0.25rem 0.5rem;
+  font-size: 12px;
+}
+.pill-accent button { line-height: 1; font-weight: 700; }

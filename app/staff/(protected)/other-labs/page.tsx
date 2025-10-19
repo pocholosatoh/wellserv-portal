@@ -1,119 +1,141 @@
-// app/staff/other-labs/page.tsx  (SERVER COMPONENT — no "use client")
-import * as React from "react";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import UploadFormClient from "./UploadFormClient";
-import BrowseOtherLabs from "./BrowseOtherLabs";
-import StaffNavi from "@/app/staff/_components/StaffNavi";
-
+// app/(doctor)/doctor/page.tsx
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
-function slugSafe(name: string) {
-  return name.replace(/[^A-Za-z0-9._-]+/g, "-");
-}
+import { redirect } from "next/navigation";
+import Image from "next/image";
+import { getDoctorSession } from "@/lib/doctorSession";
+import { getSupabase } from "@/lib/supabase";
 
-async function uploadOne(
-  sb: ReturnType<typeof supabaseAdmin>,
-  file: File,
-  patient_id: string,
-  type: string,
-  provider: string | null,
-  taken_at: string | null,
-  note: string | null
-) {
-  const bucket = process.env.NEXT_PUBLIC_EXTERNAL_RESULTS_BUCKET || "external-results";
-  const dateFolder =
-    taken_at && /^\d{4}-\d{2}-\d{2}$/.test(taken_at)
-      ? taken_at
-      : new Date().toISOString().slice(0, 10);
+const ACCENT = "#44969b";
 
-  const uuid = (globalThis as any).crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const safeName = `${uuid}-${slugSafe(file.name || "file")}`;
-  const path = `${patient_id}/${dateFolder}/${safeName}`;
+type Med = {
+  id: string;
+  generic_name: string;
+  strength: string | null;
+  form: string | null;
+  is_active: boolean | null;
+};
 
-  const arrayBuffer = await file.arrayBuffer();
-  const contentType =
-    file.type ||
-    (safeName.toLowerCase().endsWith(".pdf")
-      ? "application/pdf"
-      : "application/octet-stream");
-
-  const up = await sb.storage.from(bucket).upload(path, arrayBuffer, {
-    contentType,
-    upsert: false,
-  });
-  if (up.error) throw up.error;
-
-  const pub = sb.storage.from(bucket).getPublicUrl(path);
-  const url = pub.data.publicUrl;
-
-  const ins = await sb
-    .from("external_results")
-    .insert({
-      patient_id,
-      type, // ✅ NEW REQUIRED
-      provider: provider || null,
-      taken_at: taken_at ? new Date(taken_at).toISOString().slice(0, 10) : null,
-      uploaded_by: "staff",
-      note: note || null,
-      url,
-      content_type: contentType,
-    })
-    .select()
-    .single();
-  if (ins.error) throw ins.error;
-  return ins.data;
-}
-
-export default function OtherLabsUploadPage({ searchParams }: { searchParams?: { uploaded?: string } }) {
-  async function action(formData: FormData): Promise<void> {
-    "use server";
-    const sb = supabaseAdmin();
-
-    const patient_id = String(formData.get("patient_id") || "").trim();
-    const pid = patient_id.toUpperCase();
-    const type = String(formData.get("type") || "").trim(); // ✅ required
-    const provider = (formData.get("provider") as string) || null;
-    const taken_at = (formData.get("taken_at") as string) || null;
-    const note = (formData.get("note") as string) || null;
-
-    if (!pid) throw new Error("patient_id is required");
-    if (!type) throw new Error("type is required");
-    const files = formData.getAll("files").filter(Boolean) as File[];
-    if (!files.length) throw new Error("Upload at least one file");
-
-    const { data: existsRows, error: existsErr } = await sb
-      .from("patients")
-      .select("patient_id")
-      .ilike("patient_id", pid)
-      .limit(1);
-    if (existsErr) throw existsErr;
-    if (!Array.isArray(existsRows) || existsRows.length === 0) {
-      throw new Error(`Patient ID "${pid}" was not found. Upload cancelled.`);
-    }
-
-    for (const f of files) {
-      await uploadOne(sb, f, pid, type, provider, taken_at, note);
-    }
-
-    revalidatePath("/staff/other-labs");
-    redirect("/staff/other-labs");
+// ✅ Next 15: searchParams must be awaited in server components
+export default async function DoctorHome({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // Guard
+  const session = await getDoctorSession();
+  if (!session) {
+    redirect(`/doctor/login?next=${encodeURIComponent("/doctor")}`);
   }
 
-  const uploaded = Number(searchParams?.uploaded || 0);
+  // Await searchParams and normalize ?patient=...
+  const sp = await searchParams;
+  const raw = Array.isArray(sp?.patient) ? sp.patient?.[0] : sp?.patient || "";
+  const q = String(raw).trim();
+  if (q) {
+    redirect(`/doctor/patient/${encodeURIComponent(q.toUpperCase())}`);
+  }
+
+  // Build display name
+  const docName =
+    session.display_name ||
+    (session.credentials ? `${session.name}, ${session.credentials}` : session.name);
+
+  // Fetch meds (active only), alphabetical
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("meds")
+    .select("id, generic_name, strength, form, is_active")
+    .eq("is_active", true)
+    .order("generic_name", { ascending: true });
+
+  const meds: Med[] = Array.isArray(data) ? (data as Med[]) : [];
 
   return (
-    <div className="mx-auto max-w-xl p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">Upload Other Labs (JPG/PDF)</h1>
-      {uploaded > 0 && (
-        <div className="rounded-lg border bg-green-50 text-green-800 px-3 py-2">
-          Uploaded {uploaded} file{uploaded > 1 ? "s" : ""} successfully.
+    <div className="mx-auto max-w-6xl p-6 space-y-8">
+      {/* Hero */}
+      <div className="flex flex-col items-center justify-center text-center gap-3">
+        <Image src="/wellserv-logo.png" alt="WellServ" width={300} height={140} priority />
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Doctor Console</h1>
+          <p className="text-sm text-gray-500">Search a patient to open the workspace</p>
         </div>
-      )}
+        <div className="flex items-center gap-3 text-xs text-gray-500">
+          <span>
+            Signed in as <b>{docName}</b>
+          </span>
+          <form action="/api/doctor/logout" method="post">
+            <button
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50"
+              title="Sign out"
+            >
+              Log out
+            </button>
+          </form>
+        </div>
+      </div>
 
-      <UploadFormClient action={action} />
-      <BrowseOtherLabs />
+      {/* Quick Search */}
+      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="p-6">
+          <h2 className="text-base font-semibold text-gray-800">Quick Search</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Enter <b>Patient ID</b> (e.g., <code>SATOH010596</code>) then press Enter.
+          </p>
+
+          <form method="GET" action="/doctor" className="flex items-stretch gap-2">
+            <input
+              name="patient"
+              placeholder="Type patient ID… then press Enter"
+              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            />
+            <button
+              type="submit"
+              className="rounded-md px-4 py-2 text-sm text-white"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Open
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {/* Available Medications */}
+      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h3 className="font-medium text-gray-800">Available Medications in Pharmacy</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            These names will also appear as you type inside the Prescription panel.
+          </p>
+        </div>
+
+        <div className="p-6">
+          {error ? (
+            <p className="text-sm text-red-600">Failed to load medications.</p>
+          ) : meds.length === 0 ? (
+            <p className="text-sm text-gray-500">No active medications found.</p>
+          ) : (
+            <div className="rounded-lg border border-gray-200 overflow-hidden">
+              <div className="grid grid-cols-12 bg-gray-50 text-xs font-medium text-gray-700 px-3 py-2">
+                <div className="col-span-6">Generic name</div>
+                <div className="col-span-3">Strength</div>
+                <div className="col-span-3">Form</div>
+              </div>
+              <div className="max-h-[420px] overflow-auto divide-y divide-gray-200">
+                {meds.map((m) => (
+                  <div key={m.id} className="grid grid-cols-12 px-3 py-2 text-sm">
+                    <div className="col-span-6 font-medium text-gray-800">{m.generic_name}</div>
+                    <div className="col-span-3 text-gray-700">{m.strength || "—"}</div>
+                    <div className="col-span-3 text-gray-700">{m.form || "—"}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

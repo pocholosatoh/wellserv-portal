@@ -45,7 +45,7 @@ export async function GET(req: Request) {
 /* ---------------- POST: upload other-labs ----------------
    Auth:
    - If header x-rmt-secret matches env RMT_UPLOAD_SECRET → allow (RMT device)
-   - Else require a staff session; uploaded_by will note the staff tag if available
+   - Else require a staff session; uploaded_by will note the staff initials if available
 ---------------------------------------------------------------- */
 export async function POST(req: Request) {
   // Check RMT secret first (existing flow)
@@ -60,8 +60,8 @@ export async function POST(req: Request) {
     if (!s || s.role !== "staff") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // If you store a staff tag/initials in session, capture it
-    staffTag = typeof s.name === "string" && s.name ? s.name : "staff";
+    // Use staff initials from session; fallback to "staff"
+    staffTag = (s.staff_initials && s.staff_initials.trim()) || "staff";
   }
 
   try {

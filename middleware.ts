@@ -1,55 +1,50 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
 
-const COOKIE = process.env.SESSION_COOKIE_NAME || "wellserv_session";
-const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
+export function middleware(req: NextRequest) {
+  const url = req.nextUrl;
+  const { pathname, search } = url;
 
-const guards = [
-  { match: (p: string) => p.startsWith("/doctor"),          roles: ["doctor"] as const,  login: "/doctor/login"  },
-  { match: (p: string) => p === "/patient" || p.startsWith("/patient/"), roles: ["patient"] as const, login: "/login" },
-  { match: (p: string) => p === "/results",                 roles: ["patient"] as const, login: "/login" },
-  { match: (p: string) => p === "/prescriptions",           roles: ["patient"] as const, login: "/login" },
-  { match: (p: string) => p.startsWith("/staff"),           roles: ["staff"] as const,   login: "/staff/login"   },
-];
+  /* ---------- STAFF GUARD ---------- */
+  // Protect everything under /staff except the public login page.
+  if (pathname.startsWith("/staff/") && !pathname.startsWith("/staff/login")) {
+    // Legacy session (if you still use it)
+    const legacySession = req.cookies.get("session")?.value;
 
-export async function middleware(req: NextRequest) {
-  const { pathname, search } = req.nextUrl;
-  const guard = guards.find(g => g.match(pathname));
-  if (!guard) return NextResponse.next();
+    // New staff cookies (set via /api/auth/staff/login)
+    const staffRole = req.cookies.get("staff_role")?.value || "";
+    const staffInitials = req.cookies.get("staff_initials")?.value || "";
+    // Optional extra gate:
+    // const portalOK = req.cookies.get("staff_portal_ok")?.value === "1";
 
-  // allow the role's login page itself
-  if (pathname === guard.login) return NextResponse.next();
+    const isLoggedIn = !!legacySession || (!!staffRole && !!staffInitials); // && portalOK
 
-  const token = req.cookies.get(COOKIE)?.value;
-  if (!token) {
-    const url = new URL(guard.login, req.url);
-    url.searchParams.set("next", pathname + (search || ""));
-    return NextResponse.redirect(url);
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, secret);
-    if (!(guard.roles as readonly string[]).includes((payload.role as string))) {
-      const url = new URL(guard.login, req.url);
-      return NextResponse.redirect(url);
+    if (!isLoggedIn) {
+      const loginUrl = new URL("/staff/login", url);
+      loginUrl.searchParams.set("next", pathname + (search || ""));
+      return NextResponse.redirect(loginUrl);
     }
-    return NextResponse.next();
-  } catch {
-    const url = new URL(guard.login, req.url);
-    url.searchParams.set("next", pathname + (search || ""));
-    return NextResponse.redirect(url);
   }
+
+  /* ---------- PATIENT GUARD ---------- */
+  // Protect /patient and all nested routes.
+  if (pathname.startsWith("/patient")) {
+    const role = req.cookies.get("role")?.value || "";
+    const isPatient = role === "patient";
+
+    if (!isPatient) {
+      const loginUrl = new URL("/login", url);
+      loginUrl.searchParams.set("next", pathname + (search || ""));
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  return NextResponse.next();
 }
 
-// Important: matcher must cover these standalone routes
 export const config = {
   matcher: [
-    "/doctor/:path*",
-    "/patient",
-    "/patient/:path*",
-    "/results",
-    "/prescriptions",
-    "/staff/:path*",
+    "/staff/:path*",   // staff area
+    "/patient/:path*", // patient area
   ],
 };

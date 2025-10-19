@@ -1,40 +1,55 @@
 // app/api/auth/staff/login/route.ts
 import { NextResponse } from "next/server";
+import { parseStaffCode } from "@/lib/auth/parseStaffCode";
 import { setSession } from "@/lib/session";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    const { code, tag, remember } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { code, tag, remember, portalCode } = body || {};
 
-    const expected = (process.env.STAFF_PORTAL_ACCESS_CODE || "").trim();
-    if (!expected) {
-      return NextResponse.json({ error: "Server misconfigured (no STAFF_PORTAL_ACCESS_CODE)." }, { status: 500 });
-    }
-    if (String(code || "").trim() !== expected) {
-      return NextResponse.json({ error: "Invalid access code." }, { status: 401 });
+    if (!code || !tag) {
+      return NextResponse.json({ error: "Missing access code or initials." }, { status: 400 });
     }
 
-    const initials = String(tag || "").trim().toUpperCase().slice(0, 12);
-    if (!initials) {
-      return NextResponse.json({ error: "Enter your initials/name." }, { status: 400 });
+    // Optional extra gate
+    const REQUIRED = (process.env.STAFF_PORTAL_ACCESS_CODE || "").trim();
+    if (REQUIRED && (typeof portalCode !== "string" || portalCode.trim() !== REQUIRED)) {
+      return NextResponse.json({ error: "Invalid portal access code." }, { status: 401 });
     }
 
-    // If your Session type supports `exp` (unix seconds), set it:
-    const days = remember ? 14 : 1;
-    const exp = Math.floor(Date.now() / 1000) + days * 86400;
+    // Parse "ROLE-BRANCH-INITIALS"
+    const parsed = parseStaffCode(code, tag); // { role, branch_code, staff_initials }
 
-    await setSession({
-      role: "staff",
-      sub: "staff",
-      name: initials,
-      //;exp,            // ✅ use absolute expiry, not expDays
+    // Build response & set session cookies via helper
+    const res = NextResponse.json({
+      ok: true,
+      role: parsed.role,
+      branch_code: parsed.branch_code,
+      initials: parsed.staff_initials,
     });
 
-    return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
+    setSession(res, {
+      role: "staff",
+      staff_role: parsed.role,          // 'admin' | 'reception' | 'rmt'
+      staff_branch: parsed.branch_code, // 'SI' | 'SL' | 'ALL'
+      staff_initials: parsed.staff_initials,
+      persist: !!remember,
+    });
+
+    // optional flag that extra portal code check passed
+    if (REQUIRED) {
+      res.cookies.set("staff_portal_ok", "1", {
+        path: "/",
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: remember ? 60 * 60 * 24 * 30 : undefined,
+      });
+    }
+
+    return res;
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || "Login failed" }, { status: 400 });
   }
 }
