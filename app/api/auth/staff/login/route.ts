@@ -1,40 +1,50 @@
-// app/api/auth/staff/login/route.ts
 import { NextResponse } from "next/server";
-import { setSession } from "@/lib/session";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+import { parseStaffCode } from "@/lib/auth/parseStaffCode";
 
 export async function POST(req: Request) {
   try {
-    const { code, tag, remember } = await req.json();
+    const body = await req.json().catch(() => ({}));
 
-    const expected = (process.env.STAFF_PORTAL_ACCESS_CODE || "").trim();
-    if (!expected) {
-      return NextResponse.json({ error: "Server misconfigured (no STAFF_PORTAL_ACCESS_CODE)." }, { status: 500 });
+    // Expect: access code in Option A format (ROLE-BRANCH-INITIALS),
+    // typed initials, remember flag, and the extra portal access code
+    // from the login form.
+    //
+    // Frontend payload shape (example):
+    // { code: "REC-SI-CHL", tag: "CHL", remember: true, portalCode: "XXXX-YYYY" }
+    const { code, tag, remember, portalCode } = body || {};
+
+    if (!code || !tag) {
+      return NextResponse.json({ error: "Missing access code or initials." }, { status: 400 });
     }
-    if (String(code || "").trim() !== expected) {
-      return NextResponse.json({ error: "Invalid access code." }, { status: 401 });
+
+    // EXTRA GATE: require STAFF_PORTAL_ACCESS_CODE (if set in env)
+    const REQUIRED = (process.env.STAFF_PORTAL_ACCESS_CODE || "").trim();
+    if (REQUIRED && (typeof portalCode !== "string" || portalCode.trim() !== REQUIRED)) {
+      return NextResponse.json({ error: "Invalid portal access code." }, { status: 401 });
     }
 
-    const initials = String(tag || "").trim().toUpperCase().slice(0, 12);
-    if (!initials) {
-      return NextResponse.json({ error: "Enter your initials/name." }, { status: 400 });
-    }
+    // Parse role-branch-initials (e.g., RMT-SI-CHL)
+    const parsed = parseStaffCode(code, tag); // { role, branch_code, staff_initials }
 
-    // If your Session type supports `exp` (unix seconds), set it:
-    const days = remember ? 14 : 1;
-    const exp = Math.floor(Date.now() / 1000) + days * 86400;
-
-    await setSession({
-      role: "staff",
-      sub: "staff",
-      name: initials,
-      //;exp,            // ✅ use absolute expiry, not expDays
+    // Create response & set cookies used by the protected area
+    const res = NextResponse.json({
+      ok: true,
+      role: parsed.role,
+      branch_code: parsed.branch_code,
+      initials: parsed.staff_initials,
     });
 
-    return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
+    const maxAge = remember ? 60 * 60 * 24 * 30 : 60 * 60 * 12; // 30d or 12h
+
+    res.cookies.set("staff_role", parsed.role, { path: "/", maxAge });
+    res.cookies.set("staff_branch", parsed.branch_code, { path: "/", maxAge });
+    res.cookies.set("staff_initials", parsed.staff_initials, { path: "/", maxAge });
+
+    // Optional: a tiny flag to note that the extra portal code check passed
+    if (REQUIRED) res.cookies.set("staff_portal_ok", "1", { path: "/", maxAge });
+
+    return res;
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || "Login failed" }, { status: 400 });
   }
 }

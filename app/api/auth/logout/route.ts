@@ -1,39 +1,59 @@
 import { NextResponse } from "next/server";
-import { clearSession, getSession } from "@/lib/session";
+import { getSession } from "@/lib/session"; // keep this; we no longer import clearSession
 
-function pickDest(req: Request, explicit?: string | null) {
-  // 1) explicit query param ?who=...
+// Clear all auth-related cookies we use
+function clearAllAuthCookies(res: NextResponse) {
+  const names = [
+    // our staff cookies
+    "staff_role",
+    "staff_branch",
+    "staff_initials",
+    "staff_portal_ok",
+    // legacy app session (if you still have it)
+    "session",
+  ];
+  for (const n of names) {
+    res.cookies.set(n, "", { path: "/", maxAge: 0 });
+  }
+}
+
+// Decide destination
+function pickDest(req: Request, explicit?: string | null, sessionRole?: string | null) {
+  // 1) explicit query param wins (?who=staff|doctor|patient)
   if (explicit) {
-    if (explicit === "staff")  return new URL("/staff/login",  req.url);
-    if (explicit === "doctor") return new URL("/doctor/login", req.url);
-    return new URL("/login", req.url); // "patient" or anything else
+    if (explicit === "staff")   return new URL("/staff/login",   req.url);
+    if (explicit === "doctor")  return new URL("/doctor/login",  req.url);
+    if (explicit === "patient") return new URL("/login",         req.url);
+    return new URL("/login", req.url);
   }
 
-  // 2) try current session role (if still present)
-  //    note: we'll call getSession() before clear to use this.
-  return null;
+  // 2) fall back to session role (if any)
+  if (sessionRole === "staff")    return new URL("/staff/login",  req.url);
+  if (sessionRole === "doctor")   return new URL("/doctor/login", req.url);
+  if (sessionRole === "patient")  return new URL("/login",        req.url);
+
+  // 3) default
+  return new URL("/login", req.url);
 }
 
 async function handle(req: Request) {
-  // Look at query override
   const url = new URL(req.url);
   const who = url.searchParams.get("who");
 
-  // Peek at session (so we can choose a role-specific target), then clear it
-  const session = await getSession();
+  // Peek session FIRST so we can choose the right destination
+  // Your getSession returns { role: "staff" } when staff cookies exist.
+  const session = await getSession().catch(() => null);
+  const sessionRole = session?.role ?? null;
 
-  await clearSession();
+  // Build redirect response to chosen destination…
+  const dest = pickDest(req, who, sessionRole);
+  const res = NextResponse.redirect(dest);
 
-  // Compute redirect target
-  let dest = pickDest(req, who);
-  if (!dest) {
-    if (session?.role === "staff")    dest = new URL("/staff/login",  req.url);
-    else if (session?.role === "doctor") dest = new URL("/doctor/login", req.url);
-    else dest = new URL("/login", req.url);
-  }
+  // …and clear cookies on that same response
+  clearAllAuthCookies(res);
 
-  return NextResponse.redirect(dest);
+  return res;
 }
 
-export async function POST(req: Request) { return handle(req); }
 export async function GET(req: Request)  { return handle(req); }
+export async function POST(req: Request) { return handle(req); }
