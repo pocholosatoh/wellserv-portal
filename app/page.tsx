@@ -108,11 +108,7 @@ export default function HomePage() {
         </div>
         <Analytics />
       </footer>
-      <MessengerChat
-        pageId={process.env.NEXT_PUBLIC_FB_PAGE_ID!}
-        themeColor="#44969b"
-        greeting={undefined}   // no pop-up greeting on load
-      />
+      <MessengerChat pageId={process.env.NEXT_PUBLIC_FB_PAGE_ID!} themeColor="#44969b" minimized />
     </main>
   );
 }
