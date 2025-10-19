@@ -6,38 +6,40 @@ import StaffNav from "../_components/StaffNavi";
 import { getSession } from "@/lib/session";
 import BranchPicker from "../_components/BranchPicker";
 
-
 export const dynamic = "force-dynamic";
 
-export default async function StaffProtectedLayout({ children }: { children: ReactNode }) {
-  // ✅ keep your existing auth gate (expects session.role === "staff")
+export default async function StaffProtectedLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  // Gate: must be staff
   const s = await getSession();
   if (!s || s.role !== "staff") {
     redirect("/staff/login");
   }
 
-  // Initials you already show in StaffNavi
-  const initials =
-    (typeof s.name === "string" && s.name.trim().slice(0, 6).toUpperCase()) ||
-    (typeof s.sub === "string" && s.sub.slice(0, 6)) ||
-    null;
+  // In Next 15, cookies() is async in RSC
+  const c = await cookies();
 
-  // 🔎 In Next 15+, cookies() can be async in RSC — await it
-  const c = await cookies(); // <-- important
-  const staffRole = c.get("staff_role")?.value || "";          // "reception" | "rmt" | "admin"
-  const staffBranch = c.get("staff_branch")?.value || "";      // "SI" | "SL" | "ALL"
-  const staffInitials = c.get("staff_initials")?.value || "";  // e.g., "CHL"
+  const staffRole = c.get("staff_role")?.value || s.staff_role || "";
+  const staffBranch = c.get("staff_branch")?.value || s.staff_branch || "";
+  const staffInitials = c.get("staff_initials")?.value || s.staff_initials || "";
 
-  const branchLabel = staffBranch === "ALL" ? "ALL BRANCHES" : (staffBranch || "").toUpperCase();
+  // What we show in the nav
+  const initials = staffInitials || null;
+  const branchLabel =
+    staffBranch === "ALL" ? "ALL BRANCHES" : (staffBranch || "").toUpperCase();
+
   const canSeeReception = staffRole === "reception" || staffRole === "admin";
   const canSeeRmt = staffRole === "rmt" || staffRole === "admin";
 
   return (
     <div className="min-h-dvh bg-[#f8fafb]">
-      {/* Your existing top nav */}
+      {/* Top nav */}
       <StaffNav initials={initials} />
 
-      {/* 🧭 role-gated sub-nav */}
+      {/* Role / branch strip */}
       <div className="border-b bg-white/80 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 md:px-6 py-2 flex flex-wrap items-center gap-3 text-sm">
           <span className="rounded pill-accent px-2 py-1">
@@ -53,12 +55,18 @@ export default async function StaffProtectedLayout({ children }: { children: Rea
           <div className="ml-auto flex items-center gap-3">
             <BranchPicker />
             {canSeeReception && (
-              <a href="/staff/reception" className="rounded px-3 py-1.5 border hover:bg-gray-50">
+              <a
+                href="/staff/reception"
+                className="rounded px-3 py-1.5 border hover:bg-gray-50"
+              >
                 Reception
               </a>
             )}
             {canSeeRmt && (
-              <a href="/staff/rmt" className="rounded px-3 py-1.5 border hover:bg-gray-50">
+              <a
+                href="/staff/rmt"
+                className="rounded px-3 py-1.5 border hover:bg-gray-50"
+              >
                 RMT Workboard
               </a>
             )}

@@ -13,7 +13,7 @@ export async function GET() {
     if (!s || s.role !== "patient") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const patientId = String(s.sub).trim(); // canonical (UPPERCASE)
+    const patientId = String(s.patient_id).trim(); // canonical (UPPERCASE)
 
     const sb = supabaseAdmin();
     const { data, error } = await sb

@@ -34,7 +34,7 @@ export default async function FollowUpCard() {
   const { data } = await sb
     .from("followups")
     .select("id, patient_id, return_branch, due_date, valid_until, intended_outcome, expected_tests, status")
-    .eq("patient_id", s.sub) // <-- use sub
+    .eq("patient_id", s.patient_id) // <-- use sub
     .eq("status", "scheduled")
     .order("due_date", { ascending: true })
     .limit(1);
