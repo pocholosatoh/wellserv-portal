@@ -1,6 +1,16 @@
 'use client'
 import { motion } from 'framer-motion'
 
+<header className="section py-6">
+  <div className="flex items-center justify-between">
+    <a href="/" className="flex items-center gap-3">
+      <img src="wellserv-logo.png" alt="WELLSERV" className="h-8 w-auto" />
+      <span className="sr-only">WELLSERV</span>
+    </a>
+    <a href="#book" className="btn hidden sm:inline-flex">Book ₱999 Promo</a>
+  </div>
+</header>
+
 export default function Hero() {
   return (
     <section className="section pt-16 pb-8">
