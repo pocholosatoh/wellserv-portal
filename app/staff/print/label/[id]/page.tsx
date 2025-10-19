@@ -42,20 +42,37 @@ export default async function LabelPage(
   const branch = (enc.branch_code as "SI" | "SL") || "SI";
 
   return (
-    <div className="p-4 print:p-0">
-      {/* replace the inline onClick button with the client component */}
-      <div className="mb-2 flex items-center gap-2 print:hidden">
-        <PrintButton label="Print Label" />
-      </div>
+      <html>
+        <head>
+          <style>{`
+            /* Screen preview */
+            @media screen {
+              body { background:#f3f4f6; margin:0; padding:24px; }
+              .preview { box-shadow: 0 10px 30px rgba(0,0,0,.15); }
+            }
 
-      <Label50x30
-        patient_id={enc.patient_id}
-        full_name={pat?.full_name || ""}
-        sex={(pat?.sex || "").toUpperCase()}
-        age={pat?.age ?? null}
-        date_label={dateLabel}
-        branch={branch}
-      />
-    </div>
-  );
-}
+            /* PRINT: lock to 50x30mm and remove ALL margins */
+            @media print {
+              @page { size: 50mm 30mm; margin: 0; }
+              html, body { width: 50mm; height: 30mm; margin: 0; padding: 0; }
+              .label-sheet { width: 50mm; height: 30mm; overflow: hidden; }
+              /* Hide any screen-only padding/shadows */
+              .preview { box-shadow: none !important; }
+            }
+
+            /* Shared label box */
+            .label-sheet {
+              background: #fff;
+              display: block;
+            }
+          `}</style>
+        </head>
+        <body>
+          <div className="label-sheet preview">
+            {/* your existing label contents ONLY, no extra wrappers with min-h or big margins */}
+            {/* ... PID, name, sex/age/date, barcode */}
+          </div>
+        </body>
+      </html>
+    );
+  }

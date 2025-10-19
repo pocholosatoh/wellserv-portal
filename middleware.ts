@@ -3,30 +3,38 @@ import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
   const url = req.nextUrl;
-  const pathname = url.pathname;
+  const { pathname, search } = url;
 
-  // Guard the staff area except the login page (adjust matchers as needed)
-  const isStaffArea = pathname.startsWith("/staff/");
-  const isLogin = pathname.startsWith("/staff/login");
-
-  if (isStaffArea && !isLogin) {
-    // 1) Your legacy session (if you have one)
+  /* ---------- STAFF GUARD ---------- */
+  // Protect everything under /staff except the public login page.
+  if (pathname.startsWith("/staff/") && !pathname.startsWith("/staff/login")) {
+    // Legacy session (if you still use it)
     const legacySession = req.cookies.get("session")?.value;
 
-    // 2) NEW: our staff cookies from the API route
-    const role = req.cookies.get("staff_role")?.value;
-    const initials = req.cookies.get("staff_initials")?.value;
+    // New staff cookies (set via /api/auth/staff/login)
+    const staffRole = req.cookies.get("staff_role")?.value || "";
+    const staffInitials = req.cookies.get("staff_initials")?.value || "";
+    // Optional extra gate:
+    // const portalOK = req.cookies.get("staff_portal_ok")?.value === "1";
 
-    // Optional: if you want to enforce that the extra portal code passed once:
-    const portalOK = req.cookies.get("staff_portal_ok")?.value;
-
-    // Consider logged-in if legacy exists OR (role & initials exist).
-    // If you want to enforce the portal flag too, add && portalOK === "1"
-    const isLoggedIn = !!legacySession || (!!role && !!initials);
+    const isLoggedIn = !!legacySession || (!!staffRole && !!staffInitials); // && portalOK
 
     if (!isLoggedIn) {
       const loginUrl = new URL("/staff/login", url);
-      loginUrl.searchParams.set("next", pathname);
+      loginUrl.searchParams.set("next", pathname + (search || ""));
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  /* ---------- PATIENT GUARD ---------- */
+  // Protect /patient and all nested routes.
+  if (pathname.startsWith("/patient")) {
+    const role = req.cookies.get("role")?.value || "";
+    const isPatient = role === "patient";
+
+    if (!isPatient) {
+      const loginUrl = new URL("/login", url);
+      loginUrl.searchParams.set("next", pathname + (search || ""));
       return NextResponse.redirect(loginUrl);
     }
   }
@@ -34,7 +42,9 @@ export function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-// Keep your matcher (covers staff space). If you already have one, keep it.
 export const config = {
-  matcher: ["/staff/:path*"],
+  matcher: [
+    "/staff/:path*",   // staff area
+    "/patient/:path*", // patient area
+  ],
 };

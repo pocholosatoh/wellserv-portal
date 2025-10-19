@@ -13,7 +13,7 @@ import { motion } from 'framer-motion'
 
 export default function Hero() {
   return (
-    <section className="section pt-16 pb-8">
+    <section className="section pt-5 pb-8">
       <div className="grid md:grid-cols-2 gap-8 items-center">
         {/* LEFT column (unchanged) */}
         <motion.div
