@@ -164,7 +164,7 @@ export async function POST(req: Request) {
     if (!session || session.role !== "patient") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const patient_id = String(session.sub); // canonical patients.patient_id (UPPERCASE)
+    const patient_id = String(session.patient_id); // canonical patients.patient_id (UPPERCASE)
 
     const body = await req.json().catch(() => ({}));
     const visitDate  = body?.visitDate ? String(body.visitDate) : undefined;
@@ -185,7 +185,7 @@ export async function GET(req: Request) {
     if (!session || session.role !== "patient") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const patient_id = String(session.sub);
+    const patient_id = String(session.patient_id);
 
     const { searchParams } = new URL(req.url);
     const visitDate  = (searchParams.get("date") ?? undefined) || undefined;

@@ -1,39 +1,37 @@
+// app/api/auth/logout/route.ts
 import { NextResponse } from "next/server";
-import { clearSession, getSession } from "@/lib/session";
+import { getSession, clearSession } from "@/lib/session";
 
-function pickDest(req: Request, explicit?: string | null) {
-  // 1) explicit query param ?who=...
+function pickDest(req: Request, explicit?: string | null, role?: string | null) {
   if (explicit) {
-    if (explicit === "staff")  return new URL("/staff/login",  req.url);
-    if (explicit === "doctor") return new URL("/doctor/login", req.url);
-    return new URL("/login", req.url); // "patient" or anything else
+    if (explicit === "staff")   return new URL("/staff/login",   req.url);
+    if (explicit === "doctor")  return new URL("/doctor/login",  req.url);
+    if (explicit === "patient") return new URL("/login",         req.url);
+    return new URL("/login", req.url);
   }
-
-  // 2) try current session role (if still present)
-  //    note: we'll call getSession() before clear to use this.
-  return null;
+  if (role === "staff")   return new URL("/staff/login",  req.url);
+  if (role === "doctor")  return new URL("/doctor/login", req.url);
+  if (role === "patient") return new URL("/login",        req.url);
+  return new URL("/login", req.url);
 }
 
 async function handle(req: Request) {
-  // Look at query override
   const url = new URL(req.url);
   const who = url.searchParams.get("who");
 
-  // Peek at session (so we can choose a role-specific target), then clear it
-  const session = await getSession();
+  // Peek at current session to choose a sensible target
+  const session = await getSession().catch(() => null);
+  const dest = pickDest(req, who, session?.role || null);
 
-  await clearSession();
+  const res = NextResponse.redirect(dest);
+  // wipe all the cookies the helper knows about (role, patient_id, staff_*)
+  clearSession(res);
 
-  // Compute redirect target
-  let dest = pickDest(req, who);
-  if (!dest) {
-    if (session?.role === "staff")    dest = new URL("/staff/login",  req.url);
-    else if (session?.role === "doctor") dest = new URL("/doctor/login", req.url);
-    else dest = new URL("/login", req.url);
-  }
+  // also clear the optional portal flag if present
+  res.cookies.set("staff_portal_ok", "", { path: "/", maxAge: 0 });
 
-  return NextResponse.redirect(dest);
+  return res;
 }
 
-export async function POST(req: Request) { return handle(req); }
 export async function GET(req: Request)  { return handle(req); }
+export async function POST(req: Request) { return handle(req); }

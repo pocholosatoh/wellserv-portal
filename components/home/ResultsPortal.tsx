@@ -29,8 +29,13 @@ viewport={{ once: true, amount: 0.3 }}
 transition={{ duration: 0.5, delay: 0.08 }}
 className="card p-4 md:p-6"
 >
-<div className="aspect-[16/10] w-full bg-gray-100 rounded-xl grid place-items-center text-gray-500">
-Patient Portal Screenshot
+<div className="card p-4 md:p-6">
+  <img
+    src="/screens/portal.png"
+    alt="WELLSERV Patient Portal"
+    className="w-full h-auto rounded-xl border border-gray-100"
+    loading="lazy"
+  />
 </div>
 </motion.div>
 </div>

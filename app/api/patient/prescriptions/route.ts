@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     //    Prefer httpOnly session (production); allow ?patient_id= for local dev if no session.
     const session = await getSession();
     const sessionPid =
-      session && session.role === "patient" ? String(session.sub).trim() : "";
+      session && session.role === "patient" ? String(session.patient_id).trim() : "";
 
     const queryPid = (url.searchParams.get("patient_id") || "").trim();
     const patientId = sessionPid || queryPid;
