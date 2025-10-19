@@ -6,6 +6,7 @@ import Testimonials from "@/components/home/Testimonials";
 import Branches from "@/components/home/Branches";
 import ResultsPortal from "@/components/home/ResultsPortal";
 import { Analytics } from "@vercel/analytics/react";
+import MessengerChat from '@/components/MessengerChat';
 
 export default function HomePage() {
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
@@ -40,12 +41,14 @@ export default function HomePage() {
         </header>
 
 
-        {/* Mobile sticky CTA */}
+        {/* Sticky floating CTA on mobile (bottom-left) */}
         <a
           href="#book"
-          aria-label="Book ₱999 Promo"
-          className="fixed bottom-4 right-4 z-40 sm:hidden rounded-2xl px-5 py-3 text-white shadow-sm"
-          style={{ backgroundColor: accent }}
+          className="fixed z-40 md:hidden
+                    left-4 right-auto
+                    bottom-[calc(env(safe-area-inset-bottom,0px)+16px)]
+                    btn"
+          aria-label="Book 999 Promo"
         >
           Book ₱999 Promo
         </a>
@@ -105,6 +108,11 @@ export default function HomePage() {
         </div>
         <Analytics />
       </footer>
+      <MessengerChat
+        pageId={process.env.NEXT_PUBLIC_FB_PAGE_ID!}
+        themeColor="#44969b"
+        greeting={undefined}   // no pop-up greeting on load
+      />
     </main>
   );
 }
