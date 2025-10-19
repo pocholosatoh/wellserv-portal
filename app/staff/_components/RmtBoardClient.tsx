@@ -22,7 +22,7 @@ export default function RmtBoardClient({
   branch,
 }: {
   initialItems: RmtRow[];
-  role: string; // "admin" | "rmt" | ...
+  role: string; // "admin" | "rmt" | "reception" | ...
   branch: "SI" | "SL";
 }) {
   const [items, setItems] = useState<RmtRow[]>(initialItems || []);
@@ -57,14 +57,10 @@ export default function RmtBoardClient({
   }
   function onDrop(targetId: string) {
     if (!dragId || dragId === targetId) return;
-    const arr = [...filtered]; // currently visible list
     const full = [...items];
-
     const dragIndexFull = full.findIndex((x) => x.id === dragId);
     const targetIndexFull = full.findIndex((x) => x.id === targetId);
     if (dragIndexFull < 0 || targetIndexFull < 0) return;
-
-    // Reorder in the full list using the visible indexes’ relative order
     const [moved] = full.splice(dragIndexFull, 1);
     full.splice(targetIndexFull, 0, moved);
     setItems(full);
@@ -79,7 +75,7 @@ export default function RmtBoardClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           branch,
-          ids: items.map((x) => x.id), // whole list order = priority order
+          ids: items.map((x) => x.id),
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -152,91 +148,189 @@ export default function RmtBoardClient({
 
       {/* list (draggable) */}
       <ul className="space-y-2">
-        {filtered.map((x) => (
+        {filtered.map((item) => (
           <li
-            key={x.id}
+            key={item.id}
             draggable
-            onDragStart={() => onDragStart(x.id)}
+            onDragStart={() => onDragStart(item.id)}
             onDragOver={onDragOver}
-            onDrop={() => onDrop(x.id)}
-            className={`border rounded p-3 flex items-center justify-between gap-3 ${
-              dragId === x.id ? "opacity-60" : ""
+            onDrop={() => onDrop(item.id)}
+            className={`border rounded p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
+              dragId === item.id ? "opacity-60" : ""
             }`}
             title="Drag to reorder"
           >
             <div className="min-w-0">
               <div className="font-medium truncate">
-                {x.patient_id} — {x.full_name}
+                {item.patient_id} — {item.full_name}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                <StatusPill s={x.status} />
-                <span>{x.notes_frontdesk || "No notes"}</span>
-                <span>• Priority {x.priority}</span>
+                <StatusPill s={item.status} />
+                <span>{item.notes_frontdesk || "No notes"}</span>
+                <span>• Priority {item.priority}</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {/* Admin can queue (set for-extract) from Intake */}
-              {role === "admin" && x.status === "intake" && (
-                <form action="/api/staff/encounters/status" method="post">
-                  <input type="hidden" name="id" value={x.id} />
-                  <input type="hidden" name="status" value="for-extract" />
-                  <button className="border rounded px-2 py-1">
-                    Queue (For Extract)
-                  </button>
-                </form>
-              )}
+            {/* ACTIONS — responsive */}
+            <div className="mt-1 sm:mt-0 w-full sm:w-auto">
+              {/* Mobile: compact into a dropdown */}
+              <details className="sm:hidden rounded border px-3 py-2">
+                <summary className="list-none cursor-pointer text-sm font-medium">
+                  Actions
+                </summary>
+                <div className="mt-2 flex flex-col gap-2">
+                  {(role === "admin" || role === "reception") &&
+                    item.status === "intake" && (
+                      <form action="/api/staff/encounters/status" method="post">
+                        <input type="hidden" name="id" value={item.id} />
+                        <input type="hidden" name="status" value="for-extract" />
+                        <button className="w-full rounded border px-3 py-2 text-left">
+                          Queue (For Extract)
+                        </button>
+                      </form>
+                    )}
 
-              {/* Skip extraction: allow from intake or for-extract */}
-              {(x.status === "intake" || x.status === "for-extract") && (
-                <form action="/api/staff/encounters/status" method="post">
-                  <input type="hidden" name="id" value={x.id} />
-                  <input type="hidden" name="status" value="for-processing" />
-                  <input type="hidden" name="note" value="skip_extraction" />
-                  <button className="border rounded px-2 py-1" title="Specimen not needed">
-                    Skip Extraction
-                  </button>
-                </form>
-              )}
+                  {(item.status === "intake" ||
+                    item.status === "for-extract") && (
+                    <form action="/api/staff/encounters/status" method="post">
+                      <input type="hidden" name="id" value={item.id} />
+                      <input
+                        type="hidden"
+                        name="status"
+                        value="for-processing"
+                      />
+                      <input
+                        type="hidden"
+                        name="note"
+                        value="skip_extraction"
+                      />
+                      <button
+                        className="w-full rounded border px-3 py-2 text-left"
+                        title="Specimen not needed"
+                      >
+                        Skip Extraction
+                      </button>
+                    </form>
+                  )}
 
-              {/* RMT actions */}
-              {x.status === "for-extract" && (
-                <form action="/api/staff/encounters/status" method="post">
-                  <input type="hidden" name="id" value={x.id} />
-                  <input type="hidden" name="status" value="for-processing" />
-                  <button className="border rounded px-2 py-1">
-                    Specimen Received
-                  </button>
-                </form>
-              )}
+                  {item.status === "for-extract" && (
+                    <form action="/api/staff/encounters/status" method="post">
+                      <input type="hidden" name="id" value={item.id} />
+                      <input
+                        type="hidden"
+                        name="status"
+                        value="for-processing"
+                      />
+                      <button className="w-full rounded border px-3 py-2 text-left">
+                        Specimen Received
+                      </button>
+                    </form>
+                  )}
 
-              {x.status === "for-processing" && (
-                <form action="/api/staff/encounters/status" method="post">
-                  <input type="hidden" name="id" value={x.id} />
-                  <input type="hidden" name="status" value="done" />
-                  <button className="rounded px-2 py-1 bg-emerald-600 text-white">
-                    Done
-                  </button>
-                </form>
-              )}
+                  {item.status === "for-processing" && (
+                    <form action="/api/staff/encounters/status" method="post">
+                      <input type="hidden" name="id" value={item.id} />
+                      <input type="hidden" name="status" value="done" />
+                      <button className="w-full rounded bg-emerald-600 text-white px-3 py-2 text-left">
+                        Done
+                      </button>
+                    </form>
+                  )}
 
-              {/* Print */}
-              <a
-                href={`/staff/print/label/${x.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="border rounded px-2 py-1"
-              >
-                Label
-              </a>
-              <a
-                href={`/staff/print/request/${x.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="border rounded px-2 py-1"
-              >
-                A5 Request
-              </a>
+                  <a
+                    href={`/staff/print/label/${item.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded border px-3 py-2"
+                    title="Print 50×30mm label"
+                  >
+                    Label
+                  </a>
+
+                  <a
+                    href={`/staff/print/request/${item.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded border px-3 py-2"
+                    title="Print A5 request"
+                  >
+                    A5 Request
+                  </a>
+                </div>
+              </details>
+
+              {/* Desktop: inline toolbar with wrapping */}
+              <div className="hidden sm:flex flex-wrap gap-2 justify-end">
+                {(role === "admin" || role === "reception") &&
+                  item.status === "intake" && (
+                    <form action="/api/staff/encounters/status" method="post">
+                      <input type="hidden" name="id" value={item.id} />
+                      <input
+                        type="hidden"
+                        name="status"
+                        value="for-extract"
+                      />
+                      <button className="rounded border px-2 py-1 shrink-0">
+                        Queue (For Extract)
+                      </button>
+                    </form>
+                  )}
+
+                {(item.status === "intake" ||
+                  item.status === "for-extract") && (
+                  <form action="/api/staff/encounters/status" method="post">
+                    <input type="hidden" name="id" value={item.id} />
+                    <input type="hidden" name="status" value="for-processing" />
+                    <input type="hidden" name="note" value="skip_extraction" />
+                    <button
+                      className="rounded border px-2 py-1 shrink-0"
+                      title="Specimen not needed"
+                    >
+                      Skip Extraction
+                    </button>
+                  </form>
+                )}
+
+                {item.status === "for-extract" && (
+                  <form action="/api/staff/encounters/status" method="post">
+                    <input type="hidden" name="id" value={item.id} />
+                    <input type="hidden" name="status" value="for-processing" />
+                    <button className="rounded border px-2 py-1 shrink-0">
+                      Specimen Received
+                    </button>
+                  </form>
+                )}
+
+                {item.status === "for-processing" && (
+                  <form action="/api/staff/encounters/status" method="post">
+                    <input type="hidden" name="id" value={item.id} />
+                    <input type="hidden" name="status" value="done" />
+                    <button className="rounded px-2 py-1 bg-emerald-600 text-white shrink-0">
+                      Done
+                    </button>
+                  </form>
+                )}
+
+                <a
+                  href={`/staff/print/label/${item.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded border px-2 py-1 shrink-0"
+                  title="Print 50×30mm label"
+                >
+                  Label
+                </a>
+
+                <a
+                  href={`/staff/print/request/${item.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded border px-2 py-1 shrink-0"
+                  title="Print A5 request"
+                >
+                  A5 Request
+                </a>
+              </div>
             </div>
           </li>
         ))}
