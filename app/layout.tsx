@@ -2,6 +2,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { Open_Sans } from "next/font/google";
+import Script from "next/script";
 
 const SITE = "https://www.wellserv.co"; // primary domain (www)
 
@@ -57,7 +58,39 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={openSans.variable}>
-      <body className="min-h-screen bg-[#f8fafb] antialiased">{children}</body>
+      <body className="min-h-screen bg-[#f8fafb] antialiased">
+        {children}
+
+        {/* Messenger containers (must be in the DOM) */}
+        <div id="fb-root" />
+        <div
+          id="fb-customer-chat"
+          className="fb-customerchat"
+          data-page_id={process.env.NEXT_PUBLIC_FB_PAGE_ID}
+          data-attribution="biz_inbox"
+          data-theme_color="#44969b"
+          data-greeting_dialog_display="hide"  /* keep minimized on load */
+        />
+
+        {/* Init + SDK scripts */}
+        <Script
+          id="fb-chat-init"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.fbAsyncInit = function() {
+                FB.init({ xfbml: true, version: 'v19.0' });
+              };
+            `,
+          }}
+        />
+        <Script
+          id="fb-customerchat-sdk"
+          strategy="afterInteractive"
+          src="https://connect.facebook.net/en_US/sdk/xfbml.customerchat.js"
+          crossOrigin="anonymous"
+        />
+      </body>
     </html>
   );
 }
