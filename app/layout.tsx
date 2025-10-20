@@ -60,34 +60,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={openSans.variable}>
       <body className="min-h-screen bg-[#f8fafb] antialiased">
         {children}
-
-        {/* Messenger containers (must be in the DOM) */}
-        <div id="fb-root" />
-        <div
-          id="fb-customer-chat"
-          className="fb-customerchat"
-          data-page_id={process.env.NEXT_PUBLIC_FB_PAGE_ID}
-          data-attribution="biz_inbox"
-          data-theme_color="#44969b"
-          data-greeting_dialog_display="hide"  /* keep minimized on load */
-        />
-
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.fbAsyncInit = function() {
-                FB.init({ xfbml: true, version: 'v19.0' });
-              };
-              (function(d, s, id){
-                var js, fjs = d.getElementsByTagName(s)[0];
-                if (d.getElementById(id)) return;
-                js = d.createElement(s); js.id = id; js.async = true; js.defer = true;
-                js.src = "https://connect.facebook.net/en_US/sdk.js";
-                fjs.parentNode.insertBefore(js, fjs);
-              }(document, 'script', 'facebook-jssdk'));
-            `,
-          }}
-        />
       </body>
     </html>
   );

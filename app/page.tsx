@@ -6,7 +6,7 @@ import Testimonials from "@/components/home/Testimonials";
 import Branches from "@/components/home/Branches";
 import ResultsPortal from "@/components/home/ResultsPortal";
 import { Analytics } from "@vercel/analytics/react";
-import MessengerChat from '@/components/MessengerChat';
+import FBMessenger from '@/components/FBMessenger';
 
 export default function HomePage() {
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
@@ -108,7 +108,7 @@ export default function HomePage() {
         </div>
         <Analytics />
       </footer>
-      <MessengerChat pageId={process.env.NEXT_PUBLIC_FB_PAGE_ID!} themeColor="#44969b" minimized />
+      <FBMessenger pageId={process.env.NEXT_PUBLIC_FB_PAGE_ID!} themeColor="#44969b" minimized />
     </main>
   );
 }
