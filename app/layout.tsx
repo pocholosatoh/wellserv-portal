@@ -88,7 +88,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           id="fb-customerchat-sdk"
           strategy="afterInteractive"
           src="https://connect.facebook.net/en_US/sdk/xfbml.customerchat.js"
-          crossOrigin="anonymous"
         />
       </body>
     </html>
