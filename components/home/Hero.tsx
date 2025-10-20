@@ -1,21 +1,11 @@
 'use client'
 import { motion } from 'framer-motion'
 
-<header className="section py-6">
-  <div className="flex items-center justify-between">
-    <a href="/" className="flex items-center gap-3">
-      <img src="wellserv-logo.png" alt="WELLSERV" className="h-8 w-auto" />
-      <span className="sr-only">WELLSERV</span>
-    </a>
-    <a href="#book" className="btn hidden sm:inline-flex">Book ₱999 Promo</a>
-  </div>
-</header>
-
 export default function Hero() {
   return (
     <section className="section pt-5 pb-8">
       <div className="grid md:grid-cols-2 gap-8 items-center">
-        {/* LEFT column (unchanged) */}
+        {/* LEFT column */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -28,7 +18,7 @@ export default function Hero() {
             Complete Laboratory Tests — Just <span className="text-accent">₱999</span>
           </h1>
           <p className="text-gray-600 max-w-prose">
-            CBC, Urinalysis, FBS, Cholesterol, LDL, HDL, Triglycerides (Lipid Profile),  Uric Acid, ALT, Creatinine.
+            CBC, Urinalysis, FBS, Cholesterol, LDL, HDL, Triglycerides (Lipid Profile), Uric Acid, ALT, Creatinine.
             Consult fee only ₱350 if package is availed.
           </p>
           <div className="flex flex-wrap gap-3">
@@ -48,10 +38,8 @@ export default function Hero() {
         >
           <div className="card p-4 md:p-6">
             <svg viewBox="0 0 512 256" className="block w-full h-[260px]">
-              
               <path d="M16 128 H496" fill="none" stroke="rgba(0,0,0,.06)" strokeWidth="8" />
               <path
-                id="ecg"
                 d="M16 128 H120 L160 90 L200 166 L240 92 L300 128 H496"
                 fill="none"
                 stroke="rgb(68,150,155)"
@@ -61,13 +49,7 @@ export default function Hero() {
                 strokeDasharray="600"
                 strokeDashoffset="600"
               >
-                <animate
-                  attributeName="stroke-dashoffset"
-                  from="600"
-                  to="0"
-                  dur="2.8s"
-                  repeatCount="indefinite"
-                />
+                <animate attributeName="stroke-dashoffset" from="600" to="0" dur="2.8s" repeatCount="indefinite" />
               </path>
             </svg>
           </div>

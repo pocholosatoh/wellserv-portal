@@ -5,9 +5,11 @@ const SDK_CUSTOMER = 'https://connect.facebook.net/en_US/sdk/xfbml.customerchat.
 const SDK_GENERIC  = 'https://connect.facebook.net/en_US/sdk.js';
 
 function addScript(src: string, onload?: () => void, onerror?: () => void) {
-  if (document.getElementById('facebook-jssdk')) return;
+  // ensure single insertion
+  const id = 'facebook-jssdk';
+  if (document.getElementById(id)) return;
   const s = document.createElement('script');
-  s.id = 'facebook-jssdk';
+  s.id = id;
   s.async = true;
   s.defer = true;
   s.src = src;
@@ -21,17 +23,14 @@ export default function FBMessenger({
   themeColor = '#44969b',
   minimized = true,
 }: { pageId: string; themeColor?: string; minimized?: boolean }) {
-
   useEffect(() => {
     if (!pageId) return;
 
-    // where are we?
+    // host check: treat wellserv.co as production for bubble attempts
     const host = typeof window !== 'undefined' ? window.location.hostname : '';
     const onProdHost = /(^|\.)wellserv\.co$/i.test(host);
-    const preferCustomerSDK =
-      onProdHost || process.env.NEXT_PUBLIC_FB_CHAT_MODE === 'customer';
 
-    // containers
+    // required containers
     if (!document.getElementById('fb-root')) {
       const root = document.createElement('div');
       root.id = 'fb-root';
@@ -45,52 +44,43 @@ export default function FBMessenger({
       document.body.appendChild(chat);
     }
 
-    // REQUIRED: data-* attributes
+    // set data-* attributes (FB requires data- prefix)
     chat.setAttribute('data-page_id', pageId);
     chat.setAttribute('data-attribution', 'biz_inbox');
     chat.setAttribute('data-theme_color', themeColor);
     chat.setAttribute('data-greeting_dialog_display', minimized ? 'hide' : 'show');
 
-    // boot
-    const afterInit = () => {
-      try {
+    // init + parse when FB is ready
+    const boot = () => {
+      (window as any).fbAsyncInit = function () {
+        (window as any).FB?.init({ xfbml: true, version: 'v19.0' });
         (window as any).FB?.XFBML.parse();
         (window as any).FB?.Event.subscribe('xfbml.render', () => console.log('[FB] xfbml.render'));
         (window as any).FB?.Event.subscribe('customerchat.load', () => console.log('[FB] customerchat.load'));
-        (window as any).FB?.Event.subscribe('customerchat.show', () => console.log('[FB] customerchat.show'));
-      } catch (e) {
-        console.warn('[FB] parse error', e);
-      }
-    };
-
-    const init = () => {
-      (window as any).fbAsyncInit = function () {
-        (window as any).FB?.init({ xfbml: true, version: 'v19.0' });
-        afterInit();
       };
     };
 
-    // if FB already present, just parse
     if ((window as any).FB?.XFBML) {
-      afterInit();
+      (window as any).FB.XFBML.parse();
       return;
     }
 
-    init();
+    boot();
 
-    // try Customer Chat SDK on prod; fallback to generic if it fails
-    if (preferCustomerSDK) {
-      console.log('[FB] loading customerchat SDK…');
+    // On production, try customer chat SDK; if it fails (500), fall back to generic sdk.js
+    if (onProdHost) {
+      console.log('[FB] try customerchat SDK');
       addScript(
         SDK_CUSTOMER,
         () => console.log('[FB] customerchat SDK loaded'),
         () => {
-          console.warn('[FB] customerchat SDK failed → falling back to generic sdk.js');
+          console.warn('[FB] customerchat SDK failed → fallback to generic sdk.js');
           addScript(SDK_GENERIC);
         }
       );
     } else {
-      console.log('[FB] loading generic sdk.js (preview/dev)');
+      // Previews/dev: generic only (customerchat often 500s)
+      console.log('[FB] load generic sdk.js (preview/dev)');
       addScript(SDK_GENERIC);
     }
   }, [pageId, themeColor, minimized]);
