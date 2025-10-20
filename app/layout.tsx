@@ -72,22 +72,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           data-greeting_dialog_display="hide"  /* keep minimized on load */
         />
 
-        {/* Init + SDK scripts */}
-        <Script
-          id="fb-chat-init"
-          strategy="afterInteractive"
+        <script
           dangerouslySetInnerHTML={{
             __html: `
               window.fbAsyncInit = function() {
                 FB.init({ xfbml: true, version: 'v19.0' });
               };
+              (function(d, s, id){
+                var js, fjs = d.getElementsByTagName(s)[0];
+                if (d.getElementById(id)) return;
+                js = d.createElement(s); js.id = id; js.async = true; js.defer = true;
+                js.src = "https://connect.facebook.net/en_US/sdk.js";
+                fjs.parentNode.insertBefore(js, fjs);
+              }(document, 'script', 'facebook-jssdk'));
             `,
           }}
-        />
-        <Script
-          id="fb-customerchat-sdk"
-          strategy="afterInteractive"
-          src="https://connect.facebook.net/en_US/sdk/xfbml.customerchat.js"
         />
       </body>
     </html>
