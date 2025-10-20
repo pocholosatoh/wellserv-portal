@@ -103,6 +103,14 @@ export default function HomePage() {
               >
                 Facebook
               </a>
+              <a
+                href="https://m.me/100882935339577"  // or your @username
+                target="_blank" rel="noreferrer"
+                className="fixed bottom-4 right-4 hidden md:inline-flex items-center gap-2 rounded-2xl border border-accent text-accent hover:bg-accent/10 px-4 py-2 z-30"
+              >
+                Message us
+              </a>
+
             </div>
           </div>
         </div>
