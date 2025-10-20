@@ -6,6 +6,7 @@ import Testimonials from "@/components/home/Testimonials";
 import Branches from "@/components/home/Branches";
 import ResultsPortal from "@/components/home/ResultsPortal";
 import { Analytics } from "@vercel/analytics/react";
+import FBMessenger from '@/components/FBMessenger';
 
 export default function HomePage() {
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
@@ -40,12 +41,14 @@ export default function HomePage() {
         </header>
 
 
-        {/* Mobile sticky CTA */}
+        {/* Sticky floating CTA on mobile (bottom-left) */}
         <a
           href="#book"
-          aria-label="Book ₱999 Promo"
-          className="fixed bottom-4 right-4 z-40 sm:hidden rounded-2xl px-5 py-3 text-white shadow-sm"
-          style={{ backgroundColor: accent }}
+          className="fixed z-40 md:hidden
+                    left-4 right-auto
+                    bottom-[calc(env(safe-area-inset-bottom,0px)+16px)]
+                    btn"
+          aria-label="Book 999 Promo"
         >
           Book ₱999 Promo
         </a>
@@ -100,11 +103,20 @@ export default function HomePage() {
               >
                 Facebook
               </a>
+              <a
+                href="https://m.me/100882935339577"  // or your @username
+                target="_blank" rel="noreferrer"
+                className="fixed bottom-4 right-4 hidden md:inline-flex items-center gap-2 rounded-2xl border border-accent text-accent hover:bg-accent/10 px-4 py-2 z-30"
+              >
+                Message us
+              </a>
+
             </div>
           </div>
         </div>
         <Analytics />
       </footer>
+      <FBMessenger pageId={process.env.NEXT_PUBLIC_FB_PAGE_ID!} themeColor="#44969b" minimized />
     </main>
   );
 }
