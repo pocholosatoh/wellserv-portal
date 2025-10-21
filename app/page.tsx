@@ -48,6 +48,10 @@ export default function HomePage() {
               <a href="#branches" className="hidden sm:inline link-accent text-sm">
                 Branches
               </a>
+              <a href="/pricelist" className="hidden sm:inline link-accent text-sm">
+                Prices
+              </a>
+
 
               {/* 4) Conspicuous “View My Results” */}
               <a
@@ -132,6 +136,9 @@ export default function HomePage() {
               </a>
               <a className="hover:underline" href="#branches">
                 Branches
+              </a>
+              <a className="hover:underline" href="/pricelist">
+                Price List
               </a>
               <a
                 className="hover:underline"

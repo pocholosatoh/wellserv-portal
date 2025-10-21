@@ -83,3 +83,17 @@ body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   font-size: 12px;
 }
 .pill-accent button { line-height: 1; font-weight: 700; }
+/* Featured glow */
+.glow-card {
+  position: relative;
+  box-shadow: 0 0 0px rgba(0, 0, 0, 0.06);
+}
+.glow-card::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 1rem;
+  background: radial-gradient(60% 60% at 50% 50%, var(--accent-33, #44969b33), transparent 70%);
+  filter: blur(10px);
+  z-index: -1;
+}
