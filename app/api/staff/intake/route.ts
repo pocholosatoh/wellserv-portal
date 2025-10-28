@@ -5,7 +5,9 @@ import { appendRunningRow } from "@/lib/sheetsdaily";
 
 function supa() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY; // ✅ require service role on server
+  if (!url) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
+  if (!key) throw new Error("Missing SUPABASE_SERVICE_ROLE (server)");
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
@@ -72,17 +74,48 @@ export async function POST(req: Request) {
         },
         { onConflict: "patient_id" }
       );
-    if (upErr) throw upErr;
+
+    if (upErr) {
+      // Bubble a very clear message (RLS / key mismatch shows up here)
+      return NextResponse.json(
+        { ok: false, stage: "patients_upsert", error: upErr.message },
+        { status: 500 }
+      );
+    }
+
+    // ✅ Double-check the row actually exists (guards against RLS)
+    const { data: pRow, error: selErr } = await db
+      .from("patients")
+      .select("patient_id")
+      .eq("patient_id", pid)
+      .maybeSingle();
+
+    if (selErr) {
+      return NextResponse.json(
+        { ok: false, stage: "patients_select", error: selErr.message },
+        { status: 500 }
+      );
+    }
+    if (!pRow) {
+      return NextResponse.json(
+        {
+          ok: false,
+          stage: "patients_verify",
+          error:
+            "Patient insert did not persist. Check RLS and ensure the server uses SUPABASE_SERVICE_ROLE.",
+          hint:
+            "Existing patients work because no insert is needed; new ones require insert allowed by the service-role key.",
+        },
+        { status: 500 }
+      );
+    }
 
     // ----------------- 2) Find/create today's encounter -----------------
-    // Prefer client-provided encounter_id (from Reception Save pre-step). If absent, do your normal find/create.
-    let encounter_id: string | null = body?.encounter_id || null; // NEW: encounter_id from client
-
     const visit_date_local = todayISOin();
+    let encounter_id: string | null = body?.encounter_id || null;
 
     if (!encounter_id) {
-      // No encounter passed by the client → keep your existing policy (one encounter per patient/branch/day in open statuses)
-      const { data: existing } = await db
+      const { data: existing, error: exErr } = await db
         .from("encounters")
         .select("id,status")
         .eq("patient_id", pid)
@@ -90,6 +123,13 @@ export async function POST(req: Request) {
         .eq("visit_date_local", visit_date_local)
         .in("status", ["intake", "for-extract", "extracted", "for-processing"])
         .maybeSingle();
+
+      if (exErr) {
+        return NextResponse.json(
+          { ok: false, stage: "encounters_lookup", error: exErr.message },
+          { status: 500 }
+        );
+      }
 
       if (!existing?.id) {
         const { data: ins, error: insErr } = await db
@@ -108,12 +148,22 @@ export async function POST(req: Request) {
           ])
           .select("id")
           .single();
-        if (insErr) throw insErr;
+
+        if (insErr) {
+          // Helpful foreign-key hint for new patients
+          const fkHint = /foreign key/i.test(insErr.message || "")
+            ? "Likely cause: patient row missing due to RLS or wrong API key (anon). Ensure SUPABASE_SERVICE_ROLE is set on the server."
+            : undefined;
+          return NextResponse.json(
+            { ok: false, stage: "encounters_insert", error: insErr.message, hint: fkHint },
+            { status: 500 }
+          );
+        }
         encounter_id = ins.id;
       } else {
         encounter_id = existing.id;
         if (requested_tests_csv || yakap_flag) {
-          await db
+          const { error: updErr } = await db
             .from("encounters")
             .update({
               notes_frontdesk: requested_tests_csv || null,
@@ -121,18 +171,23 @@ export async function POST(req: Request) {
               is_philhealth_claim: !!yakap_flag,
             })
             .eq("id", encounter_id);
+          if (updErr) {
+            return NextResponse.json(
+              { ok: false, stage: "encounters_update", error: updErr.message },
+              { status: 500 }
+            );
+          }
         }
       }
     }
 
-    // If still no encounter_id, fail early (prevents Sheet append without ID)
     if (!encounter_id) {
       return NextResponse.json(
-        { ok: false, error: "Could not create encounter; please retry." },
+        { ok: false, stage: "encounters_none", error: "Could not create encounter; please retry." },
         { status: 500 }
       );
     }
-    // ----------------- /end encounter block -----------------
+
 
 
     // ----------------- 3) Expand requested tokens -----------------
