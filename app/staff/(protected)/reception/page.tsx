@@ -324,10 +324,10 @@ export default function Reception() {
       queue_now: queueNow,
     };
 
-    // Feature flag: require encounter first
-    const sendEncounter = String(
-      process.env.NEXT_PUBLIC_RECEPTION_WRITE_ENCOUNTER_ID || ""
-    ).toLowerCase() === "true";
+    // Feature flag: require encounter first (runtime via cookie/window.__env__/process)
+    const sendEncounter =
+      String(flagOn("NEXT_PUBLIC_RECEPTION_WRITE_ENCOUNTER_ID")).toLowerCase() === "true";
+
 
     try {
       let encounter_id: string | undefined;
@@ -339,11 +339,22 @@ export default function Reception() {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             branch_code: branch,
-            patient_id: pid,
-            birthday_mmddyyyy: birthday, // server will normalize
-            policy: "today-same-branch", // simple policy; adjust anytime
+            policy: "today-same-branch",
+            // ✅ Send full patient block so server can UPSERT new patients
+            patient: {
+              patient_id: pid,
+              full_name,
+              sex,
+              birthday_mmddyyyy: birthday,
+              contact,
+              address,
+            },
+            // Optional context that your endpoint will persist on the new encounter
+            requested_tests_csv: requested || "",
+            yakap_flag: !!yakap,
           }),
         });
+
         const encJ = await encRes.json();
         if (!encRes.ok || !encJ?.ok || !encJ?.encounter_id) {
           throw new Error(encJ?.error || "Could not create encounter; please retry.");
