@@ -48,6 +48,9 @@ export default function RmtBoardClient({
     return items.filter((x) => x.status === tab);
   }, [items, tab]);
 
+  const canQueue = role === "admin" || role === "reception" || role === "rmt";
+
+
   // Drag helpers
   function onDragStart(id: string) {
     setDragId(id);
@@ -179,8 +182,7 @@ export default function RmtBoardClient({
                   Actions
                 </summary>
                 <div className="mt-2 flex flex-col gap-2">
-                  {(role === "admin" || role === "reception") &&
-                    item.status === "intake" && (
+                  {canQueue && item.status === "intake" && (
                       <form action="/api/staff/encounters/status" method="post">
                         <input type="hidden" name="id" value={item.id} />
                         <input type="hidden" name="status" value="for-extract" />
@@ -261,8 +263,7 @@ export default function RmtBoardClient({
 
               {/* Desktop: inline toolbar with wrapping */}
               <div className="hidden sm:flex flex-wrap gap-2 justify-end">
-                {(role === "admin" || role === "reception") &&
-                  item.status === "intake" && (
+                {canQueue && item.status === "intake" && (
                     <form action="/api/staff/encounters/status" method="post">
                       <input type="hidden" name="id" value={item.id} />
                       <input
