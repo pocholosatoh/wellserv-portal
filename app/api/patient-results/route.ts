@@ -1,15 +1,40 @@
 // app/api/patient-results/route.ts
-
 // TODO: move to /api/patients/[id]/reports
 
 import { NextResponse } from "next/server";
 import { getDataProvider } from "@/lib/data/provider-factory";
-import { getSession } from "@/lib/session"; // ← NEW: read patient_id from server session
+import { getSession } from "@/lib/session"; // patient portal session (unchanged)
+import { getDoctorSession } from "@/lib/doctorSession";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* ---------------- helpers ---------------- */
+/* ---------------- auth helpers ---------------- */
+async function requireActor() {
+  // 1) patient portal session (unchanged)
+  try {
+    const session = await getSession();
+    if (session && session.role === "patient" && session.patient_id) {
+      return { kind: "patient" as const, patient_id: String(session.patient_id) };
+    }
+  } catch {
+    // ignore — not a patient portal call
+  }
+
+  // 2) staff cookie (if you later add staff)
+  const c = await cookies();
+  const staffId = c.get("staff_id")?.value;
+  if (staffId) return { kind: "staff" as const, id: staffId };
+
+  // 3) doctor cookie/JWT
+  const doc = await getDoctorSession().catch(() => null);
+  if (doc?.doctorId) return { kind: "doctor" as const, id: doc.doctorId, branch: doc.branch };
+
+  return null;
+}
+
+/* ---------------- utils ---------------- */
 function toNum(x: any): number | null {
   if (x === null || x === undefined) return null;
   const s = String(x).replace(/,/g, "").trim();
@@ -17,21 +42,6 @@ function toNum(x: any): number | null {
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
-
-function logRequest(method: "GET" | "POST", patient_id: string, reports: any[]) {
-  try {
-    console.log(JSON.stringify({
-      route: "patient-results",
-      method,
-      patient_id,                         // ok if you’re fine logging this
-      count: reports.length,              // how many reports (visits) we returned
-      dates: reports
-        .map(r => r?.visit?.date_of_test)
-        .filter(Boolean),                 // list of visit dates
-    }));
-  } catch { /* no-op */ }
-}
-
 function asStr(x: any): string {
   if (x === null || x === undefined) return "";
   const s = String(x);
@@ -59,6 +69,18 @@ function ts(d: string | null | undefined): number {
     return new Date(y, month, day).getTime();
   }
   return 0;
+}
+
+function logRequest(method: "GET" | "POST", patient_id: string, reports: any[]) {
+  try {
+    console.log(JSON.stringify({
+      route: "patient-results",
+      method,
+      patient_id,
+      count: reports.length,
+      dates: reports.map(r => r?.visit?.date_of_test).filter(Boolean),
+    }));
+  } catch {}
 }
 
 /* ---------- adapters to UI shape ---------- */
@@ -110,7 +132,6 @@ function adaptReportForUI(report: any) {
     sections: (report?.sections || []).map((sec: any) => {
       const name = asStr(sec?.name);
       const hideRF = name === "Urinalysis" || name === "Fecalysis";
-
       return {
         name,
         items: (sec?.items || []).map((it: any) => {
@@ -122,12 +143,10 @@ function adaptReportForUI(report: any) {
             value: asStr(it?.value),
             unit:  asStr(it?.unit),
             flag:  hideRF ? "" : coerceFlag(it?.flag),
-            ref: hideRF
-              ? undefined
-              : {
-                  low:  lowNum === null ? undefined : lowNum,
-                  high: highNum === null ? undefined : highNum,
-                },
+            ref: hideRF ? undefined : {
+              low:  lowNum === null ? undefined : lowNum,
+              high: highNum === null ? undefined : highNum,
+            },
           };
         }).filter((it: any) => it.value && it.value.trim() !== ""),
       };
@@ -147,7 +166,7 @@ async function buildAllReports(patient_id: string, limit?: number, specificDate?
   const sorted = [...dates].sort((a, b) => ts(b) - ts(a)); // newest → oldest
   const trimmed = typeof limit === "number" ? sorted.slice(0, limit) : sorted;
 
-  const reports = [];
+  const reports: any[] = [];
   for (const d of trimmed) {
     const rep = await provider.getReport({ patient_id, visitDate: d });
     if (rep) reports.push(adaptReportForUI(rep));
@@ -157,44 +176,70 @@ async function buildAllReports(patient_id: string, limit?: number, specificDate?
 }
 
 /* --------------- handlers --------------- */
-// CHANGED: derive patient_id from session; ignore client-provided IDs.
+// POST: patient portal (session) OR doctor/staff (provide patientId in body)
 export async function POST(req: Request) {
   try {
-    const session = await getSession();
-    if (!session || session.role !== "patient") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const patient_id = String(session.patient_id); // canonical patients.patient_id (UPPERCASE)
+    const actor = await requireActor();
+    if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
     const visitDate  = body?.visitDate ? String(body.visitDate) : undefined;
     const limit      = body?.limit != null ? Number(body.limit) : undefined;
 
-    const json = await buildAllReports(patient_id, limit, visitDate);
-    logRequest("POST", patient_id, json.reports);
+    // Make patient_id a definite string before use
+    let patient_id: string | null = null;
+
+    if (actor.kind === "patient") {
+      patient_id = actor.patient_id;
+    } else {
+      // doctor or staff must specify the patient
+      const fromBody =
+        (body?.patientId && String(body.patientId)) ||
+        (body?.patient_id && String(body.patient_id)) ||
+        "";
+      if (!fromBody) {
+        return NextResponse.json({ error: "patientId required" }, { status: 400 });
+      }
+      patient_id = fromBody;
+    }
+
+    const pid = patient_id as string; // TS-safe now
+    const json = await buildAllReports(pid, limit, visitDate);
+    logRequest("POST", pid, json.reports);
     return NextResponse.json(json, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }
 
-// CHANGED: derive patient_id from session; ignore query param.
+// GET: patient portal (session) OR doctor/staff (?patient_id=..., &date=..., &limit=...)
 export async function GET(req: Request) {
   try {
-    const session = await getSession();
-    if (!session || session.role !== "patient") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const patient_id = String(session.patient_id);
+    const actor = await requireActor();
+    if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const visitDate  = (searchParams.get("date") ?? undefined) || undefined;
     const limitParam = searchParams.get("limit");
     const limit      = limitParam != null ? Number(limitParam) : undefined;
 
-    const json = await buildAllReports(patient_id, limit, visitDate);
-    logRequest("GET", patient_id, json.reports);
-    return NextResponse.json(json, { status: 200 });
+    let patient_id: string | null = null;
+
+    if (actor.kind === "patient") {
+      patient_id = actor.patient_id;
+    } else {
+      // doctor or staff must specify the patient in query
+      const q = searchParams.get("patient_id") || searchParams.get("pid") || "";
+      if (!q) {
+        return NextResponse.json({ error: "patient_id query param required" }, { status: 400 });
+      }
+      patient_id = q;
+    }
+
+    const pid = patient_id as string; // TS-safe now
+    const json = await buildAllReports(pid, limit, visitDate);
+    logRequest("GET", pid, json.reports);
+    return NextResponse.json(json, { status: 200 }); 
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }

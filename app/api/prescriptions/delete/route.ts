@@ -1,43 +1,96 @@
+// app/api/prescriptions/delete/route.ts
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { getDoctorSession } from "@/lib/doctorSession";
+import { requireActor } from "@/lib/api-actor"; // ← accept doctor or staff
+
+type DeleteBody = {
+  prescriptionId?: string;
+  consultationId?: string;
+};
 
 export async function POST(req: Request) {
   try {
-    const doc = await getDoctorSession();
-    if (!doc) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    const actor = await requireActor();
+    if (!actor || actor.kind === "patient") {
+      // Patients must not be able to delete prescriptions
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const { consultationId } = await req.json();
-    if (!consultationId) {
-      return NextResponse.json({ error: "consultationId is required" }, { status: 400 });
+    const body: DeleteBody = await req.json().catch(() => ({} as DeleteBody));
+    const prescriptionId = (body?.prescriptionId || "").trim();
+    const consultationId = (body?.consultationId || "").trim();
+
+    if (!prescriptionId && !consultationId) {
+      return NextResponse.json(
+        { error: "prescriptionId or consultationId is required" },
+        { status: 400 }
+      );
     }
 
     const db = getSupabase();
 
-    // Find draft Rx by consultation
-    const rx = await db
-      .from("prescriptions")
-      .select("id")
-      .eq("consultation_id", consultationId)
-      .eq("status", "draft")
-      .maybeSingle();
+    // 1) Locate the target draft prescription
+    let rxId: string | null = null;
+    let rxDoctorId: string | null = null;
+    let rxStatus: string | null = null;
 
-    if (!rx.data?.id) {
-      return NextResponse.json({ ok: true }); // nothing to delete
+    if (prescriptionId) {
+      const { data, error } = await db
+        .from("prescriptions")
+        .select("id, doctor_id, status")
+        .eq("id", prescriptionId)
+        .maybeSingle();
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      if (!data) return NextResponse.json({ ok: true }); // nothing to delete
+
+      rxId = data.id;
+      rxDoctorId = data.doctor_id ?? null;
+      rxStatus = data.status ?? null;
+    } else {
+      // by consultationId: find a DRAFT under that consult
+      const { data, error } = await db
+        .from("prescriptions")
+        .select("id, doctor_id, status")
+        .eq("consultation_id", consultationId)
+        .eq("status", "draft")
+        .limit(1)
+        .maybeSingle();
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      if (!data) return NextResponse.json({ ok: true }); // nothing to delete
+
+      rxId = data.id;
+      rxDoctorId = data.doctor_id ?? null;
+      rxStatus = data.status ?? null;
     }
 
-    const rxId = rx.data.id;
+    // 2) Only allow deleting DRAFT
+    if (rxStatus !== "draft") {
+      return NextResponse.json(
+        { error: "Only DRAFT prescriptions can be deleted" },
+        { status: 400 }
+      );
+    }
 
-    // Delete items first unless you have ON DELETE CASCADE
-    const delItems = await db.from("prescription_items").delete().eq("prescription_id", rxId);
+    // 3) If actor is DOCTOR and prescription has a doctor_id, enforce ownership
+    if (actor.kind === "doctor" && rxDoctorId && rxDoctorId !== actor.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // 4) Delete items first (unless you have FK ON DELETE CASCADE)
+    const delItems = await db
+      .from("prescription_items")
+      .delete()
+      .eq("prescription_id", rxId!);
     if (delItems.error) {
       return NextResponse.json({ error: delItems.error.message }, { status: 400 });
     }
 
-    const delRx = await db.from("prescriptions").delete().eq("id", rxId);
+    // 5) Delete the prescription
+    const delRx = await db.from("prescriptions").delete().eq("id", rxId!);
     if (delRx.error) {
       return NextResponse.json({ error: delRx.error.message }, { status: 400 });
     }

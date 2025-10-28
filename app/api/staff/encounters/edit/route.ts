@@ -12,12 +12,23 @@ export async function POST(req: Request) {
   const db = supa();
   try {
     const body = await req.json().catch(() => ({}));
-    const { id, requested_tests_csv, price_manual_add = 0 } = body || {};
+
+    // NEW: accept Yakap/Claim flags (optional)
+    const {
+      id,
+      requested_tests_csv,
+      price_manual_add = 0,
+      yakap_flag,             // boolean | undefined
+      is_philhealth_claim,    // boolean | undefined
+    } = body || {};
+
     if (!id) return NextResponse.json({ error: "missing id" }, { status: 400 });
 
     // Expand packages -> tests (like intake)
     const tokens: string[] = String(requested_tests_csv || "")
-      .split(",").map((s) => s.trim()).filter(Boolean);
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     let expanded = [...tokens];
 
@@ -97,24 +108,33 @@ export async function POST(req: Request) {
     const manual = Math.max(0, Number(price_manual_add || 0));
     const final = autoTotal + manual;
 
-    // Update encounter + replace manual order_items
-    await db.from("encounters").update({
+    // Build the patch object safely (only include provided fields)
+    const patch: any = {
       notes_frontdesk: requested_tests_csv || null,
       price_manual_add: manual,
       price_auto_total: autoTotal,
       total_price: final,
-    }).eq("id", id);
+    };
+    if (typeof yakap_flag === "boolean") patch.yakap_flag = yakap_flag;
+    if (typeof is_philhealth_claim === "boolean") patch.is_philhealth_claim = is_philhealth_claim;
 
-    await db.from("order_items").delete().match({ encounter_id: id, kind: "manual" });
+    // Update encounter
+    const { error: upErr } = await db.from("encounters").update(patch).eq("id", id);
+    if (upErr) throw upErr;
+
+    // Replace manual order_items
+    const { error: delErr } = await db.from("order_items").delete().match({ encounter_id: id, kind: "manual" });
+    if (delErr) throw delErr;
 
     if (expanded.length) {
-      await db.from("order_items").insert([{
+      const { error: insErr } = await db.from("order_items").insert([{
         encounter_id: id,
         kind: "manual",
         code_or_name: expanded.join(", "),
         qty: 1,
         source: "admin-edit",
       }]);
+      if (insErr) throw insErr;
     }
 
     return NextResponse.json({ ok: true, totals: { auto: autoTotal, manual, final } });
