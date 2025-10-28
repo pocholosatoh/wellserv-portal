@@ -11,19 +11,29 @@ import PastConsultations from "./PastConsultations";
 import OtherLabsViewer from "@/components/OtherLabsViewer";
 import LogoutButton from "@/app/(doctor)/doctor/LogoutButton";
 import OtherLabsCard from "./OtherLabsCard";
-import QuickPatientJump from "./QuickPatientJump";
-import ConsultationSection from "./ConsultationSection"; // ✅ new composed section
+// import QuickPatientJump from "./QuickPatientJump";
+import ConsultationSection from "./ConsultationSection";
+import DiagnosisPanel from "./DiagnosisPanel";
+import ConsentBus from "./ConsentBus";
 
-type Props = { params: { patientId: string } };
 
-export default async function DoctorPatientPage({ params }: Props) {
-  const session = await getDoctorSession(); // ✅ server-side
+type Props = {
+  params: Promise<{ patientId: string }>; // Next 15: async
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function DoctorPatientPage({ params, searchParams }: Props) {
+  const session = await getDoctorSession();
+  const { patientId } = await params; // await first in Next 15
+
   if (!session) {
-    const nextUrl = `/doctor/patient/${encodeURIComponent(params.patientId)}`;
+    const nextUrl = `/doctor/patient/${encodeURIComponent(patientId)}`;
     redirect(`/doctor/login?next=${encodeURIComponent(nextUrl)}`);
   }
 
-  const { patientId } = params;
+  const sp = (await searchParams) || {};
+  const initialConsultationId =
+    (Array.isArray(sp.c) ? sp.c[0] : sp.c) || null;
 
   const docName =
     session!.display_name ||
@@ -31,6 +41,7 @@ export default async function DoctorPatientPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6 space-y-6">
+      <ConsentBus patientId={patientId} />
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-[28px] font-semibold tracking-tight">
@@ -41,7 +52,7 @@ export default async function DoctorPatientPage({ params }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <QuickPatientJump accent="#44969b" />
+          {/* <QuickPatientJump accent="#44969b" />*/}
           <span className="text-sm text-gray-700">
             Signed in as <b>{docName}</b>
           </span>
@@ -73,15 +84,21 @@ export default async function DoctorPatientPage({ params }: Props) {
           </section>
         </div>
 
-        {/* Right column: Notes & Rx (gated by Start consultation) */}
+        {/* Right column: Notes & Rx + Diagnoses */}
         <section className="lg:col-span-5 rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
           <header className="px-4 py-3 border-b border-gray-100">
-            <h2 className="font-medium text-gray-800">Notes & Prescriptions</h2>
+            <h2 className="font-medium text-gray-800">Notes, Prescriptions & Diagnoses</h2>
           </header>
           <div className="p-4 space-y-6">
             <ConsultationSection
               patientId={patientId}
-              initialConsultationId={null} // keep null; doctor presses "Start consultation"
+              initialConsultationId={initialConsultationId} // can be null; your StartConsultBar handles it
+            />
+
+            {/* Diagnoses Panel (auto-picks up today's consultation or via Refresh) */}
+            <DiagnosisPanel
+              patientId={patientId}
+              initialConsultationId={initialConsultationId}
             />
           </div>
         </section>

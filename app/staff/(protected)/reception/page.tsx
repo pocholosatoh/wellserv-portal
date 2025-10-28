@@ -28,11 +28,15 @@ function toMMDDYY(mmddyyyy: string): string {
   return `${mm}${dd}${yy}`;
 }
 function up(s?: string) { return (s || "").toUpperCase(); }
-
-// after imports / helpers
 function getCookie(name: string) {
-  const m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
   return m ? decodeURIComponent(m[2]) : "";
+}
+
+function flagOn(name: string) {
+  return (typeof window !== "undefined" ? (window as any)?.__env__?.[name] : undefined)
+    ?? (typeof process !== "undefined" ? (process.env as any)?.[name] : undefined)
+    ?? (getCookie(name) || "");
 }
 
 /** Price helpers on client (for live display only; server recomputes for truth) */
@@ -46,7 +50,7 @@ export default function Reception() {
   const router = useRouter();
 
   // branch lock
-  const [branch, setBranch] = useState<"SI" | "SL">("SI");
+  const [branch, setBranch] = useState<"SI" | "SL" | "">("");
   const [branchLocked, setBranchLocked] = useState(true);
 
   // form state
@@ -71,6 +75,9 @@ export default function Reception() {
   const [editManual, setEditManual] = useState<number>(0);
   const [editSaving, setEditSaving] = useState(false);
 
+  // Konsulta / Claim toggles (Edit modal)
+  const [editPhilhealth, setEditPhilhealth] = useState<boolean>(false);
+
   async function openEdit(id: string) {
     try {
       const r = await fetch(`/api/staff/encounters/get?id=${id}`, { cache: "no-store" });
@@ -79,6 +86,7 @@ export default function Reception() {
       setEditRow(j.row);
       setEditCsv(j.row?.notes_frontdesk || "");
       setEditManual(Number(j.row?.price_manual_add || 0));
+      setEditPhilhealth(!!(j.row?.yakap_flag || j.row?.is_philhealth_claim));
       setEditOpen(true);
     } catch (e: any) {
       alert(e?.message || "Failed to open");
@@ -96,13 +104,15 @@ export default function Reception() {
           id: editRow.id,
           requested_tests_csv: editCsv,
           price_manual_add: editManual,
+          yakap_flag: editPhilhealth,
+          is_philhealth_claim: editPhilhealth,
         }),
       });
       const j = await resp.json();
       if (!resp.ok || !j?.ok) throw new Error(j?.error || "Save failed");
       setEditOpen(false);
       setEditRow(null);
-      await loadTodayList(branch);   // refresh table to reflect latest
+      await loadTodayList(branch as "SI" | "SL");
     } catch (e: any) {
       alert(e?.message || "Failed to save");
     } finally {
@@ -114,18 +124,23 @@ export default function Reception() {
     setRole((getCookie("staff_role") || "").toLowerCase());
   }, []);
 
-  // UI
+  // UI toggles
   const [openForm, setOpenForm] = useState(false);
-  const [lookupBadge, setLookupBadge] = useState<null | string>(null); // "Existing patient loaded" etc.
+  const [lookupBadge, setLookupBadge] = useState<null | string>(null);
 
   // catalog for live pricing
   const [catalog, setCatalog] = useState<Catalog | null>(null);
 
   useEffect(() => {
-    // branch from cookies
-    const b = (readCookie("staff_branch") || "SI").toUpperCase();
-    setBranch((b === "ALL" ? "SI" : b) as "SI" | "SL");
-    setBranchLocked(b !== "ALL");
+    // branch from cookies (guard ALL => require explicit choice)
+    const b = (readCookie("staff_branch") || "").toUpperCase();
+    if (b === "SI" || b === "SL") {
+      setBranch(b as "SI" | "SL");
+      setBranchLocked(true);
+    } else {
+      setBranch("");      // require selection
+      setBranchLocked(false);
+    }
 
     // fetch catalog
     (async () => {
@@ -137,17 +152,22 @@ export default function Reception() {
     })();
   }, []);
 
-  // initial load once (no polling)
-  useEffect(() => { loadTodayList(branch); }, [branch]);
+  // initial loads
+  useEffect(() => {
+    if (branch === "SI" || branch === "SL") {
+      loadTodayList(branch);
+      loadConsultQueue(branch);
+    }
+  }, [branch]);
 
-  // generate pid whenever surname/birthday changes
+  // PID generator
   useEffect(() => {
     const mmddyy = toMMDDYY(birthday);
     const sur = up(surname).replace(/[^A-Z]/g, "");
     setPid(sur && mmddyy ? `${sur}${mmddyy}` : "");
   }, [surname, birthday]);
 
-  // auto lookup when pid is valid
+  // auto-lookup
   useEffect(() => {
     const ctrl = new AbortController();
     const run = async () => {
@@ -156,7 +176,6 @@ export default function Reception() {
         const res = await fetch(`/api/staff/patients/lookup?patient_id=${pid}`, { signal: ctrl.signal });
         const j = await res.json();
         if (res.ok && j?.found) {
-          // split "SURNAME, FIRST"
           const full = String(j.patient.full_name || "");
           const parts = full.split(",");
           const sur = parts[0]?.trim() || full;
@@ -177,30 +196,27 @@ export default function Reception() {
     return () => { clearTimeout(t); ctrl.abort(); };
   }, [pid]);
 
-  // live pricing (client preview) — matches server logic
+  // Live pricing preview
   const liveTotals = useMemo(() => {
     if (!catalog) return { auto: 0, final: Math.max(0, Number(manualAdd || 0)) };
     const tokens = (requested || "").split(",").map(s => s.trim()).filter(Boolean);
     const tokenUpper = new Set(tokens.map(t => t.toUpperCase()));
 
-    // package prices and members
     const packPrice = new Map<string, number>();
     for (const p of catalog.packages) packPrice.set(p.code.toUpperCase(), Number(p.price || 0));
     const testPrice = new Map<string, number>();
     for (const t of catalog.tests) testPrice.set(t.code.toUpperCase(), Number(t.price || 0));
 
     let auto = 0;
-    // apply packages first
-    for (const tok of tokenUpper) {
+    // packages first
+    for (const tok of Array.from(tokenUpper)) {
       if (packPrice.has(tok)) {
         auto += packPrice.get(tok)!;
         const members = catalog.packageMap[tok];
-        if (members) {
-          for (const m of members) tokenUpper.delete(m.toUpperCase());
-        }
+        if (members) for (const m of members) tokenUpper.delete(m.toUpperCase());
       }
     }
-    // add remaining tests
+    // remaining tests
     for (const tok of tokenUpper) {
       if (testPrice.has(tok)) auto += testPrice.get(tok)!;
     }
@@ -208,7 +224,9 @@ export default function Reception() {
     return { auto, final: auto + manual };
   }, [requested, manualAdd, catalog]);
 
-  async function loadTodayList(b: "SI" | "SL" = branch) {
+  // Data loaders
+  const [list, setList] = useState<any[]>([]);
+  async function loadTodayList(b: "SI" | "SL") {
     try {
       const res = await fetch(`/api/staff/encounters/today?branch=${b}`, { cache: "no-store" });
       const j = await res.json();
@@ -216,14 +234,81 @@ export default function Reception() {
     } catch {}
   }
 
+  const [consultList, setConsultList] = useState<any[]>([]);
+  const [cqBusy, setCqBusy] = useState(false);
+
+  async function loadConsultQueue(b: "SI" | "SL") {
+    try {
+      const res = await fetch(`/api/staff/encounters/today?branch=${b}&consultOnly=1`, { cache: "no-store" });
+      const j = await res.json();
+      if (res.ok) setConsultList(j.rows || []);
+    } catch {}
+  }
+
+  async function toggleConsult(encounterId: string, enable: boolean) {
+    setCqBusy(true);
+    try {
+      const res = await fetch("/api/staff/encounters/consult/toggle", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ encounter_id: encounterId, branch, enable }),
+      });
+      const j = await res.json();
+      if (!res.ok || j?.error) throw new Error(j?.error || "Toggle failed");
+      await loadConsultQueue(branch as "SI" | "SL");
+    } catch (e: any) {
+      alert(e?.message || "Toggle failed");
+    } finally {
+      setCqBusy(false);
+    }
+  }
+
+  function makeReorderedIds(list: any[], idx: number, dir: "up" | "down") {
+    const arr = [...list];
+    const swapWith = dir === "up" ? idx - 1 : idx + 1;
+    if (swapWith < 0 || swapWith >= arr.length) return null;
+    const tmp = arr[idx];
+    arr[idx] = arr[swapWith];
+    arr[swapWith] = tmp;
+    return arr.map(x => x.id);
+  }
+
+  async function reorderConsult(ids: string[]) {
+    setCqBusy(true);
+    try {
+      const res = await fetch("/api/staff/encounters/consult/reorder", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ branch, ids }),
+      });
+      const j = await res.json();
+      if (!res.ok || j?.error) throw new Error(j?.error || "Reorder failed");
+      await loadConsultQueue(branch as "SI" | "SL");
+    } catch (e: any) {
+      alert(e?.message || "Reorder failed");
+    } finally {
+      setCqBusy(false);
+    }
+  }
+
+  // Save handler with loud post-submit feedback
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (saving) return;            // guard against double-clicks
-    if (!pid || !birthday) return;
+    if (saving) return;
+    if (branch !== "SI" && branch !== "SL") {
+      alert("Please select a branch (SI or SL).");
+      return;
+    }
+    if (!pid || !birthday) {
+      alert("Complete the patient details first.");
+      return;
+    }
 
     setSaving(true);
     const full_name = `${up(surname)}, ${up(firstname)}`.trim();
-    const payload = {
+
+    // Build the common payload you already send
+    const basePayload = {
       branch_code: branch,
       patient: {
         patient_id: pid,
@@ -239,17 +324,53 @@ export default function Reception() {
       queue_now: queueNow,
     };
 
+    // Feature flag: require encounter first
+    const sendEncounter = String(
+      process.env.NEXT_PUBLIC_RECEPTION_WRITE_ENCOUNTER_ID || ""
+    ).toLowerCase() === "true";
+
     try {
+      let encounter_id: string | undefined;
+
+      if (sendEncounter) {
+        // 1) Create or fetch the encounter FIRST
+        const encRes = await fetch("/api/staff/encounters/create-or-get", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            branch_code: branch,
+            patient_id: pid,
+            birthday_mmddyyyy: birthday, // server will normalize
+            policy: "today-same-branch", // simple policy; adjust anytime
+          }),
+        });
+        const encJ = await encRes.json();
+        if (!encRes.ok || !encJ?.ok || !encJ?.encounter_id) {
+          throw new Error(encJ?.error || "Could not create encounter; please retry.");
+        }
+        encounter_id = encJ.encounter_id;
+      }
+
+      // 2) Now call your existing intake endpoint, including encounter_id when available
       const res = await fetch("/api/staff/intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...basePayload, ...(encounter_id ? { encounter_id } : {}) }),
       });
       const j = await res.json();
 
       if (!res.ok || !j?.ok) throw new Error(j?.error || "Failed to save");
 
-      // after a successful save:
+      // Loud feedback on Sheets append (unchanged UX)
+      if (j.sheet_status === "ok") {
+        alert("✅ Saved. Running sheet updated successfully.");
+      } else if (j.sheet_status === "skipped") {
+        alert("⚠️ Saved, but NOT appended to the running sheet.\n" + (j.sheet_reason || "Sheets append was skipped by the server."));
+      } else if (j.sheet_status === "failed") {
+        alert("❌ Saved, but running sheet APPEND FAILED.\n" + (j.sheet_error || "See server logs for details."));
+      }
+
+      // Reset form (same as today)
       setSurname("");
       setFirstname("");
       setSex("M");
@@ -264,8 +385,11 @@ export default function Reception() {
       setLookupBadge(null);
       setOpenForm(false);
 
-      await loadTodayList(branch);  // refresh table now
-      
+      // Refresh lists
+      if (branch === "SI" || branch === "SL") {
+        await loadTodayList(branch);
+        await loadConsultQueue(branch);
+      }
     } catch (err: any) {
       alert(err?.message || "Save failed");
     } finally {
@@ -273,26 +397,21 @@ export default function Reception() {
     }
   }
 
-  // Today list (client fetch to keep it simple)
-  const [list, setList] = useState<any[]>([]);
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch(`/api/staff/encounters/today?branch=${branch}`, { cache: "no-store" });
-        const j = await res.json();
-        if (res.ok) setList(j.rows || []);
-      } catch {}
-    };
-    load();
-  }, [branch]); // reload on branch change
+  const saveDisabled =
+    saving ||
+    !(branch === "SI" || branch === "SL") ||
+    !surname.trim() ||
+    !firstname.trim() ||
+    !birthday ||
+    !pid;
 
   return (
-    <main className="mx-auto max-w-4xl p-4 space-y-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Reception — {branch}</h1>
+    <main className="mx-auto max-w-4xl p-3 md:p-4 space-y-6">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h1 className="text-xl md:text-2xl font-semibold">Reception {branch ? `— ${branch}` : ""}</h1>
         <button
-          className="rounded px-3 py-1.5 border hover:bg-gray-50"
-          onClick={() => setOpenForm(x => !x)}
+          className="rounded px-3 py-2 border hover:bg-gray-50 text-sm md:text-base"
+          onClick={() => setOpenForm((x) => !x)}
         >
           {openForm ? "Hide Intake Form" : "New / Update (Toggle)"}
         </button>
@@ -300,7 +419,7 @@ export default function Reception() {
 
       {/* Collapsible Intake Panel */}
       {openForm && (
-        <form onSubmit={handleSubmit} className="space-y-4 border rounded p-4">
+        <form onSubmit={handleSubmit} className="space-y-4 border rounded p-3 md:p-4">
           {/* Branch select (locked unless ALL) */}
           <label className="block text-sm">
             <span className="text-sm">Branch</span>
@@ -309,14 +428,19 @@ export default function Reception() {
               disabled={branchLocked}
               onChange={(e) => setBranch(e.target.value as any)}
               className="border rounded px-2 py-2 w-full"
+              required
             >
+              <option value="" disabled>Select branch…</option>
               <option value="SI">San Isidro (SI)</option>
               <option value="SL">San Leonardo (SL)</option>
             </select>
+            {(!branch || (branch !== "SI" && branch !== "SL")) && (
+              <div className="text-xs text-rose-600 mt-1">Branch is required.</div>
+            )}
           </label>
 
           {/* Names */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label className="space-y-1">
               <span className="text-sm">Surname</span>
               <input value={surname} onChange={(e)=>setSurname(e.target.value)} className="border rounded px-2 py-2 w-full" required />
@@ -328,8 +452,8 @@ export default function Reception() {
           </div>
 
           {/* PID + badges */}
-          <div className="grid grid-cols-3 gap-3">
-            <label className="space-y-1 col-span-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label className="space-y-1">
               <span className="text-sm">Patient ID</span>
               <input value={pid} readOnly className="border rounded px-2 py-2 w-full bg-gray-50" />
               {lookupBadge && <div className="text-xs text-emerald-700 mt-1">{lookupBadge}</div>}
@@ -358,7 +482,7 @@ export default function Reception() {
           </div>
 
           {/* Contact / Address */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label className="space-y-1">
               <span className="text-sm">Contact (mobile)</span>
               <input value={contact} onChange={(e)=>setContact(e.target.value)} className="border rounded px-2 py-2 w-full" />
@@ -376,7 +500,7 @@ export default function Reception() {
           </label>
 
           {/* PhilHealth + Queue */}
-          <div className="flex items-center gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={yakap} onChange={(e)=>setYakap(e.target.checked)} />
               PhilHealth (YAKAP)
@@ -388,7 +512,7 @@ export default function Reception() {
           </div>
 
           {/* Pricing */}
-          <div className="grid grid-cols-3 gap-3 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <div>
               <div className="text-sm text-gray-600 mb-1">Auto Total</div>
               <div className="font-semibold">₱ {liveTotals.auto.toFixed(2)}</div>
@@ -414,7 +538,7 @@ export default function Reception() {
           <div className="flex justify-end">
             <button
               className="rounded px-4 py-2 bg-accent text-white disabled:opacity-60"
-              disabled={saving}
+              disabled={saveDisabled}
             >
               {saving ? "Saving…" : "Save"}
             </button>
@@ -446,7 +570,7 @@ export default function Reception() {
                   <td className="py-2 pr-3 whitespace-pre-wrap">{x.notes_frontdesk || "-"}</td>
                   <td className="py-2 pr-3 font-semibold">
                     ₱ {Number(x.total_price || 0).toFixed(2)}
-                    {x.yakap_flag && (
+                    {(x.yakap_flag || x.is_philhealth_claim) && (
                       <span
                         className="ml-2 inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs"
                         title="PhilHealth (YAKAP)"
@@ -465,18 +589,113 @@ export default function Reception() {
                         Edit
                       </button>
                     )}
+                    <button
+                      onClick={() => toggleConsult(x.id, true)}
+                      className="ml-2 border rounded px-2 py-1"
+                      title="Add to Consult Queue"
+                    >
+                      To Consult
+                    </button>
                   </td>
-                  
                 </tr>
               ))}
               {list.length === 0 && (
-                <tr><td className="py-6 text-gray-500" colSpan={5}>No patients yet today.</td></tr>
+                <tr><td className="py-6 text-gray-500" colSpan={6}>No patients yet today.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </section>
 
+      {/* ===================== CONSULT QUEUE (Doctor) ===================== */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold">Consult Queue (Today) {branch ? `— ${branch}` : ""}</h2>
+          <button
+            className="rounded px-3 py-1.5 border hover:bg-gray-50 disabled:opacity-60"
+            onClick={() => branch && loadConsultQueue(branch as "SI" | "SL")}
+            disabled={cqBusy}
+          >
+            Refresh
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="py-2 pr-3 w-14">#</th>
+                <th className="py-2 pr-3">Patient</th>
+                <th className="py-2 pr-3">Contact</th>
+                <th className="py-2 pr-3">Yakap</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {consultList.map((r, idx) => (
+                <tr key={r.id} className="border-b">
+                  <td className="py-2 pr-3 font-semibold">{r.queue_number ?? "-"}</td>
+                  <td className="py-2 pr-3">
+                    <div className="font-medium">{r.full_name || r.patient_id}</div>
+                    <div className="text-xs text-gray-500">{r.patient_id}</div>
+                  </td>
+                  <td className="py-2 pr-3">{r.contact || "-"}</td>
+                  <td className="py-2 pr-3">
+                    {r.yakap_flag ? (
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs">PhilHealth</span>
+                    ) : ("-")}
+                  </td>
+                  <td className="py-2 pr-3">{r.consult_status || "-"}</td>
+                  <td className="py-2 pr-3">
+                    <div className="flex items-center gap-2 justify-center">
+                      <button
+                        className="border rounded px-2 py-1 disabled:opacity-50"
+                        disabled={cqBusy || idx === 0}
+                        onClick={async () => {
+                          const ids = makeReorderedIds(consultList, idx, "up");
+                          if (ids) await reorderConsult(ids);
+                        }}
+                        title="Move up"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        className="border rounded px-2 py-1 disabled:opacity-50"
+                        disabled={cqBusy || idx === consultList.length - 1}
+                        onClick={async () => {
+                          const ids = makeReorderedIds(consultList, idx, "down");
+                          if (ids) await reorderConsult(ids);
+                        }}
+                        title="Move down"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        className="border rounded px-2 py-1 disabled:opacity-50"
+                        disabled={cqBusy}
+                        onClick={() => toggleConsult(r.id, false)}
+                        title="Remove from consult queue"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {consultList.length === 0 && (
+                <tr>
+                  <td className="py-6 text-gray-500" colSpan={6}>
+                    No patients in consult queue yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Edit Modal */}
       {editOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-4 space-y-3">
@@ -506,6 +725,20 @@ export default function Reception() {
                 onChange={(e)=>setEditManual(Number(e.target.value))}
               />
             </label>
+
+            {/* Unified PhilHealth (YAKAP) toggle — writes to both yakap_flag & is_philhealth_claim */}
+            <div className="flex items-center gap-6 pt-1">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={editPhilhealth}
+                  onChange={(e) => setEditPhilhealth(e.target.checked)}
+                />
+                <span>PhilHealth (YAKAP)</span>
+              </label>
+            </div>
+
 
             <div className="flex justify-end gap-2">
               <button onClick={()=>setEditOpen(false)} className="border rounded px-3 py-2">Cancel</button>
