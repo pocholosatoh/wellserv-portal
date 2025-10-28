@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function NotesPanel({
   patientId,
@@ -20,11 +20,28 @@ export default function NotesPanel({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // timer to auto-hide "Saved"
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearSavedTimer = () => {
+    if (savedTimerRef.current) {
+      clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = null;
+    }
+  };
+  const flashSaved = (ms = 2000) => {
+    clearSavedTimer();
+    setSaving("saved");
+    savedTimerRef.current = setTimeout(() => {
+      setSaving("idle");
+      savedTimerRef.current = null;
+    }, ms);
+  };
+
   useEffect(() => {
     setMode(modeDefault as any);
   }, [modeDefault]);
 
-  // 👉 Prefill editor when consultationId becomes available (or changes)
+  // Prefill editor when consultationId becomes available (or changes)
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -36,7 +53,6 @@ export default function NotesPanel({
         const j = await res.json();
         if (!res.ok) throw new Error(j?.error || "Failed to load notes.");
 
-        // Only update if this effect hasn't been superseded
         if (cancelled) return;
 
         const gotMd = (j?.notes_markdown ?? "") as string;
@@ -45,11 +61,13 @@ export default function NotesPanel({
         setMd(gotMd || "");
         setSoap(gotSoap || {});
 
-        // Choose a sensible mode based on what exists (don’t override user preference if both empty)
+        // Choose sensible mode based on existing data (don’t override if both empty)
         if (gotMd && !gotSoap) setMode("markdown");
         else if (!gotMd && gotSoap) setMode("soap");
-        // else keep current mode
 
+        // fresh load -> not saved yet
+        clearSavedTimer();
+        setSaving("idle");
       } catch (e: any) {
         if (!cancelled) setErr(e.message || "Failed to load notes.");
       } finally {
@@ -57,13 +75,18 @@ export default function NotesPanel({
       }
     }
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [consultationId]);
 
+  // Save handler
   async function save() {
     if (!consultationId) return;
+    clearSavedTimer();
     setSaving("saving");
     setErr(null);
+
     const res = await fetch("/api/doctor-notes/upsert", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -74,22 +97,43 @@ export default function NotesPanel({
         notesSOAP: mode === "soap" ? soap : undefined,
       }),
     });
+
     const j = await res.json().catch(() => ({}));
-    if (res.ok) {
-      setSaving("saved");
+    if (res.ok && j?.ok !== false) {
+      // success: show "Saved" briefly
+      flashSaved(2000);
     } else {
       setSaving("idle");
       setErr(j?.error || "Failed to save notes.");
     }
   }
 
-  // Optional autosave (kept off by default)
+  // Optional autosave
   useEffect(() => {
     if (!autosave || !consultationId) return;
     const t = setTimeout(save, 800);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autosave, consultationId, mode, md, soap]);
+
+  // Any editor change should immediately hide "Saved"
+  const onMdChange = (v: string) => {
+    if (saving === "saved") {
+      clearSavedTimer();
+      setSaving("idle");
+    }
+    setMd(v);
+  };
+  const onSoapChange = (k: "S" | "O" | "A" | "P", v: string) => {
+    if (saving === "saved") {
+      clearSavedTimer();
+      setSaving("idle");
+    }
+    setSoap(prev => ({ ...prev, [k]: v }));
+  };
+
+  // Cleanup timer on unmount
+  useEffect(() => clearSavedTimer, []);
 
   return (
     <div className="space-y-2">
@@ -124,7 +168,7 @@ export default function NotesPanel({
           className="w-full border rounded p-2 h-48 text-sm"
           placeholder="Type doctor notes… (Markdown allowed: bullets, headings)"
           value={md}
-          onChange={(e) => setMd(e.target.value)}
+          onChange={(e) => onMdChange(e.target.value)}
           disabled={!consultationId}
         />
       ) : (
@@ -135,7 +179,7 @@ export default function NotesPanel({
               <textarea
                 className="w-full border rounded p-2 h-24"
                 value={(soap as any)[k] || ""}
-                onChange={(e) => setSoap((prev) => ({ ...prev, [k]: e.target.value }))}
+                onChange={(e) => onSoapChange(k, e.target.value)}
                 disabled={!consultationId}
               />
             </div>

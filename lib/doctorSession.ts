@@ -1,58 +1,54 @@
 // lib/doctorSession.ts
-import "server-only";
-import { cookies } from "next/headers";
-import { SignJWT, jwtVerify } from "jose";
+import { cookies as getCookies } from "next/headers";
 
-const COOKIE_NAME = "doctor_session";
-
-const raw = process.env.DOCTOR_SESSION_SECRET;
-if (!raw) {
-  throw new Error("DOCTOR_SESSION_SECRET is not set.");
-}
-const secret = new TextEncoder().encode(raw);
-
-// 👇 helper so we don't set Secure on localhost
-const isProd = process.env.NODE_ENV === "production";
-
-type DocSessionPayload = {
-  id: string;
+export type DoctorSession = {
+  id: string;                           // cookie doctor_id (UUID or "relief_xxx")
   code: string;
   name: string;
   role: "regular" | "relief";
   credentials?: string;
   display_name?: string;
+  doctorId: string;                     // alias of id
+  branch: "SI" | "SL";                  // normalized branch
+  philhealth_md_id?: string;            // for claims when reliever logs in with PHIC
 };
 
-export async function setDoctorSession(payload: DocSessionPayload) {
-  const token = await new SignJWT(payload)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("3d")
-    .sign(secret);
+/**
+ * Reads doctor session cookies written by your doctor/reliever login APIs.
+ * If no explicit branch, falls back to staff_branch; default "SI".
+ * Normalizes branch: any non-"SL" becomes "SI" to keep a single-branch queue.
+ */
+export async function getDoctorSession(): Promise<DoctorSession | null> {
+  // Next 15: in your env this returns a Promise, so await it
+  const c = await getCookies();
 
-  const store = await cookies();
-  store.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: isProd,              // ✅ only secure in production 
-    sameSite: "lax",
-    path: "/",                   // ✅ ensure cookie is sent on /doctor pages
-    maxAge: 60 * 60 * 24 * 3,
-  });
-}
+  const id = c.get("doctor_id")?.value || null;
+  if (!id) return null;
 
-export async function getDoctorSession(): Promise<DocSessionPayload | null> {
-  const store = await cookies();
-  const token = store.get(COOKIE_NAME)?.value;
-  if (!token) return null;
-  try {
-    const { payload } = await jwtVerify(token, secret);
-    return payload as unknown as DocSessionPayload;
-  } catch {
-    return null;
-  }
-}
+  const code = c.get("doctor_code")?.value || "";
+  const name = c.get("doctor_name")?.value || "";
+  const role = (c.get("doctor_role")?.value || "regular") as "regular" | "relief";
+  const credentials = c.get("doctor_credentials")?.value || undefined;
+  const display_name = c.get("doctor_display_name")?.value || undefined;
+  const philhealth_md_id = c.get("doctor_philhealth_md_id")?.value || undefined;
 
-export async function clearDoctorSession() {
-  const store = await cookies();
-  store.set(COOKIE_NAME, "", { path: "/", maxAge: 0 });
+  const rawBranch =
+    (c.get("doctor_branch")?.value ||
+      c.get("staff_branch")?.value ||
+      "SI")
+      .toUpperCase();
+
+  const branch: "SI" | "SL" = rawBranch === "SL" ? "SL" : "SI";
+
+  return {
+    id,
+    code,
+    name,
+    role,
+    credentials,
+    display_name,
+    philhealth_md_id,
+    doctorId: id,
+    branch,
+  };
 }

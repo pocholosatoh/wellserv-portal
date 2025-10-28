@@ -1,36 +1,38 @@
 // app/api/patient/prescriptions/route.ts
-// Return all SIGNED prescriptions for the logged-in patient (newest first).
-// For local dev, also accepts ?patient_id=<id> if no session is present.
-
-import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
-import { getSupabase } from "@/lib/supabase";
+// Returns all SIGNED prescriptions for a patient (newest first).
+// Supports patient portal (session) and doctor/staff (provide patient_id).
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+import { NextResponse } from "next/server";
+import { getSupabase } from "@/lib/supabase";
+import { requireActor, getTargetPatientId } from "@/lib/api-actor";
+
 export async function GET(req: Request) {
   try {
-    const url = new URL(req.url);
     const supabase = getSupabase();
 
-    // 1) Resolve patient_id:
-    //    Prefer httpOnly session (production); allow ?patient_id= for local dev if no session.
-    const session = await getSession();
-    const sessionPid =
-      session && session.role === "patient" ? String(session.patient_id).trim() : "";
+    // Accept patient portal, doctor, or staff
+    const actor = await requireActor();
+    if (!actor) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const queryPid = (url.searchParams.get("patient_id") || "").trim();
-    const patientId = sessionPid || queryPid;
+    // Resolve patient_id:
+    // - patient portal: from session
+    // - doctor/staff:   from query ?patient_id= or ?pid=
+    const { searchParams } = new URL(req.url);
+    const patient_id = getTargetPatientId(actor, { searchParams });
 
-    if (!patientId) {
+    if (!patient_id) {
       return NextResponse.json(
-        { error: "Not logged in as a patient (missing patient_id)." },
-        { status: 401 }
+        { error: "patient_id required" },
+        { status: 400 }
       );
     }
 
-    // 2) Fetch SIGNED prescriptions (newest first)
+    // 1) Fetch SIGNED prescriptions (newest first)
     const { data: rxList, error: rxErr } = await supabase
       .from("prescriptions")
       .select(
@@ -56,7 +58,7 @@ export async function GET(req: Request) {
         updated_at
         `
       )
-      .eq("patient_id", patientId)
+      .eq("patient_id", patient_id)
       .eq("status", "signed")
       .order("created_at", { ascending: false });
 
@@ -68,7 +70,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ prescriptions: [] });
     }
 
-    // 3) Fetch all items for these prescriptions in a single call
+    // 2) Fetch items for these prescriptions in one query
     const ids = rxList.map((r) => r.id);
     const { data: items, error: itErr } = await supabase
       .from("prescription_items")
@@ -100,7 +102,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: itErr.message }, { status: 500 });
     }
 
-    // 4) Group items by prescription_id and attach
+    // 3) Group items by prescription_id and attach
     const byRx = new Map<string, any[]>();
     for (const it of items || []) {
       const arr = byRx.get(it.prescription_id) || [];

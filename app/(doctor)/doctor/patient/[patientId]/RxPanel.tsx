@@ -37,9 +37,11 @@ const FREQ_PER_DAY: Record<string, number> = {
 export default function RxPanel({
   patientId,
   consultationId: cidProp,
+  onSigned,
 }: {
   patientId: string;
   consultationId?: string | null;
+  onSigned?: () => void;
 }) {
   // --- state ---
   const [consultationId, setConsultationId] = useState<string | null>(cidProp ?? null);
@@ -368,15 +370,20 @@ export default function RxPanel({
   async function signRx() {
     if (signing) return; // prevent double-clicks
     setSigning(true);
-    try {
-      setError(null);
+    setError(null);
 
-      // If the panel is locked to a signed prescription, start a revision first
+    try {
+      // If panel currently shows a signed Rx, start a revision first
       if (lockedSigned) {
-        await startRevision();
+        const newId = await startRevision();
+        if (!newId) {
+          setError("Unable to start a revision for signing.");
+          return;
+        }
+        setRxId(newId);
       }
 
-      // Ensure a draft exists before signing
+      // Ensure we have a draft to sign
       if (!rxId) {
         await saveDraft({ silent: true });
       }
@@ -385,34 +392,42 @@ export default function RxPanel({
         return;
       }
 
+      // Call the sign API
       const res = await fetch("/api/prescriptions/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prescriptionId: rxId }),
       });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(j?.error || "Failed to sign prescription");
+
+      if (!res.ok || j?.error) {
+        setError(j?.error || `HTTP ${res.status}`);
         return;
       }
 
-      // ✅ Lock the panel (now a signed Rx)
+      // ✅ SUCCESS: Open the consent modal (parent controls it)
+      onSigned?.();
+
+      // Lock the panel underneath (no page reload here)
       setLockedSigned(true);
       setSaving("saved");
       setTimeout(() => setSaving("idle"), 1200);
 
-      // Reset context and reload — /draft will 404, banner remains locked
+      // Clear draft context and re-hydrate view
       setRxId(null);
       await loadCurrentDraft();
 
-      // ✅ Broadcast event so PastConsultations updates immediately
+      // Let other widgets (like PastConsultations) refresh themselves
       window.dispatchEvent(
         new CustomEvent("rx:signed", { detail: { consultationId } })
       );
+    } catch (e: any) {
+      setError(e?.message || "Failed to sign prescription");
     } finally {
       setSigning(false);
     }
   }
+
 
 
   return (
@@ -489,7 +504,7 @@ export default function RxPanel({
       </div>
 
       {/* Lines */}
-      <div className="space-y-3">
+      <div className="space-y-5">
         {items.map((ln, i) => (
           <div key={i} className="border rounded-xl p-3">
             {/* Header */}
@@ -669,7 +684,7 @@ export default function RxPanel({
       </div>
 
       {/* Shared instructions */}
-      <div>
+      <div className="mt-4">
         <label className="block text-sm mb-1">Shared instructions for patient</label>
         <textarea
           className="w-full border rounded p-2 text-sm"

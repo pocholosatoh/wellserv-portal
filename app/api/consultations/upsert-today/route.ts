@@ -4,89 +4,154 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { getDoctorSession } from "@/lib/doctorSession";
+import { requireActor } from "@/lib/api-actor";
 
-const PH_TZ = "Asia/Manila";
-
-/** Build start/end Date objects for "today" in Asia/Manila */
-function phDayWindow(d = new Date()) {
-  // "YYYY-MM-DD" for PH date
-  const ymd = new Intl.DateTimeFormat("en-CA", {
-    timeZone: PH_TZ,
+function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(d);
-
-  // PH is UTC+08 with no DST. Use explicit offset so ISO is correct.
-  const start = new Date(`${ymd}T00:00:00.000+08:00`);
-  const end = new Date(`${ymd}T23:59:59.999+08:00`);
-  return { start, end };
+  }).format(new Date());
+}
+function isUuid(v?: string | null) {
+  return !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
 export async function POST(req: Request) {
   try {
-    const doctor = await getDoctorSession();
-    if (!doctor) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    const actor = await requireActor();
+    if (!actor || actor.kind !== "doctor") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json().catch(() => ({} as any));
-
-    // ✅ Normalize patient id to UPPERCASE before any DB use
-    const patientId: string = String(body?.patientId || "").trim().toUpperCase();
+    const body = await req.json().catch(() => ({}));
+    const patientId = String(body?.patientId || body?.patient_id || "").trim().toUpperCase();
     if (!patientId) {
-      return NextResponse.json({ error: "patientId is required" }, { status: 400 });
+      return NextResponse.json({ error: "patientId required" }, { status: 400 });
     }
 
     const db = getSupabase();
-    const nowUtc = new Date();
-    const { start, end } = phDayWindow(nowUtc);
 
-    // 1) Reuse an existing consultation for this PH day, if present
-    const reuse = await db
-      .from("consultations")
-      .select("id, patient_id, doctor_id, visit_at, doctor_name_at_time")
-      .eq("patient_id", patientId) // ✅ uppercase
-      .gte("visit_at", start.toISOString())
-      .lte("visit_at", end.toISOString())
-      .order("visit_at", { ascending: false })
+    // ---------- doctor identity & display ----------
+    const doctor_id = actor.id; // may be relief_xxx
+    let docNameRaw = "";
+    let docCreds   = "";
+
+    if (isUuid(doctor_id)) {
+      const prof = await db
+        .from("doctors")
+        .select("display_name, full_name, credentials")
+        .eq("doctor_id", doctor_id)
+        .maybeSingle();
+      if (!prof.error && prof.data) {
+        docNameRaw = prof.data.display_name || prof.data.full_name || "";
+        docCreds   = prof.data.credentials || "";
+      }
+    }
+    const display = docCreds ? `${docNameRaw || ""}` : (docNameRaw || ""); // display_name usually includes creds already
+
+    // ---------- doctor branch ----------
+    const branch: "SI" | "SL" = (actor.branch as "SI" | "SL") || "SI";
+    const today = todayYMD();
+
+    // 1) Try to find today's encounter for this patient at this branch
+    const enc = await db
+      .from("encounters")
+      .select("id, consult_status, for_consult")
+      .eq("patient_id", patientId)
+      .eq("branch_code", branch)
+      .eq("visit_date_local", today)
+      .order("created_at", { ascending: true })
+      .limit(1)
       .maybeSingle();
 
-    if (reuse.data?.id) {
-      return NextResponse.json({ consultation: reuse.data, reused: true });
+    const encounterId = enc.data?.id ?? null;
+
+    // 2) If there is already a consultation today, reuse it & attach encounter if missing
+    const existing = await db
+      .from("consultations")
+      .select("id, encounter_id")
+      .eq("patient_id", patientId)
+      .gte("visit_at", `${today}T00:00:00+08:00`)
+      .lte("visit_at", `${today}T23:59:59.999+08:00`)
+      .order("visit_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing.data?.id) {
+      const upd = await db
+        .from("consultations")
+        .update({
+          doctor_id: isUuid(doctor_id) ? doctor_id : null, // keep FK valid
+          doctor_name_at_time: display || null,
+          branch,
+          encounter_id: existing.data.encounter_id || encounterId || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.data.id)
+        .select("id")
+        .maybeSingle();
+
+      if (upd.error) return NextResponse.json({ error: upd.error.message }, { status: 400 });
+
+      if (encounterId) {
+        await db.from("encounters")
+          .update({ consult_status: "in-progress" })
+          .eq("id", encounterId);
+      }
+
+      return NextResponse.json({ ok: true, consultation: { id: upd.data!.id } });
     }
 
-    // 2) Otherwise create a new one
-    //    - Real (known) doctor → set doctor_id
-    //    - Reliever → store snapshot name in doctor_name_at_time
-    const isRegular = doctor.role === "regular"; // your session sets this
-    const snapshotName =
-      !isRegular
-        ? (doctor.display_name ||
-           (doctor.credentials ? `${doctor.name}, ${doctor.credentials}` : doctor.name) ||
-           null)
-        : null;
+    // === One FPE per calendar year ===
+    const year = today.slice(0, 4);
+    const startOfYear = `${year}-01-01T00:00:00+08:00`;
+    const endOfYear   = `${year}-12-31T23:59:59.999+08:00`;
 
+    const fpeCheck = await db
+      .from("consultations")
+      .select("id")
+      .eq("patient_id", patientId)
+      .eq("type", "FPE")
+      .gte("visit_at", startOfYear)
+      .lte("visit_at", endOfYear)
+      .neq("status", "cancelled")
+      .limit(1);
+
+    const computedType = (fpeCheck.data && fpeCheck.data.length > 0) ? "FollowUp" : "FPE";
+
+    // 3) Create a new consultation
     const ins = await db
       .from("consultations")
       .insert({
-        patient_id: patientId,                             // ✅ uppercase
-        visit_at: nowUtc.toISOString(),
-        doctor_id: isRegular ? (doctor as any).id : null,  // only for known doctors
-        doctor_name_at_time: snapshotName,                 // for relievers
+        patient_id: patientId,
+        doctor_id: isUuid(doctor_id) ? doctor_id : null, // reliever → null
+        doctor_name_at_time: display || null,
+        branch,
+        encounter_id: encounterId || null,
+        visit_at: new Date().toISOString(),
+        type: computedType,                 // <-- NEW
+        status: "draft",
+        plan_shared: null,
       })
-      .select("id, patient_id, doctor_id, visit_at, doctor_name_at_time")
-      .single();
+      .select("id")
+      .maybeSingle();
 
-    if (ins.error) {
-      return NextResponse.json({ error: ins.error.message }, { status: 400 });
+    if (ins.error || !ins.data?.id) {
+      return NextResponse.json(
+        { error: ins.error?.message || "Failed to create consultation" },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json({ consultation: ins.data, reused: false });
-    // after you set the new consultationId in state:
-    window.dispatchEvent(new CustomEvent("consultation:updated", { detail: { patientId } }));
+    if (encounterId) {
+      await db.from("encounters")
+        .update({ consult_status: "in-progress" })
+        .eq("id", encounterId);
+    }
 
+    return NextResponse.json({ ok: true, consultation: { id: ins.data.id } });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }

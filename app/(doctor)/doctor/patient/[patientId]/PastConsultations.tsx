@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { fmtManila } from "@/lib/time";
+import ConsultDx from "./ConsultDx";
 
 type Consult = {
   id: string;
@@ -172,6 +173,9 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
 
                     {/* Notes */}
                     <div className="mb-4">
+                      <div className="mb-4">
+                        <ConsultDx consultationId={c.id} />
+                      </div>
                       <div className="font-medium mb-1">Doctor Notes</div>
                       {details.notes ? (
                         <>

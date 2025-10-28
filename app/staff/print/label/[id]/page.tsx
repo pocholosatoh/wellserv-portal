@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import Label50x30 from "@/app/staff/_components/Label50x30";
 import PrintButton from "@/app/staff/_components/PrintButton";
+import type { Metadata } from "next";
 
 function supa() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -11,25 +12,25 @@ function supa() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+export const metadata: Metadata = {
+  title: "Print Label",
+};
+
 function manilaTodayISO(): string {
   const tz = process.env.APP_TZ || "Asia/Manila";
   const dt = new Date();
-  // en-CA = YYYY-MM-DD
-  const fmt = new Intl.DateTimeFormat("en-CA", {
+  return new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  });
-  return fmt.format(dt);
+  }).format(dt);
 }
 
-export default async function LabelPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
+export default async function LabelPage(props: {
+  params: Promise<{ id: string }>; // 👈 params is a Promise in Next 15
 }) {
-  const { id } = await params;
+  const { id } = await props.params; // 👈 await it
   const db = supa();
 
   // 1) Load encounter
@@ -41,7 +42,9 @@ export default async function LabelPage({
 
   if (encErr) {
     return (
-      <div className="p-4 text-red-600">Error loading encounter: {encErr.message}</div>
+      <div className="p-4 text-red-600">
+        Error loading encounter: {encErr.message}
+      </div>
     );
   }
   if (!enc) {
@@ -65,46 +68,51 @@ export default async function LabelPage({
   };
 
   return (
-    <html>
-      <head>
-      <meta charSet="utf-8" />
-      <title>{`Print Label — ${payload.patient_id}`}</title>  {/* ✅ single string */}
-        <style>{`
-          /* Screen preview */
-          @media screen {
-            html, body { background:#f3f4f6; margin:0; padding:0; }
-            .wrap { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
-            .preview { box-shadow: 0 12px 32px rgba(0,0,0,.18); border-radius: 12px; overflow: hidden; }
-            .toolbar { position: fixed; top: 12px; right: 12px; }
-          }
-          /* PRINT: lock to 50x30mm; zero margins around page and label */
-          @media print {
-            @page { size: 50mm 30mm; margin: 0; }
-            html, body { width: 50mm; height: 30mm; margin: 0; padding: 0; background: #fff; }
-            .wrap { padding: 0; }
-            .preview { box-shadow: none !important; border-radius: 0; }
-            .toolbar { display: none !important; }
-          }
-          /* Shared label box size for both modes */
-          .label-sheet { width: 50mm; height: 30mm; background: #fff; }
-        `}</style>
-      </head>
-      <body>
-        <div className="wrap">
-          {/* Screen-only print button */}
-          <div className="toolbar print:hidden">
-            <PrintButton label="Print Label" />
-          </div>
+    <>
+      {/* Screen-only print button */}
+      <div className="toolbar print:hidden">
+        <PrintButton label="Print Label" />
+      </div>
 
-          {/* The actual label (preview box on screen, exact size in print) */}
-          <div className="preview">
-            <div className="label-sheet">
-              {/* If your Label50x30 prop names differ, this spread keeps it working */}
-              <Label50x30 {...(payload as any)} />
-            </div>
+      {/* The actual label (preview on screen, exact size in print) */}
+      <div className="wrap">
+        <div className="preview">
+          <div className="label-sheet">
+            <Label50x30 {...(payload as any)} />
           </div>
         </div>
-      </body>
-    </html>
+      </div>
+
+      {/* Page-scoped styles */}
+      <style>{`
+        @media screen {
+          html, body { background:#f3f4f6; margin:0; padding:0; }
+          .wrap { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+          .preview { box-shadow: 0 12px 32px rgba(0,0,0,.18); border-radius: 12px; overflow: hidden; }
+          .toolbar { position: fixed; top: 12px; right: 12px; z-index: 10; }
+        }
+        @media print {
+          @page { size: 50mm 30mm; margin: 0; }
+          html, body { width: 50mm; height: 30mm; margin: 0; padding: 0; background: #fff; }
+          .wrap { padding: 0; }
+          .preview { box-shadow: none !important; border-radius: 0; }
+          .toolbar { display: none !important; }
+        }
+        .label-sheet { width: 50mm; height: 30mm; background: #fff; }
+      `}</style>
+    </>
   );
 }
+
+/* Optional: dynamic title also needs awaiting params in Next 15
+export async function generateMetadata(props: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await props.params;
+  const db = supa();
+  const { data: enc } = await db
+    .from("encounters").select("patient_id").eq("id", id).maybeSingle();
+  const pid = enc?.patient_id || "Label";
+  return { title: `Print Label — ${pid}` };
+}
+*/
