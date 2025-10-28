@@ -1,22 +1,33 @@
 // app/api/followups/list/route.ts
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getSession } from "@/lib/session";
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireActor } from "@/lib/api-actor";
+
+/*
+Behavior:
+- Auth: allow staff or doctor or patient (patient rarely uses this, but we won’t block).
+- Date range required (start, end). Returns due_date within [start, end].
+- Branch filtering:
+  - If caller provided ?branch=SI|SL → filter by code, but also match legacy text values.
+  - If blank → no branch filter (see “All”).
+- Status filtering: status=all|scheduled|completed|canceled|skipped
+- Ignores deleted rows (deleted_at IS NULL)
+*/
+
 export async function GET(req: Request) {
   try {
-    const s = await getSession();
-    if (!s || s.role !== "staff") {
+    const actor = await requireActor(); // doctor/staff/patient
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
     const start = (searchParams.get("start") || "").trim();   // YYYY-MM-DD
     const end   = (searchParams.get("end") || "").trim();     // YYYY-MM-DD
-    const branch = (searchParams.get("branch") || "").trim(); // optional
+    const branchParam = (searchParams.get("branch") || "").trim().toUpperCase(); // "" | SI | SL
     const status = (searchParams.get("status") || "all").trim();
 
     if (!start || !end) {
@@ -35,7 +46,19 @@ export async function GET(req: Request) {
       .lte("due_date", end)
       .order("due_date", { ascending: true });
 
-    if (branch) q = q.eq("return_branch", branch);
+    // Branch logic:
+    // - If a branch is specified (SI/SL), match code OR legacy text.
+    // - If empty: no branch filter (shows all).
+    if (branchParam === "SI" || branchParam === "SL") {
+      const legacyText = branchParam === "SL" ? "San Leonardo%" : "San Isidro%";
+      q = q.or(
+        [
+          `return_branch.eq.${branchParam}`,       // code
+          `return_branch.ilike.${legacyText}`,     // legacy free text
+        ].join(",")
+      );
+    }
+
     if (status && status !== "all") q = q.eq("status", status);
 
     const { data, error } = await q;
