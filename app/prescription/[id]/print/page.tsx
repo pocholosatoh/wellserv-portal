@@ -40,8 +40,11 @@ function calcAge(iso?: string | null): number | null {
   return age;
 }
 
-export default async function PrintRxPage({ params }: { params: { id: string } }) {
-  const data = await getRx(params.id);
+type PageContext = { params: Promise<{ id: string }> };
+
+export default async function PrintRxPage({ params }: PageContext) {
+  const { id } = await params;
+  const data = await getRx(id);
 
   // map patient fields (birthday + sex) from API
   const name = data.patient?.full_name ?? "Unknown";

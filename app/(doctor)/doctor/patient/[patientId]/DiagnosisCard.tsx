@@ -29,7 +29,6 @@ export default function DiagnosisCard({
   useEffect(() => {
     setPicks([]);
     void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consultationId]);
 
   // Search

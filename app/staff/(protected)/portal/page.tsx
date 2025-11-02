@@ -42,7 +42,6 @@ function StaffNav() {
     { href: "/staff/prescriptions", label: "Prescriptions" },
     { href: "/staff/rmt/hemaupload", label: "RMT Hema Upload" },
   ];
-
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
 
   return (
@@ -56,9 +55,7 @@ function StaffNav() {
               href={it.href}
               className={[
                 "relative rounded-lg border px-3 py-1.5 transition",
-                active
-                  ? "text-white"
-                  : "hover:bg-gray-50",
+                active ? "text-white" : "hover:bg-gray-50",
               ].join(" ")}
               style={{
                 backgroundColor: active ? accent : undefined,
@@ -66,12 +63,9 @@ function StaffNav() {
               }}
             >
               {it.label}
-              {/* animated underline on hover & active */}
               <span
                 className="pointer-events-none absolute left-2 right-2 -bottom-[3px] h-[2px] origin-left scale-x-0 transition-transform group-hover:scale-x-100"
-                style={{
-                  backgroundColor: active ? "#0000" : accent,
-                }}
+                style={{ backgroundColor: active ? "#0000" : accent }}
               />
             </Link>
           );
@@ -140,13 +134,16 @@ export default function StaffPortalPage() {
                 <h2 className="font-medium text-gray-800">Other Labs</h2>
               </header>
               <div className="p-4">
-                <OtherLabsViewer
-                  patientId={activePid}
-                  useSession={false}
-                  apiPath="/api/staff/other-labs/upload"
-                  showIfEmpty
-                  emptyText="No other labs available."
-                />
+              
+              <OtherLabsViewer
+                patientId={activePid}
+                useSession={false}
+                // READ route that SIGNS URLs (not /upload) – no patient_id here
+                apiPath={`/api/staff/other-labs?expires=3600&v=${Date.now()}`}
+                showIfEmpty
+                emptyText="No other labs available."
+              />
+
               </div>
             </section>
           ) : null}

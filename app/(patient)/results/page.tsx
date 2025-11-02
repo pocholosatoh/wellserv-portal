@@ -31,7 +31,12 @@ export default async function ResultsPage() {
         <ResultsViewer autoFetch useSession apiPath="/api/patient-results" />
         {/* Hide Other Labs only on print */}
         <div className="print:hidden">
-          <OtherLabsViewer showIfEmpty={true} />
+          {/* Force the v2 API + add debug + longer expiry while testing */}
+          <OtherLabsViewer
+            showIfEmpty
+            useSession
+            apiPath={`/api/patient/other-labs-v2?expires=3600&v=${Date.now()}`}
+          />
         </div>
       </div>
     </main>

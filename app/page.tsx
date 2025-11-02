@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Hero from '@/components/home/Hero';
 import WhyCards from '@/components/home/WhyCards';
@@ -34,33 +35,33 @@ export default function HomePage() {
         <header className="section py-3 sm:py-4">
           <div className="flex items-center justify-between gap-3">
             {/* Logo */}
-            <a href="/" className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3">
               <img
                 src="/wellserv-logo.png"
                 alt="WELLSERV® Medical Corporation"
                 className="block h-16 sm:h-14 w-auto object-contain"
               />
               <span className="sr-only">WELLSERV®</span>
-            </a>
+            </Link>
 
             {/* Top actions */}
             <nav className="flex items-center gap-2 sm:gap-3">
               <a href="#branches" className="hidden sm:inline link-accent text-sm">
                 Branches
               </a>
-              <a href="/pricelist" className="hidden sm:inline link-accent text-sm">
+              <Link href="/pricelist" className="hidden sm:inline link-accent text-sm">
                 Prices
-              </a>
+              </Link>
 
 
               {/* 4) Conspicuous “View My Results” */}
-              <a
+              <Link
                 href="/patient/"
                 className="btn-outline rounded-xl px-3 py-2 text-sm sm:px-4"
                 aria-label="View my results online"
               >
                 View My Results
-              </a>
+              </Link>
 
               {/* Book button visible on desktop (mobile gets sticky later) */}
               <a
