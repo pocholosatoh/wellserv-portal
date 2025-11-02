@@ -5,6 +5,7 @@ import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
+
 // If you used an enum in DB later, you can tighten this union.
 // For now keep it string to work with text column or backfilled rows.
 export type OtherLabType =
@@ -165,13 +166,14 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
   const {
     patientId,
     useSession = !patientId,             // default to session mode when no patientId is passed
-    apiPath = "/api/patient/other-labs",
+    apiPath = "/api/patient/other-labs-v2",
     title = "Other Labs",
     className = "",
     showIfEmpty = false,
     initiallyCollapsed = false,
     emptyText = "No outside lab results uploaded yet.",
   } = props;
+  console.log("[OtherLabsViewer] apiPath =", apiPath);
 
   const [items, setItems] = useState<OtherLabItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -186,16 +188,19 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
 
     (async () => {
       try {
+        // build URL correctly whether apiPath already has ?query or not
+        const base = apiPath;
+        const sep = base.includes("?") ? "&" : "?";
         const url = useSession
-          ? `${apiPath}`                                  // session-based
-          : `${apiPath}?patient_id=${encodeURIComponent(String(patientId || ""))}`; // explicit PID
+          ? base
+          : `${base}${sep}patient_id=${encodeURIComponent(String(patientId || ""))}`;
 
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
           throw new Error(j?.error || `HTTP ${res.status}`);
         }
-        const data = (await res.json()) as OtherLabItem[]; // API returns an array
+        const data = (await res.json()) as OtherLabItem[];
         if (!abort) setItems(Array.isArray(data) ? data : []);
       } catch (e: any) {
         if (!abort) setError(e?.message || "Failed to load");
@@ -203,7 +208,8 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
     })();
 
     return () => { abort = true; };
-  }, [patientId, useSession]);
+  }, [patientId, useSession, apiPath]);
+
 
   const grouped = useMemo(() => {
     if (!items) return {} as Record<string, OtherLabItem[]>;

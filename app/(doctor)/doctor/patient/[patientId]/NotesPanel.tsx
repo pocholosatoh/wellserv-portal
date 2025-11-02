@@ -113,7 +113,6 @@ export default function NotesPanel({
     if (!autosave || !consultationId) return;
     const t = setTimeout(save, 800);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autosave, consultationId, mode, md, soap]);
 
   // Any editor change should immediately hide "Saved"

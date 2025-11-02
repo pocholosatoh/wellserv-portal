@@ -131,7 +131,6 @@ export default function RxPanel({
     if (!consultationId) return;
     setError(null);
     loadCurrentDraft();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consultationId]);
 
   // Search meds from pharmacy table
@@ -465,7 +464,7 @@ export default function RxPanel({
       <div>
         <label className="block text-sm mb-1">
           Add medicine from pharmacy list. If preferred medication is not available:
-          input [Generic Name, strength, form] → "Add Custom"
+          input [Generic Name, strength, form] → &ldquo;Add Custom&rdquo;
         </label>
         <div className="flex gap-2">
           <input
