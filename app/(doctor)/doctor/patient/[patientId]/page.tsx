@@ -8,7 +8,6 @@ import { getDoctorSession } from "@/lib/doctorSession";
 
 import ClientReportViewer from "./ClientReportViewer";
 import PastConsultations from "./PastConsultations";
-import OtherLabsViewer from "@/components/OtherLabsViewer";
 import LogoutButton from "@/app/(doctor)/doctor/LogoutButton";
 import OtherLabsCard from "./OtherLabsCard";
 // import QuickPatientJump from "./QuickPatientJump";
@@ -77,11 +76,10 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
               <h2 className="font-medium text-gray-800">Other Labs</h2>
             </header>
             <div className="p-4">
-              <OtherLabsCard showHeader={false}>
-                <OtherLabsViewer patientId={patientId} showIfEmpty />
-              </OtherLabsCard>
+              <OtherLabsCard patientId={patientId} showHeader={false} />
             </div>
           </section>
+
         </div>
 
         {/* Right column: Notes & Rx + Diagnoses */}

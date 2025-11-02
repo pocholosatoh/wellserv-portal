@@ -39,7 +39,6 @@ export default function FinishConsultButton({
 
   useEffect(() => {
     if (consultationId) loadRxState();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consultationId]);
 
   async function requestFinishWithoutRx() {
