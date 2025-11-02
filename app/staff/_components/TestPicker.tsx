@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 
 type Test = { code: string; name: string; price?: number | null };
 type Pack = { code: string; name: string; price?: number | null };
+type WindowWithLabPackageMap = Window & {
+  __labPackageMap?: Record<string, string[]>;
+};
 
 type Props = {
   value: string; // comma-separated tokens
@@ -78,10 +81,11 @@ const coverageHints = (() => {
 
   // If you loaded packageMap from /api/catalog/lab, thread it via props
   // If not available in this file, skip hints silently.
-  // @ts-ignore allow optional prop
-  const pm: Record<string, string[]> | undefined = (typeof (window as any).__labPackageMap === "object")
-    ? (window as any).__labPackageMap
-    : undefined;
+  const pm: Record<string, string[]> | undefined =
+    typeof window !== "undefined" &&
+    typeof (window as WindowWithLabPackageMap).__labPackageMap === "object"
+      ? (window as WindowWithLabPackageMap).__labPackageMap
+      : undefined;
 
   if (!pm) return [] as string[];
 

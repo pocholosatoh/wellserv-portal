@@ -8,7 +8,7 @@ const __dirname = dirname(__filename);
 // Use Next's presets but then turn off the noisy rules globally (temporary)
 const compat = new FlatCompat({ baseDirectory: __dirname });
 
-export default [
+const config = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     ignores: [
@@ -36,3 +36,5 @@ export default [
     },
   },
 ];
+
+export default config;

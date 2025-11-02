@@ -46,7 +46,6 @@ export default function DiagnosisPanel({
   // If URL param appears later (e.g., navigation), adopt it
   useEffect(() => {
     if (urlCid && urlCid !== cid) setCid(urlCid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlCid]);
 
   return (
