@@ -2,7 +2,7 @@
 import 'server-only';
 import Link from 'next/link';
 import TestsClient, { TestRow } from '@/components/pricing/TestsClient';
-import { MessageCircle } from 'lucide-react';
+import { ClipboardList, Clock4, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
 
 // Supabase via PostgREST (simple + deploy-safe)
 // Env names you gave: SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -109,13 +109,31 @@ function peso(n: number) {
   });
 }
 
+const heroHighlights = [
+  {
+    icon: ShieldCheck,
+    title: 'DOH Licensed',
+    desc: 'Accredited facilities with quality assurance protocols.',
+  },
+  {
+    icon: Clock4,
+    title: 'Opens 6:30 AM',
+    desc: 'Perfect for fasting patients who need early draws.',
+  },
+  {
+    icon: ClipboardList,
+    title: 'Transparent rates',
+    desc: 'No hidden fees; prices updated straight from our system.',
+  },
+];
+
 export default async function PriceListPage() {
   const { packages, tests } = await getData();
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || '#44969b';
 
   return (
     <main
-      className="min-h-dvh"
+      className="relative min-h-dvh overflow-hidden bg-[rgb(248,250,251)]"
       style={
         {
           // pass accent to CSS variables for consistent theming
@@ -125,102 +143,167 @@ export default async function PriceListPage() {
         } as React.CSSProperties
       }
     >
-      {/* Sticky header with Back + Message */}
-      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur">
-        <div className="mx-auto max-w-5xl p-3">
-          <div className="rounded-2xl bg-white shadow-sm ring-1 ring-black/5 px-3 py-2 flex items-center justify-between">
-            <Link href="/" className="rounded-xl px-3 py-2 hover:bg-black/5">
-              ← Back to Home
-            </Link>
-            <a
-              href="https://m.me/100882935339577"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-white"
-              style={{ backgroundColor: accent }}
-            >
-              <MessageCircle className="h-4 w-4" />
-              Message us
-            </a>
-          </div>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[420px] bg-[radial-gradient(circle_at_top,_rgba(68,150,155,0.18),_rgba(255,255,255,0))]" />
+      <div className="pointer-events-none absolute -right-[20%] top-40 z-0 h-[420px] w-[60%] rounded-full bg-[radial-gradient(circle,_rgba(68,150,155,0.14),_rgba(255,255,255,0))] blur-3xl" />
+
+      <div className="sticky top-0 z-30 border-b border-white/70 bg-white/70 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-6 lg:px-8">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-white/80 px-3 py-1.5 text-sm text-accent shadow-sm transition hover:bg-accent/10"
+          >
+            ← Back to Home
+          </Link>
+          <a
+            href="https://m.me/100882935339577"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent/30 transition hover:opacity-90"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Message us
+          </a>
         </div>
       </div>
 
-      <section className="mx-auto max-w-5xl p-4 md:p-6 space-y-8">
-        <header className="space-y-2">
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Price List</h1>
-          <p className="text-gray-600">
-            Packages first for sulit savings, then individual tests. For questions, message us on Facebook.
-          </p>
-        </header>
-
-        {/* Featured packages with glow + pill */}
-        <div className="grid md:grid-cols-2 gap-3">
-          {packages.filter((p) => p.isFeatured).map((p) => (
-            <div key={p.package_code} className="glow-card rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-semibold leading-tight">{p.display_name}</h3>
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: 'var(--accent-10)', color: 'var(--accent)' }}
-                    >
-                      Most Sulit
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Hindi kailangan ng reseta • 10–12 hours fasting
-                  </p>
-                </div>
-                <div className="text-3xl font-bold" style={{ color: 'var(--accent)' }}>
-                  {peso(p.package_price)}
-                </div>
+      <div className="relative z-10">
+        <section className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-10 md:px-6 lg:px-8">
+          <header className="relative overflow-hidden rounded-[40px] border border-white/60 bg-white/80 px-6 py-10 shadow-xl backdrop-blur md:px-10 md:py-14">
+            <div className="absolute -top-24 -right-16 h-48 w-48 rounded-full bg-accent/20 blur-3xl" />
+            <div className="absolute -bottom-24 -left-12 h-60 w-60 rounded-full bg-emerald-200/40 blur-3xl" />
+            <div className="relative flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-2xl space-y-5">
+                <span className="inline-flex items-center gap-2 rounded-full bg-accent/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-accent">
+                  <Sparkles className="h-4 w-4" />
+                  Transparent Pricing
+                </span>
+                <h1 className="text-3xl font-semibold text-gray-900 sm:text-4xl md:text-5xl">
+                  Affordable laboratory packages and individual tests
+                </h1>
+                <p className="max-w-xl text-base text-gray-600 md:text-lg">
+                  Our rates stay honest and easy to understand. Choose a sulit package or browse individual diagnostics—
+                  same trusted care, same-day availability, and results accessible online.
+                </p>
               </div>
-
-              <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                {p.items.map((it) => (
-                  <li key={it.name} className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--accent)' }} />
-                    <span>{it.name}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="grid w-full max-w-sm gap-4 rounded-3xl border border-white/60 bg-white/80 p-5 shadow-lg backdrop-blur lg:max-w-xs">
+                <p className="text-sm font-semibold text-gray-900">Need a custom quote?</p>
+                <p className="text-sm text-gray-600">
+                  Message our team for corporate accounts, annual physicals, or mobile collection.
+                </p>
+                <a
+                  href="mailto:wellservmedicalcorp@gmail.com"
+                  className="inline-flex items-center justify-center rounded-full border border-accent/40 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/10"
+                >
+                  Email quotations
+                </a>
+              </div>
             </div>
-          ))}
-        </div>
-
-        {/* All packages (floating cards, accent only) */}
-        <div className="space-y-3">
-          <h2 className="text-2xl font-semibold">Packages</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {packages.filter((p) => !p.isFeatured).map((p) => (
-              <div key={p.package_code} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between gap-3">
+            <div className="relative mt-10 grid gap-4 sm:grid-cols-3">
+              {heroHighlights.map(({ icon: Icon, title, desc }) => (
+                <div
+                  key={title}
+                  className="flex items-start gap-3 rounded-2xl border border-white/60 bg-white/80 p-4 text-sm text-gray-600 shadow-md backdrop-blur"
+                >
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/10 text-accent">
+                    <Icon className="h-5 w-5" />
+                  </span>
                   <div className="space-y-1">
-                    <h3 className="text-lg font-semibold leading-tight">{p.display_name}</h3>
-                    
-                  </div>
-                  <div className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
-                    {peso(p.package_price)}
+                    <div className="text-sm font-semibold text-gray-900">{title}</div>
+                    <p className="text-xs text-gray-600">{desc}</p>
                   </div>
                 </div>
-                <ul className="mt-3 space-y-1.5 text-sm text-gray-700">
-                  {p.items.map((it) => (
-                    <li key={it.name} className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: 'var(--accent)' }} />
-                      <span>{it.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
+              ))}
+            </div>
+          </header>
 
-        {/* Individual tests */}
-        <TestsClient tests={tests} />
-      </section>
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-semibold text-gray-900 md:text-3xl">Featured packages</h2>
+                <p className="text-sm text-gray-600">
+                  Most-requested bundles for annual checkups and baseline lab work.
+                </p>
+              </div>
+              <a href="#individual-tests" className="btn-outline rounded-full px-4 py-2 text-sm">
+                Jump to individual tests
+              </a>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {packages
+                .filter((p) => p.isFeatured)
+                .map((p) => (
+                  <div
+                    key={p.package_code}
+                    className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur transition hover:-translate-y-1 hover:shadow-2xl"
+                  >
+                    <div className="absolute -top-32 right-0 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
+                    <div className="relative flex items-start justify-between gap-3">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xl font-semibold leading-tight text-gray-900">{p.display_name}</h3>
+                          <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-accent">
+                            Most Sulit
+                          </span>
+                        </div>
+                        <p className="text-xs font-medium text-gray-500">
+                          Hindi kailangan ng reseta • 10–12 hours fasting
+                        </p>
+                      </div>
+                      <div className="text-3xl font-bold text-accent">{peso(p.package_price)}</div>
+                    </div>
+                    <ul className="relative mt-5 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
+                      {p.items.map((it) => (
+                        <li key={it.name} className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-accent/70" />
+                          <span className="leading-tight">{it.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900 md:text-3xl">All packages</h2>
+              <p className="text-sm text-gray-600">
+                Pick the combination you need—pricing already includes lab supplies and results portal access.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {packages
+                .filter((p) => !p.isFeatured)
+                .map((p) => (
+                  <div
+                    key={p.package_code}
+                    className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-lg backdrop-blur transition hover:-translate-y-1 hover:shadow-xl"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-semibold leading-tight text-gray-900">{p.display_name}</h3>
+                      </div>
+                      <div className="text-xl font-semibold text-accent">{peso(p.package_price)}</div>
+                    </div>
+                    <ul className="mt-4 space-y-1.5 text-sm text-gray-600">
+                      {p.items.map((it) => (
+                        <li key={it.name} className="flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 rounded-full bg-accent/60" />
+                          <span className="leading-tight">{it.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Individual tests */}
+          <div id="individual-tests">
+            <TestsClient tests={tests} />
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
