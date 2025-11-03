@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 
 // ---------- types ----------
 type RefInfo = { low?: number; high?: number; normal_values?: string };
@@ -244,6 +244,8 @@ export default function ReportViewer(props: ReportViewerProps) {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [bootCfg, setBootCfg] = useState<Record<string, string> | null>(null);
   const [compareOn, setCompareOn] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(true);
+  const summaryPanelId = useId();
   // Splash / preload states
   const [bootLoaded, setBootLoaded] = useState(false);
   const [logoLoaded, setLogoLoaded] = useState(false);
@@ -480,6 +482,11 @@ export default function ReportViewer(props: ReportViewerProps) {
     }
   }, [autoFetch, useSession, patientId, apiPath]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.innerWidth < 768) setSummaryOpen(false);
+  }, []);
+
   // Build index for previous values
   const valueIndex = useMemo(() => {
     const map = new Map<string, Map<string, { raw: string; num: number | null; unit?: string }>>();
@@ -630,40 +637,91 @@ export default function ReportViewer(props: ReportViewerProps) {
           --row-pad: 6px;
           --sig-height: 30px;
           --logo-height: 150px;
-          --brand: #000000ff;
+          --brand: #16313b;
           --accent: #0f766e;
-          --border: #ddd;
+          --border: #d5e0e8;
+          --border-strong: #8ba1ae;
+          --surface: #ffffff;
+          --surface-muted: #ffffff;
+          --shell-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
         }
-        body { font-size: var(--font-base); color: var(--brand); }
+        body {
+          font-size: var(--font-base);
+          color: var(--brand);
+        }
+        .page {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          background: var(--surface-muted);
+          padding: clamp(12px, 4vw, 32px);
+        }
         h1 { font-size: var(--font-title); }
         h3 { font-size: var(--font-heading); }
 
-        .container { max-width: 960px; margin: 0 auto; padding: 16px; }
+        .container { max-width: 960px; margin: 0 auto; }
+        .viewer-shell {
+          padding: clamp(18px, 4vw, 26px);
+          background: var(--surface);
+          border: 1px solid rgba(25, 82, 102, 0.08);
+          border-radius: 24px;
+          box-shadow: var(--shell-shadow);
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+          margin-bottom: clamp(26px, 5vw, 48px);
+        }
         .content { flex: 1 0 auto; }
-        th, td { padding: var(--row-pad); }
+        .viewer-footer {
+          margin-top: clamp(28px, 5vw, 52px);
+          padding: clamp(18px, 4vw, 26px);
+          background: var(--surface);
+          border: 1px solid rgba(25, 82, 102, 0.08);
+          border-radius: 20px;
+          box-shadow: var(--shell-shadow);
+        }
+        .viewer-footer .sig-row { margin-top: 4px; }
+        th, td { padding: calc(var(--row-pad) - 1px) 10px; }
 
         .date-select {
           font-size: 16px;
-          padding: 10px 12px;
-          border: 1px solid var(--accent);
-          border-radius: 8px;
-          box-shadow: 0 0 0 2px rgba(15,118,110,.08);
-          background: #fff;
+          padding: 8px 12px;
+          min-height: 44px;
+          line-height: 1.25;
+          border: 1px solid rgba(25,82,102,0.22);
+          border-radius: 12px;
+          box-shadow: 0 1px 2px rgba(15,23,42,0.06), 0 0 0 3px rgba(15,118,110,0.08);
+          background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+          appearance: none;
+          padding-right: 44px;
+          transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
         }
         .date-select:focus {
+          transform: translateY(-1px);
           outline: none;
-          box-shadow: 0 0 0 3px rgba(15,118,110,.20);
+          border-color: rgba(15,118,110,0.65);
+          box-shadow: 0 12px 20px rgba(15,118,110,0.15), 0 0 0 3px rgba(15,118,110,0.22);
         }
+        .date-select option { font-size: 15px; }
         .controls .label {
           font-weight: 700;
           color: var(--brand);
         }
 
         /* clinic header */
-        .clinic { display:flex; align-items:center; gap:12px; margin: 8px 0 12px 0; }
+        .clinic {
+          display:flex;
+          align-items:center;
+          gap:12px;
+          margin: 4px 0 12px 0;
+          padding: 12px 16px;
+          border-radius: 20px;
+          border: 1px solid rgba(25,82,102,0.08);
+          background: rgba(244,247,251,0.7);
+        }
         .clinic img { height: var(--logo-height); width:auto; object-fit: contain; display:block; }
-        .clinic-name { font-weight: 700; font-size: 20px; line-height: 1.2; }
-        .clinic-sub { color:#444; }
+        .clinic-name { font-weight: 700; font-size: 20px; line-height: 1.2; color: #0f1f28; }
+        .clinic-sub { color: rgba(41,74,86,0.78); }
 
         /* SCREEN: title + search on ONE line, centered */
         .toolbar{
@@ -691,33 +749,286 @@ export default function ReportViewer(props: ReportViewerProps) {
           gap:8px;
         }
 
-        /* optional: on very narrow screens stack them */
-        @media (max-width: 560px){
-          .toolbar{ flex-direction:wrap; }
-        }
-
         /* patient header (name, sex/age/DOB) */
         .patient-head {
           display:flex; align-items:baseline; justify-content:space-between;
-          gap:12px; padding:10px 12px; margin: 8px 0 10px;
-          border:1px solid var(--border); border-radius:12px; background:#fff;
+          gap:12px; padding:14px 16px; margin: 0;
+          border:1px solid rgba(25,82,102,0.12); border-radius:20px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.9), #ffffff 90%);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
         }
         .ph-name { font-size: 20px; font-weight: 800; letter-spacing: .2px; }
-        .ph-meta { color:#444; }
+        .ph-meta { color:rgba(41,74,86,0.75); word-break: break-word; }
 
         /* controls row */
         .controls { display:flex; gap:12px; margin:12px 0; flex-wrap:wrap; }
+        .control-select{
+          flex:1 1 auto;
+          min-width:0;
+          display:flex;
+          align-items:center;
+          gap:10px;
+          position: relative;
+        }
+        .control-select .label{
+          font-size: 15px;
+          white-space: nowrap;
+          color: var(--border-strong);
+        }
+        .control-select::after{
+          content:"";
+          position:absolute;
+          top:50%;
+          right:16px;
+          width:10px;
+          height:10px;
+          border-right:2px solid var(--border-strong);
+          border-bottom:2px solid var(--border-strong);
+          transform: translateY(-55%) rotate(45deg);
+          pointer-events:none;
+          transition: transform .2s ease, border-color .2s ease;
+        }
+        .control-select:focus-within::after{
+          transform: translateY(-15%) rotate(225deg);
+          border-color: rgba(15,118,110,0.8);
+        }
+        .control-toggle {
+          display:flex;
+          align-items:center;
+          gap:6px;
+          color: var(--brand);
+        }
+        .control-row {
+          display:flex;
+          align-items:center;
+          gap:8px;
+          flex-wrap:wrap;
+        }
+        .control-row button {
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          gap:6px;
+          padding: 10px 14px;
+          border-radius: 12px;
+          border: 1px solid rgba(25,82,102,0.16);
+          background: linear-gradient(135deg, rgba(15,118,110,0.12), rgba(15,118,110,0.05));
+          color: var(--brand);
+          font-weight: 600;
+          transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+        }
+        .control-row button:hover{
+          transform: translateY(-1px);
+          box-shadow: 0 10px 22px rgba(15,118,110,0.18);
+        }
+        .control-row button:active{
+          transform: translateY(0);
+          box-shadow: none;
+        }
 
         /* footer */
-        .report-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border); font-size: 14px; color: var(--brand); }
-        .sig-row { display:flex; gap:16px; align-items:flex-end; flex-wrap: wrap; }
-        .sig { flex:1; min-width:260px; text-align:center; margin-top:8px; }
-        .sig img { max-height: var(--sig-height); width: auto; object-fit: contain; display:block; margin: 0 auto 6px; }
-        .muted { color:#444; font-size: 12px; }
+        .report-footer { margin-top: auto; padding-top: 6px; border-top: none; font-size: 14px; color: var(--brand); }
+        .sig-row {
+          display:grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap:16px;
+          align-items:start;
+          justify-items:center;
+        }
+        .sig {
+          min-width:0;
+          text-align:center;
+          padding:10px 8px 12px;
+          margin-top:0;
+          width: 100%;
+          border-radius: 18px;
+          border: 1px solid rgba(25,82,102,0.08);
+          background: rgba(244,247,251,0.7);
+        }
+        .sig img { max-height: var(--sig-height); width: auto; object-fit: contain; display:block; margin: 6px auto 6px; }
+        .muted { color:rgba(21,44,54,0.68); font-size: 12px; }
 
         table { width:100%; border-collapse: collapse; }
-        thead th { border-bottom: 1px solid var(--border); }
-        tbody td { border-bottom: 1px solid rgba(0,0,0,0.04); }
+        thead th {
+          border-bottom: 1px solid rgba(25,82,102,0.18);
+          background: rgba(244,247,251,0.6);
+          color: rgba(21,44,54,0.82);
+          font-weight: 600;
+        }
+        tbody tr:nth-child(odd) {
+          background: rgba(244,247,251,0.45);
+        }
+        tbody td { border-bottom: 1px solid rgba(15,23,42,0.04); }
+        .flag-cell { text-align: left !important; }
+        .flag-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          padding: 2px 10px;
+          border-radius: 999px;
+          background: rgba(21,44,54,0.08);
+          color: rgba(21,44,54,0.85);
+          letter-spacing: 0.02em;
+        }
+        .flag-pill::before {
+          content: "";
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          background: currentColor;
+          opacity: 0.75;
+        }
+        .flag-pill[data-flag="H"] {
+          background: rgba(220,38,38,0.16);
+          color: #b00020;
+        }
+        .flag-pill[data-flag="L"] {
+          background: rgba(14,116,144,0.18);
+          color: #0f766e;
+        }
+        .flag-pill[data-flag="A"] {
+          background: rgba(234,179,8,0.2);
+          color: #b45309;
+        }
+        .flag-pill[data-flag=""] {
+          background: rgba(148,163,184,0.2);
+          color: #475569;
+        }
+        .section-block {
+          border: 1px solid rgba(25,82,102,0.08);
+          border-radius: 20px;
+          padding: 18px 18px 12px;
+          background: rgba(255,255,255,0.98);
+          box-shadow: 0 18px 38px rgba(15,23,42,0.06);
+        }
+        .section-block h3 {
+          margin: 0 0 12px 0;
+        }
+
+        .table-scroll {
+          width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .table-scroll table {
+          min-width: 560px;
+        }
+        .table-scroll table th:first-child,
+        .table-scroll table td:first-child {
+          position: sticky;
+          left: 0;
+          z-index: 2;
+          background: #ffffff;
+          border-right: 1px solid rgba(148,163,184,0.18);
+        }
+        .table-scroll table thead th:first-child {
+          background: rgba(244,247,251,0.6);
+        }
+        .table-scroll table tbody tr:nth-child(odd) td:first-child {
+          background: rgba(244,247,251,0.45);
+        }
+
+        @media (max-width: 900px) {
+          :root{
+            --font-base: 13.5px;
+            --font-heading: 17px;
+            --font-title: 17px;
+            --row-pad: 5px;
+            --logo-height: 130px;
+            --sig-height: 26px;
+          }
+          .viewer-shell,
+          .viewer-footer {
+            padding: clamp(16px, 3vw, 22px);
+            border-radius: 20px;
+          }
+          .container { padding-inline: 14px; }
+          .clinic { flex-direction: column; align-items: center; text-align: center; }
+          .clinic img { height: auto; max-height: 120px; max-width: min(80%, 240px); }
+          .patient-head { flex-direction: column; align-items: flex-start; gap: 6px; }
+          .ph-name { font-size: 18px; }
+          .ph-meta { font-size: 13px; line-height: 1.4; }
+          .controls { flex-direction: column; align-items: stretch; gap: 12px; }
+          .control-toggle { width: 100%; }
+          .control-select{
+            width: 100%;
+            flex-direction: column;
+            align-items: stretch;
+            gap:6px;
+          }
+          .control-select .label{
+            font-size: 14px;
+          }
+          .control-row { width: 100%; }
+          .control-row select {
+            flex: 1 1 auto;
+            min-width: 0;
+          }
+          .date-select {
+            font-size: 15px;
+            padding: 8px 10px;
+            min-height: 40px;
+          }
+          .report-footer { font-size: 12.5px; padding-top: 18px; }
+          .sig-row {
+            grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
+            gap:12px;
+          }
+          .sig { width: 100%; padding-top:4px; }
+          .sig img { max-height: 22px; }
+          .ps-card { padding: 12px; }
+          .ps-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+          .section-block {
+            padding: 16px 16px 12px;
+            border-radius: 18px;
+          }
+        }
+
+        @media (max-width: 560px) {
+          .toolbar{ flex-direction:wrap; }
+          :root{
+            --font-base: 12.8px;
+            --font-heading: 15px;
+            --font-title: 15px;
+            --row-pad: 4px;
+            --sig-height: 22px;
+          }
+          .viewer-shell,
+          .viewer-footer {
+            padding: 16px;
+            border-radius: 16px;
+          }
+          .container { padding-inline: 12px; }
+          .control-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+          }
+          .control-select{
+            gap:4px;
+          }
+          .control-select .label{
+            font-size: 13.5px;
+          }
+          .control-row select,
+          .control-row button {
+            width: 100%;
+          }
+          .date-select {
+            font-size: 14.5px;
+            padding: 8px 10px;
+            min-height: 38px;
+          }
+          .table-scroll table {
+            min-width: 520px;
+          }
+          .section-block {
+            padding: 14px 14px 10px;
+            border-radius: 16px;
+          }
+        }
 
         /* Utility: print-only/screen-only (no Tailwind dependency) */
         .print-only { display: none; }
@@ -738,9 +1049,18 @@ export default function ReportViewer(props: ReportViewerProps) {
 
           body { margin: 0; font-size: var(--font-base); }
 
+          .page { padding: 0 !important; background: #fff !important; }
           .container { max-width: none; padding: 0; margin: 0; }
+          .viewer-shell,
+          .viewer-footer {
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: #fff !important;
+          }
           .toolbar, .controls { display:none !important; }
-          .clinic { margin: 0 0 6px 0; text-align: center; }
+          .clinic { margin: 0 0 6px 0; text-align: center; background: #fff !important; border: none !important; }
           .clinic img { max-height: 64px !important; }
           h3 { margin: 6px 0; break-after: avoid-page; }
 
@@ -750,6 +1070,8 @@ export default function ReportViewer(props: ReportViewerProps) {
           thead { display: table-header-group !important; }   /* repeat headers on new page */
           tfoot { display: table-footer-group !important; }
           tr, td, th { page-break-inside: avoid; }  
+          .table-scroll { overflow: visible !important; }
+          .table-scroll table { min-width: 0 !important; }
 
           /* Footer/signers shouldn’t split */
           .report-footer { page-break-inside: avoid; }
@@ -771,7 +1093,12 @@ export default function ReportViewer(props: ReportViewerProps) {
             gap: 4px 10px !important;
             justify-items: center !important;
           }
-          .sig{ text-align: center !important; }
+          .sig{
+            text-align: center !important;
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+          }
           .sig img{ max-height: 12px !important; margin: 0 0 2px 0 !important; }
           .sig strong{ font-size: 10.5px !important; line-height: 1.15 !important; }
           .muted{ font-size: 9.5px !important; line-height: 1.15 !important; }
@@ -792,8 +1119,17 @@ export default function ReportViewer(props: ReportViewerProps) {
 
           body { margin: 0; font-size: var(--font-base); }
 
-          .page { display: block !important; min-height: auto !important; }
+          .page { display: block !important; min-height: auto !important; padding: 0 !important; background: #fff !important; }
           .container { max-width: none; padding: 0 !important; margin: 0 !important; }
+          .viewer-shell,
+          .viewer-footer {
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #fff !important;
+          }
 
           /* Hide on print */
           .toolbar, .controls { display: none !important; }
@@ -804,7 +1140,7 @@ export default function ReportViewer(props: ReportViewerProps) {
           .print-only { display: block !important; }
 
           /* Header compaction */
-          .clinic { margin: 0 0 6px 0; text-align: center; }
+          .clinic { margin: 0 0 6px 0; text-align: center; background: #fff !important; border: none !important; }
           .clinic img   { max-height: 54px !important; }
           .clinic-name  { font-size: 14px !important; line-height: 1.15; }
 
@@ -817,7 +1153,7 @@ export default function ReportViewer(props: ReportViewerProps) {
           }
           /* strip card/border look */
           .page, .container, .content, section,
-          .card, .panel, .box, .patient-head, .ps-card, .report-footer, table {
+          .card, .panel, .box, .patient-head, .ps-card, .report-footer, .viewer-shell, .viewer-footer, .section-block, table {
             box-shadow: none !important;
             border-radius: 0 !important;
             border: none !important;
@@ -833,6 +1169,8 @@ export default function ReportViewer(props: ReportViewerProps) {
           thead { display: table-header-group !important; }
           tfoot { display: table-footer-group !important; }
           tr, td, th { page-break-inside: avoid; }
+          .table-scroll { overflow: visible !important; }
+          .table-scroll table { min-width: 0 !important; }
 
           /* Hide Patient Summary on print */
           .ps-card { display: none !important; }
@@ -909,16 +1247,27 @@ export default function ReportViewer(props: ReportViewerProps) {
         @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: .4; } 50% { transform: scale(1.3); opacity: 1; } }
 
         /* Patient Summary Card (screen only by default) */
-        .ps-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin: 10px 0 14px; background: #fafafa; }
-        .ps-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
-        .ps-title { font-weight: 700; }
-        .ps-badge { font-size:12px; color:#555; background:#f0f0f0; border:1px solid #e6e6e6; border-radius:999px; padding:2px 8px; }
-        .ps-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 10px 16px; }
-        .ps-label { color:#666; font-size:12px; }
-        .ps-value { font-weight:600; }
+        .ps-card { border: 1px solid rgba(25,82,102,0.12); border-radius: 20px; padding: 16px; margin: 8px 0 16px; background: rgba(244,247,251,0.65); backdrop-filter: blur(4px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.45); }
+        .ps-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+        .ps-title { font-weight: 700; font-size: 15px; color: var(--brand); }
+        .ps-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .ps-badge { font-size:11px; color:#526673; background:#fff; border:1px solid rgba(25,82,102,0.16); border-radius:999px; padding:3px 10px; box-shadow:0 4px 12px rgba(15,23,42,0.08); }
+        .ps-toggle { border:1px solid rgba(25,82,102,0.18); background:#fff; color:var(--brand); font-size:12px; font-weight:600; padding:5px 10px; border-radius:999px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 10px rgba(15,23,42,0.08); transition:transform .15s ease, box-shadow .15s ease; }
+        .ps-toggle svg { width:12px; height:12px; transition: transform .2s ease; }
+        .ps-card.is-open .ps-toggle svg { transform: rotate(180deg); }
+        .ps-toggle:hover{ transform: translateY(-1px); box-shadow:0 6px 12px rgba(15,23,42,0.12); }
+        .ps-toggle:active{ transform: translateY(0); box-shadow:none; }
+        .ps-collapsed-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+        .ps-chip { font-size:11.5px; color:#356072; background:#fff; border:1px solid rgba(25,82,102,0.15); border-radius:999px; padding:4px 9px; box-shadow:0 3px 8px rgba(15,23,42,0.08); }
+        .ps-body { overflow:hidden; transition:max-height .28s ease, opacity .18s ease; }
+        .ps-body.open { max-height: 1200px; opacity:1; }
+        .ps-body.collapsed { max-height: 0; opacity:0; pointer-events:none; }
+        .ps-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 10px 16px; padding-top:2px; }
+        .ps-label { color:#637685; font-size:12px; text-transform:uppercase; letter-spacing:0.03em; }
+        .ps-value { font-weight:600; color:var(--brand); }
         .ps-multi { white-space:pre-wrap; line-height:1.25; }
-        .ps-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #ddd; background:#fff; }
-        .ps-sep { grid-column:1 / -1; height:1px; background:#e9e9e9; margin:6px 0; }
+        .ps-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid rgba(25,82,102,0.18); background:#fff; color:var(--brand); }
+        .ps-sep { grid-column:1 / -1; height:1px; background:#d7e4ec; margin:6px 0; opacity:0.7; }
         
       `}</style>
 
@@ -962,7 +1311,10 @@ export default function ReportViewer(props: ReportViewerProps) {
         </div>
       )}
 
-      <div className="container content" style={{ opacity: showSplash ? 0 : 1, pointerEvents: showSplash ? "none" : "auto" }}>
+      <div
+        className="container content viewer-shell"
+        style={{ opacity: showSplash ? 0 : 1, pointerEvents: showSplash ? "none" : "auto" }}
+      >
         {/* ---------- CLINIC HEADER (override-able) ---------- */}
         {headerOverride ? (
           <div className="mb-2">{headerOverride}</div>
@@ -1057,44 +1409,81 @@ export default function ReportViewer(props: ReportViewerProps) {
           const hasContact = (!!email || !!phone || !!addr);
           const hasNarr = (!!chief || !!hpi || !!pmh || !!psh || !!allergies || !!medsText || !!famHx);
 
+          const collapsedHighlights: string[] = [];
+          if (bpStr) collapsedHighlights.push(`BP ${bpStr}`);
+          if (bmi != null) collapsedHighlights.push(`BMI ${bmi} ${bmiClass(bmi)}`);
+          if (wtKg) collapsedHighlights.push(`Weight ${withUnit(wtKg, "kg")}`);
+          if (smoking) collapsedHighlights.push(`Smoking ${smoking}`);
+          if (alcohol) collapsedHighlights.push(`Alcohol ${alcohol}`);
+          if (collapsedHighlights.length === 0 && email) collapsedHighlights.push(`Email ${email}`);
+          const visibleHighlights = collapsedHighlights.slice(0, 3);
+
           if (!hasVitals && !hasContact && !hasNarr) return null;
 
           return (
-            <section className="ps-card">
+            <section className={`ps-card ${summaryOpen ? "is-open" : "is-collapsed"}`}>
               <div className="ps-head">
                 <div className="ps-title">Patient Summary</div>
-                {lastUpd && <div className="ps-badge">Last updated: {lastUpd}</div>}
+                <div className="ps-actions">
+                  {lastUpd && <div className="ps-badge">Last updated: {lastUpd}</div>}
+                  <button
+                    type="button"
+                    className="ps-toggle"
+                    onClick={() => setSummaryOpen(prev => !prev)}
+                    aria-expanded={summaryOpen}
+                    aria-controls={summaryPanelId}
+                  >
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                      <path d="M4 6.5 8 10l4-3.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {summaryOpen ? "Hide details" : "Show details"}
+                  </button>
+                </div>
               </div>
 
-              <div className="ps-grid">
-                {/* VITALS */}
-                {(htFt || htIn) && (<div><div className="ps-label">Height</div><div className="ps-value">{fmtFtIn(htFt, htIn)}</div></div>)}
-                {!!wtKg && (<div><div className="ps-label">Weight</div><div className="ps-value">{withUnit(wtKg, "kg")}</div></div>)}
-                {bmi != null && (
-                  <div>
-                    <div className="ps-label">Calculated BMI</div>
-                    <div className="ps-value">{bmi} <span className="ps-pill">{bmiClass(bmi)}</span></div>
-                  </div>
-                )}
-                {!!bpStr && (<div><div className="ps-label">Latest Known Blood Pressure</div><div className="ps-value">{bpStr}</div></div>)}
-                {!!smoking && (<div><div className="ps-label">Smoking History</div><div className="ps-value">{smoking}</div></div>)}
-                {!!alcohol && (<div><div className="ps-label">Alcohol History</div><div className="ps-value">{alcohol}</div></div>)}
+              {!summaryOpen && visibleHighlights.length > 0 && (
+                <div className="ps-collapsed-chips">
+                  {visibleHighlights.map((txt, idx) => (
+                    <span key={idx} className="ps-chip">{txt}</span>
+                  ))}
+                </div>
+              )}
 
-                {/* CONTACT */}
-                {!!phone && (<div><div className="ps-label">Contact Number</div><div className="ps-value">{phone}</div></div>)}
-                {!!email && (<div><div className="ps-label">Email</div><div className="ps-value">{email}</div></div>)}
-                {!!addr  && (<div><div className="ps-label">Address</div><div className="ps-value ps-multi">{addr}</div></div>)}
+              <div
+                className={`ps-body ${summaryOpen ? "open" : "collapsed"}`}
+                id={summaryPanelId}
+                aria-hidden={!summaryOpen}
+              >
+                <div className="ps-grid">
+                  {/* VITALS */}
+                  {(htFt || htIn) && (<div><div className="ps-label">Height</div><div className="ps-value">{fmtFtIn(htFt, htIn)}</div></div>)}
+                  {!!wtKg && (<div><div className="ps-label">Weight</div><div className="ps-value">{withUnit(wtKg, "kg")}</div></div>)}
+                  {bmi != null && (
+                    <div>
+                      <div className="ps-label">Calculated BMI</div>
+                      <div className="ps-value">{bmi} <span className="ps-pill">{bmiClass(bmi)}</span></div>
+                    </div>
+                  )}
+                  {!!bpStr && (<div><div className="ps-label">Latest Known Blood Pressure</div><div className="ps-value">{bpStr}</div></div>)}
+                  {!!smoking && (<div><div className="ps-label">Smoking History</div><div className="ps-value">{smoking}</div></div>)}
+                  {!!alcohol && (<div><div className="ps-label">Alcohol History</div><div className="ps-value">{alcohol}</div></div>)}
 
-                {(hasContact && hasNarr) && <div className="ps-sep" />}
+                  {/* CONTACT */}
+                  {!!phone && (<div><div className="ps-label">Contact Number</div><div className="ps-value">{phone}</div></div>)}
+                  {!!email && (<div><div className="ps-label">Email</div><div className="ps-value">{email}</div></div>)}
+                  {!!addr  && (<div><div className="ps-label">Address</div><div className="ps-value ps-multi">{addr}</div></div>)}
 
-                {/* NARRATIVES */}
-                {!!chief && (<div><div className="ps-label">Chief Complaint</div><div className="ps-value ps-multi">{chief}</div></div>)}
-                {!!hpi   && (<div><div className="ps-label">Present Illness History</div><div className="ps-value ps-multi">{hpi}</div></div>)}
-                {!!pmh   && (<div><div className="ps-label">Past Medical History</div><div className="ps-value ps-multi">{pmh}</div></div>)}
-                {!!psh   && (<div><div className="ps-label">Past Surgical History</div><div className="ps-value ps-multi">{psh}</div></div>)}
-                {!!allergies && (<div><div className="ps-label">Allergies</div><div className="ps-value ps-multi">{allergies}</div></div>)}
-                {!!medsText  && (<div><div className="ps-label">Medications</div><div className="ps-value ps-multi">{medsText}</div></div>)}
-                {!!famHx     && (<div><div className="ps-label">Family History</div><div className="ps-value ps-multi">{famHx}</div></div>)}
+                  {(hasContact && hasNarr) && <div className="ps-sep" />}
+
+                  {/* NARRATIVES */}
+                  {!!chief && (<div><div className="ps-label">Chief Complaint</div><div className="ps-value ps-multi">{chief}</div></div>)}
+                  {!!hpi   && (<div><div className="ps-label">Present Illness History</div><div className="ps-value ps-multi">{hpi}</div></div>)}
+                  {!!pmh   && (<div><div className="ps-label">Past Medical History</div><div className="ps-value ps-multi">{pmh}</div></div>)}
+                  {!!psh   && (<div><div className="ps-label">Past Surgical History</div><div className="ps-value ps-multi">{psh}</div></div>)}
+                  {!!allergies && (<div><div className="ps-label">Allergies</div><div className="ps-value ps-multi">{allergies}</div></div>)}
+                  {!!medsText  && (<div><div className="ps-label">Medications</div><div className="ps-value ps-multi">{medsText}</div></div>)}
+                  {!!famHx     && (<div><div className="ps-label">Family History</div><div className="ps-value ps-multi">{famHx}</div></div>)}
+                </div>
               </div>
             </section>
           );
@@ -1124,7 +1513,7 @@ export default function ReportViewer(props: ReportViewerProps) {
         {report && (
           <div className="controls">
             {visitDates.length > 1 && (
-              <label style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <label className="control-toggle">
                 <input
                   type="checkbox"
                   checked={compareOn}
@@ -1135,24 +1524,25 @@ export default function ReportViewer(props: ReportViewerProps) {
             )}
 
             {visitDates.length > 0 && (
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <label className="label" style={{ fontSize: 15 }}>Visit date:</label>
-                <select
-                  value={selectedDate || ""}
-                  onChange={(e)=>setSelectedDate(e.target.value)}
-                  className="date-select"
-                >
-                  {visitDates.map(d => (
-                    <option key={d} value={d}>
-                      {formatTestDate(d)}
-                    </option>
-                  ))}
-                </select>
+              <div className="control-row">
+                <div className="control-select">
+                  <label className="label">Visit date:</label>
+                  <select
+                    value={selectedDate || ""}
+                    onChange={(e)=>setSelectedDate(e.target.value)}
+                    className="date-select"
+                  >
+                    {visitDates.map(d => (
+                      <option key={d} value={d}>
+                        {formatTestDate(d)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 <button
                   onClick={() => window.print()}
                   className="screen-only"
-                  style={{ padding:"10px 12px", border:"1px solid var(--border)", borderRadius:8 }}
                 >
                   Print / Save as PDF
                 </button>
@@ -1171,22 +1561,23 @@ export default function ReportViewer(props: ReportViewerProps) {
                 const hideRF = section.name === "Urinalysis" || section.name === "Fecalysis";
 
                 return (
-                  <div key={section.name} className="section-block" style={{ marginTop: 18 }}>
-                    <h3 style={{ margin: "10px 0" }}>{section.name}</h3>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th style={{ textAlign: "left" }}>Parameter</th>
-                          <th style={{ textAlign: "right" }}>Result</th>
-                          {compareOn && <th style={{ textAlign: "right" }}>Prev. Res.</th>}
-                          {compareOn && <th style={{ textAlign: "right" }}>Latest % Change</th>}
-                          <th style={{ textAlign: "left" }}>Unit</th>
-                          {!hideRF && <th style={{ textAlign: "left" }}>Reference</th>}
-                          {!hideRF && <th style={{ textAlign: "center" }}>Current Flag</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {section.items.map(it => {
+                  <div key={section.name} className="section-block">
+                    <h3>{section.name}</h3>
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: "left" }}>Parameter</th>
+                            <th style={{ textAlign: "right" }}>Result</th>
+                            {compareOn && <th style={{ textAlign: "right" }}>Prev. Res.</th>}
+                            {compareOn && <th style={{ textAlign: "right" }}>Latest % Change</th>}
+                            <th style={{ textAlign: "left" }}>Unit</th>
+                            {!hideRF && <th style={{ textAlign: "left" }}>Reference</th>}
+                            {!hideRF && <th style={{ textAlign: "left" }}>Current Flag</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {section.items.map(it => {
                           if (!it.value) return null;
 
                           const labelLc = String(it.label || "").trim().toLowerCase();
@@ -1210,48 +1601,45 @@ export default function ReportViewer(props: ReportViewerProps) {
                             deltaColor = delta > 0 ? "#b00020" : delta < 0 ? "#1976d2" : "#666";
                           }
 
-                          return (
-                            <tr key={it.key}>
-                              <td>{it.label}</td>
-                              <td style={{ textAlign: "right" }}>
-                                {cur != null ? fmt(cur) : String(it.value ?? "")}
-                              </td>
-
-                              {compareOn && (
-                                <>
-                                  <td style={{ textAlign: "right" }}>
-                                    {prevList.length ? (
-                                      prevList.map(p => (
-                                        <div key={p.date} style={{ whiteSpace: "nowrap", fontSize: 12, lineHeight: 1.2 }}>
-                                          {formatPrevDate(p.date)}: {p.num != null ? fmt(p.num) : p.raw}
-                                        </div>
-                                      ))
-                                    ) : "—"}
-                                  </td>
-                                  <td style={{ textAlign: "right", color: deltaColor }}>{deltaText}</td>
-                                </>
-                              )}
-
-                              <td>{it.unit || ""}</td>
-                              {!hideRF && <td>{refText}</td>}
-                              {!hideRF && (
-                                <td
-                                  style={{
-                                    textAlign: "center",
-                                    color:
-                                      it.flag === "H" ? "#b00020" :
-                                      it.flag === "L" ? "#1976d2" :
-                                      it.flag === "A" ? "#f57c00" : "#666"
-                                  }}
-                                >
-                                  {it.flag || ""}
+                            return (
+                              <tr key={it.key}>
+                                <td>{it.label}</td>
+                                <td style={{ textAlign: "right" }}>
+                                  {cur != null ? fmt(cur) : String(it.value ?? "")}
                                 </td>
-                              )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+
+                                {compareOn && (
+                                  <>
+                                    <td style={{ textAlign: "right" }}>
+                                      {prevList.length ? (
+                                        prevList.map(p => (
+                                          <div key={p.date} style={{ whiteSpace: "nowrap", fontSize: 12, lineHeight: 1.2 }}>
+                                            {formatPrevDate(p.date)}: {p.num != null ? fmt(p.num) : p.raw}
+                                          </div>
+                                        ))
+                                      ) : "—"}
+                                    </td>
+                                    <td style={{ textAlign: "right", color: deltaColor }}>{deltaText}</td>
+                                  </>
+                                )}
+
+                                <td>{it.unit || ""}</td>
+                                {!hideRF && <td>{refText}</td>}
+                                {!hideRF && (
+                                  <td className="flag-cell">
+                                    {it.flag ? (
+                                      <span className="flag-pill" data-flag={it.flag}>
+                                        {it.flag === "H" ? "High" : it.flag === "L" ? "Low" : it.flag === "A" ? "Alert" : it.flag}
+                                      </span>
+                                    ) : ""}
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 );
               })}
@@ -1260,7 +1648,7 @@ export default function ReportViewer(props: ReportViewerProps) {
       </div>
 
       {showFooter && (
-        <footer className="report-footer container">
+        <footer className="report-footer container viewer-footer">
           {showSigners && signers.length > 0 && (
             <div className="sig-row">
               {signers.map((s, idx) => {

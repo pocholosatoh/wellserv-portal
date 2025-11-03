@@ -60,7 +60,7 @@ export default function HomePage() {
                 {/* 4) Conspicuous “View My Results” */}
                 <Link
                   href="/patient/"
-                  className="btn-outline rounded-xl px-3 py-2 text-sm sm:px-4"
+                  className="inline-flex items-center justify-center rounded-2xl border border-accent/40 bg-white/80 px-5 py-2 text-sm font-semibold text-accent shadow-sm transition hover:-translate-y-0.5 hover:border-accent hover:shadow-lg sm:px-6"
                   aria-label="View my results online"
                 >
                   View My Results
