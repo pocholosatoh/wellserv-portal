@@ -173,13 +173,13 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
     initiallyCollapsed = false,
     emptyText = "No outside lab results uploaded yet.",
   } = props;
-  console.log("[OtherLabsViewer] apiPath =", apiPath);
 
   const [items, setItems] = useState<OtherLabItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(!initiallyCollapsed);
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [pdfSrc, setPdfSrc] = useState<string | null>(null);
+  const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
 
   useEffect(() => {
     let abort = false;
@@ -235,14 +235,35 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
   if (!showIfEmpty && items && items.length === 0) return null;
 
   return (
-    <section className={"rounded-2xl border bg-white/70 backdrop-blur p-4 md:p-5 shadow-sm " + className}>
-      <header className="flex items-center justify-between gap-3">
-        <h2 className="text-lg md:text-xl font-semibold flex items-center gap-2">
-          <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" /> {title}
+    <section
+      className={
+        "relative overflow-hidden rounded-3xl border border-white/70 bg-white/85 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur px-5 py-5 md:px-6 md:py-6 transition " +
+        className
+      }
+      style={{ boxShadow: "0 24px 55px rgba(15,23,42,0.1)" }}
+    >
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-1.5"
+        style={{ background: accent }}
+        aria-hidden
+      />
+
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800 md:text-xl">
+          <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]" />
+          {title}
         </h2>
         <div className="flex items-center gap-2">
-          {items && items.length > 0 && <span className="text-xs text-gray-500 hidden sm:inline">{items.length} file{items.length > 1 ? "s" : ""}</span>}
-          <button onClick={() => setOpen(v => !v)} className="text-sm px-3 py-1.5 rounded-full border hover:bg-gray-50" aria-expanded={open}>
+          {items && items.length > 0 && (
+            <span className="hidden text-xs text-slate-500 sm:inline">
+              {items.length} file{items.length > 1 ? "s" : ""}
+            </span>
+          )}
+          <button
+            onClick={() => setOpen(v => !v)}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+            aria-expanded={open}
+          >
             {open ? "Hide" : "Show"}
           </button>
         </div>
@@ -264,30 +285,37 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
                   <button
                     key={p}
                     onClick={() => setActive(p)}
-                    className={`px-3 py-1.5 rounded-full border text-sm ${active === p ? "bg-gray-900 text-white" : "hover:bg-gray-50"}`}
+                    className={`px-3.5 py-1.5 rounded-full border text-sm font-medium transition ${
+                      active === p
+                        ? "border-transparent text-white shadow-[0_10px_22px_rgba(68,150,155,0.25)]"
+                        : "border-slate-200 text-slate-600 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow"
+                    }`}
+                    style={{
+                      background: active === p ? accent : "rgba(255,255,255,0.85)",
+                    }}
                   >
                     {p}
                   </button>
                 ))}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {(grouped[active || providers[0]] || []).map((item) => {
                   const isImg = item.content_type?.startsWith("image/");
                   const isPdf = item.content_type === "application/pdf" || item.url.toLowerCase().endsWith(".pdf");
                   return (
-                    <div key={item.id} className="group relative">
+                    <div key={item.id} className="group relative rounded-2xl border border-white/80 bg-white/90 p-3 shadow-[0_14px_35px_rgba(15,23,42,0.07)] backdrop-blur transition">
                       {isImg ? (
                         <button
                           type="button"
                           onClick={() => setImgSrc(item.url)}
-                          className="block w-full overflow-hidden rounded-xl border bg-gray-50"
+                          className="block w-full overflow-hidden rounded-xl border border-slate-100 bg-slate-50 shadow-inner"
                           title={`${fmtDate(item.taken_at)} — ${fileNameFromUrl(item.url)}`}
                         >
                           <img
                             src={item.url}
                             alt={item.note || fileNameFromUrl(item.url)}
-                            className="aspect-[4/3] w-full object-cover group-hover:opacity-90"
+                            className="aspect-[4/3] w-full object-cover transition duration-200 group-hover:scale-[1.02] group-hover:opacity-95"
                             loading="lazy"
                           />
                         </button>
@@ -295,24 +323,31 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
                         <button
                           type="button"
                           onClick={() => setPdfSrc(item.url)}
-                          className="group flex w-full items-center gap-3 p-3 rounded-xl border hover:shadow transition bg-white text-left"
+                          className="group flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white/95 px-3.5 py-3 text-left transition duration-150 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg"
                           title={fileNameFromUrl(item.url)}
                         >
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-50 border">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-600">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6"><path d="M6 2h7l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="currentColor"/></svg>
                           </div>
                           <div className="min-w-0">
-                            <div className="font-medium truncate">{fileNameFromUrl(item.url)}</div>
-                            <div className="text-xs text-gray-500">{fmtDate(item.taken_at)}</div>
+                            <div className="truncate font-semibold text-slate-800">{fileNameFromUrl(item.url)}</div>
+                            <div className="text-xs text-slate-500">{fmtDate(item.taken_at)}</div>
                           </div>
                         </button>
                       ) : (
-                        <a href={item.url} target="_blank" rel="noreferrer" className="block p-3 rounded-xl border bg-white">
-                          <div className="font-medium text-sm truncate">{fileNameFromUrl(item.url)}</div>
-                          <div className="text-xs text-gray-500">{item.content_type || "file"} • {fmtDate(item.taken_at)}</div>
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block rounded-2xl border border-slate-200 bg-white/95 px-3.5 py-3 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg"
+                        >
+                          <div className="truncate text-sm font-semibold text-slate-800">{fileNameFromUrl(item.url)}</div>
+                          <div className="text-xs text-slate-500">
+                            {item.content_type || "file"} • {fmtDate(item.taken_at)}
+                          </div>
                         </a>
                       )}
-                      <div className="mt-1 text-xs text-gray-500">
+                      <div className="mt-2 text-xs font-medium text-slate-500">
                         {fmtDate(item.taken_at)}
                         {item.provider ? ` • ${item.provider}` : ""}
                       </div>

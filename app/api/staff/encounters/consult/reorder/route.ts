@@ -35,11 +35,23 @@ export async function POST(req: Request) {
     }
 
     // Assign consecutive numbers based on the given order
-    let n = 1;
-    for (const encId of ids) {
+    // Step 1: clear queue numbers to avoid transient duplicates (unique constraint)
+    const { error: clearErr } = await db
+      .from("encounters")
+      .update({ queue_number: null })
+      .match({ branch_code: branch })
+      .in("id", ids)
+      .in("consult_status", ["queued_for_consult", "in_consult"]);
+    if (clearErr) throw new Error(clearErr.message);
+
+    // Step 2: apply new ordering from top (idx 0 -> queue 1, etc.)
+    for (let idx = 0; idx < ids.length; idx++) {
+      const encId = ids[idx];
+      const newQueueNumber = idx + 1;
+
       const { error } = await db
         .from("encounters")
-        .update({ queue_number: n++ })
+        .update({ queue_number: newQueueNumber })
         .match({ id: encId, branch_code: branch })
         .in("consult_status", ["queued_for_consult", "in_consult"]);
 

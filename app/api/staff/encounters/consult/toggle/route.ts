@@ -54,37 +54,57 @@ export async function POST(req: Request) {
   const db = supa();
   try {
     const { encounter_id, branch, enable } = await req.json();
-    if (!encounter_id || !branch || typeof enable !== "boolean") {
+    const branchCode = String(branch || "").toUpperCase();
+
+    if (!encounter_id || !branchCode || typeof enable !== "boolean") {
       return NextResponse.json(
         { error: "encounter_id, branch, enable are required" },
         { status: 400 }
       );
     }
-    if (!["SI", "SL"].includes(String(branch).toUpperCase())) {
+    if (!["SI", "SL"].includes(branchCode)) {
       return NextResponse.json({ error: "Invalid branch" }, { status: 400 });
     }
 
     const today = todayISOin();
 
     if (enable) {
-      // Assign queue number if not already queued
-      const qn = await nextQueueNumber(db, branch, today);
+      const maxRetries = 3;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const qn = await nextQueueNumber(db, branchCode, today);
 
-      const { error } = await db
-        .from("encounters")
-        .update({
-          for_consult: true,
-          consult_status: "queued_for_consult",
-          queue_number: qn,
-        })
-        .match({
-          id: encounter_id,
-          branch_code: branch,
-          visit_date_local: today,
-        });
+        const { error } = await db
+          .from("encounters")
+          .update({
+            for_consult: true,
+            consult_status: "queued_for_consult",
+            queue_number: qn,
+          })
+          .match({
+            id: encounter_id,
+            branch_code: branchCode,
+            visit_date_local: today,
+          });
 
-      if (error) throw new Error(error.message);
-      return NextResponse.json({ ok: true, queue_number: qn, consult_status: "queued_for_consult" });
+        if (!error) {
+          return NextResponse.json({
+            ok: true,
+            queue_number: qn,
+            consult_status: "queued_for_consult",
+          });
+        }
+
+        const msg = String(error.message || "");
+        if (!/uq_enc_consult_queue_active/i.test(msg) && !/duplicate key value violates unique constraint/i.test(msg)) {
+          throw new Error(msg);
+        }
+
+        // Another staff member likely grabbed the same queue slot;
+        // retry with a fresh queue lookup (loop continues).
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      }
+
+      throw new Error("Consult queue just changed. Please try again.");
     }
 
     // Disable: remove from consult queue (do not touch lab `status`)
