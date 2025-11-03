@@ -5,6 +5,7 @@ export const revalidate = 0;
 
 import { redirect } from "next/navigation";
 import { getDoctorSession } from "@/lib/doctorSession";
+import { getSupabase } from "@/lib/supabase";
 
 import ClientReportViewer from "./ClientReportViewer";
 import PastConsultations from "./PastConsultations";
@@ -31,8 +32,55 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
   }
 
   const sp = (await searchParams) || {};
-  const initialConsultationId =
+  const requestedConsultationId =
     (Array.isArray(sp.c) ? sp.c[0] : sp.c) || null;
+
+  const db = getSupabase();
+  const tz = process.env.APP_TZ || "Asia/Manila";
+  const fmtYmd = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const todayYmd = fmtYmd.format(new Date());
+
+  const withinToday = (iso: string | null | undefined) => {
+    if (!iso) return false;
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.valueOf())) return false;
+    return fmtYmd.format(parsed) === todayYmd;
+  };
+
+  let initialConsultationId: string | null = requestedConsultationId;
+
+  if (initialConsultationId) {
+    const { data, error } = await db
+      .from("consultations")
+      .select("id, visit_at")
+      .eq("id", initialConsultationId)
+      .maybeSingle();
+
+    if (error || !data?.id || !withinToday(data.visit_at as string | null)) {
+      initialConsultationId = null;
+    }
+  }
+
+  if (!initialConsultationId) {
+    const { data } = await db
+      .from("consultations")
+      .select("id, visit_at")
+      .eq("patient_id", patientId.toUpperCase())
+      .gte("visit_at", `${todayYmd}T00:00:00+08:00`)
+      .lte("visit_at", `${todayYmd}T23:59:59.999+08:00`)
+      .order("visit_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data?.id && withinToday(data.visit_at as string | null)) {
+      initialConsultationId = data.id;
+    }
+  }
 
   const docName =
     session!.display_name ||

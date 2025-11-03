@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Clock4, HeartPulse, ShieldCheck, Sparkles } from 'lucide-react';
 
 const heroHighlights = [
-  { label: 'Same-day results pick-up', icon: Clock4 },
+  { label: 'Same-day results release', icon: Clock4 },
   { label: 'Board-certified physicians on-site', icon: ShieldCheck },
   { label: 'Heart & wellness focused care', icon: HeartPulse },
 ];
