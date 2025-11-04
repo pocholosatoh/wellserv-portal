@@ -10,6 +10,7 @@ type Item = {
   url: string;                   // already signed by the API
   content_type: string | null;
   type: string;                  // legacy grouping label
+  encounter_id?: string | null;
   provider?: string | null;
   taken_at?: string | null;
   uploaded_at?: string | null;
@@ -23,6 +24,19 @@ type Item = {
   performer_name?: string | null;
   performer_role?: string | null;
   performer_license?: string | null;
+};
+
+type EcgReportSummary = {
+  id: string;
+  external_result_id: string;
+  patient_id: string;
+  encounter_id: string | null;
+  doctor_id: string;
+  interpreted_at: string | null;
+  interpreted_name: string;
+  interpreted_license: string | null;
+  impression: string;
+  status: string;
 };
 
 function fmtDate(d?: string | null) {
@@ -43,6 +57,8 @@ export default function OtherLabsCard({
   const [open, setOpen] = useState(true);
   const [items, setItems] = useState<Item[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [ecgReports, setEcgReports] = useState<Record<string, EcgReportSummary>>({});
+  const [reportsLoading, setReportsLoading] = useState(false);
 
   useEffect(() => {
     let abort = false;
@@ -65,6 +81,55 @@ export default function OtherLabsCard({
       abort = true;
     };
   }, [patientId]);
+
+  useEffect(() => {
+    if (!items || items.length === 0) {
+      setEcgReports({});
+      setReportsLoading(false);
+      return;
+    }
+
+    const ecgIds = items
+      .filter((it) => String(it.type || "").toUpperCase() === "ECG")
+      .map((it) => it.id);
+
+    if (ecgIds.length === 0) {
+      setEcgReports({});
+      setReportsLoading(false);
+      return;
+    }
+
+    let abort = false;
+    setReportsLoading(true);
+
+    const params = new URLSearchParams();
+    params.set("ids", ecgIds.join(","));
+
+    fetch(`/api/ecg/reports?${params.toString()}`, { cache: "no-store" })
+      .then(async (res) => {
+        const body: { reports?: EcgReportSummary[]; error?: string } = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(body?.error || `HTTP ${res.status}`);
+        }
+        if (!abort) {
+          const map: Record<string, EcgReportSummary> = {};
+          (body.reports || []).forEach((rep) => {
+            if (rep?.external_result_id) map[rep.external_result_id] = rep;
+          });
+          setEcgReports(map);
+        }
+      })
+      .catch(() => {
+        if (!abort) setEcgReports({});
+      })
+      .finally(() => {
+        if (!abort) setReportsLoading(false);
+      });
+
+    return () => {
+      abort = true;
+    };
+  }, [items]);
 
   const grouped = useMemo(() => {
     const g: Record<string, Item[]> = {};
@@ -127,6 +192,14 @@ export default function OtherLabsCard({
 
                   <div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-2 lg:grid-cols-3">
                     {grouped[group].map((it) => {
+                      const normType = String(it.type || "").toUpperCase();
+                      const normCategory = String(it.category || "").toUpperCase();
+                      const isEcg =
+                        normType === "ECG" ||
+                        normType.startsWith("ECG ") ||
+                        normType.includes("ECG") ||
+                        normCategory === "ECG";
+                      const report = isEcg ? ecgReports[it.id] : undefined;
                       const isImg = (it.content_type || "").startsWith("image/");
                       const isPdf =
                         it.content_type === "application/pdf" ||
@@ -255,6 +328,35 @@ export default function OtherLabsCard({
                               <div>
                                 <span className="font-medium text-gray-800">Notes: </span>
                                 <span className="whitespace-pre-wrap">{it.note}</span>
+                              </div>
+                            )}
+                            {isEcg && (
+                              <div>
+                                <span className="font-medium text-gray-800">ECG Status: </span>
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                    report?.status === "final"
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : "bg-amber-100 text-amber-700"
+                                  }`}
+                                >
+                                  {report?.status === "final"
+                                    ? `Interpreted ${fmtDate(report.interpreted_at)}`
+                                    : reportsLoading
+                                    ? "Fetching interpretation…"
+                                    : "Awaiting interpretation"}
+                                </span>
+                                {report?.interpreted_name && (
+                                  <div className="mt-1 text-xs text-gray-600">
+                                    by {report.interpreted_name}
+                                    {report.interpreted_license ? ` • PRC ${report.interpreted_license}` : ""}
+                                  </div>
+                                )}
+                                {!report && !reportsLoading && (
+                                  <div className="mt-1 text-xs text-gray-500">
+                                    Doctor interpretation pending.
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
