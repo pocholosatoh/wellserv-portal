@@ -20,11 +20,25 @@ export type OtherLabItem = {
   url: string;
   content_type: string;
   type: OtherLabType;              // required in UI
+  encounter_id?: string | null;
   provider?: string | null;
   taken_at?: string | null;
   uploaded_at?: string | null;
   uploaded_by?: string | null;
   note?: string | null;
+};
+
+type EcgReportSummary = {
+  id: string;
+  external_result_id: string;
+  patient_id: string;
+  encounter_id: string | null;
+  doctor_id: string;
+  interpreted_at: string | null;
+  interpreted_name: string;
+  interpreted_license: string | null;
+  impression: string;
+  status: string;
 };
 
 export type OtherLabsViewerProps = {
@@ -179,6 +193,8 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
   const [open, setOpen] = useState(!initiallyCollapsed);
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [pdfSrc, setPdfSrc] = useState<string | null>(null);
+  const [ecgReports, setEcgReports] = useState<Record<string, EcgReportSummary>>({});
+  const [reportsLoading, setReportsLoading] = useState(false);
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
 
   useEffect(() => {
@@ -209,6 +225,55 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
 
     return () => { abort = true; };
   }, [patientId, useSession, apiPath]);
+
+  useEffect(() => {
+    if (!items || items.length === 0) {
+      setEcgReports({});
+      setReportsLoading(false);
+      return;
+    }
+
+    const ecgIds = items
+      .filter((it) => String(it.type || "").toUpperCase() === "ECG")
+      .map((it) => it.id);
+
+    if (ecgIds.length === 0) {
+      setEcgReports({});
+      setReportsLoading(false);
+      return;
+    }
+
+    let abort = false;
+    setReportsLoading(true);
+
+    const params = new URLSearchParams();
+    params.set("ids", ecgIds.join(","));
+
+    fetch(`/api/ecg/reports?${params.toString()}`, { cache: "no-store" })
+      .then(async (res) => {
+        const body: { reports?: EcgReportSummary[]; error?: string } = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(body?.error || `HTTP ${res.status}`);
+        }
+        if (!abort) {
+          const map: Record<string, EcgReportSummary> = {};
+          (body.reports || []).forEach((rep) => {
+            if (rep?.external_result_id) map[rep.external_result_id] = rep;
+          });
+          setEcgReports(map);
+        }
+      })
+      .catch(() => {
+        if (!abort) setEcgReports({});
+      })
+      .finally(() => {
+        if (!abort) setReportsLoading(false);
+      });
+
+    return () => {
+      abort = true;
+    };
+  }, [items]);
 
 
   const grouped = useMemo(() => {
@@ -303,6 +368,12 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
                 {(grouped[active || providers[0]] || []).map((item) => {
                   const isImg = item.content_type?.startsWith("image/");
                   const isPdf = item.content_type === "application/pdf" || item.url.toLowerCase().endsWith(".pdf");
+                  const normType = String(item.type || "").toUpperCase();
+                  const isEcg =
+                    normType === "ECG" ||
+                    normType.startsWith("ECG ") ||
+                    normType.includes("ECG");
+                  const report = isEcg ? ecgReports[item.id] : undefined;
                   return (
                     <div key={item.id} className="group relative rounded-2xl border border-white/80 bg-white/90 p-3 shadow-[0_14px_35px_rgba(15,23,42,0.07)] backdrop-blur transition">
                       {isImg ? (
@@ -351,6 +422,34 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
                         {fmtDate(item.taken_at)}
                         {item.provider ? ` • ${item.provider}` : ""}
                       </div>
+                      {isEcg && (
+                        <div className="mt-2 text-xs text-slate-600">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                              report?.status === "final"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {report?.status === "final"
+                              ? `Interpreted ${fmtDate(report.interpreted_at)}`
+                              : reportsLoading
+                              ? "Checking interpretation…"
+                              : "Awaiting interpretation"}
+                          </span>
+                          {report?.interpreted_name && (
+                            <div className="mt-1 text-[11px] text-slate-500">
+                              by {report.interpreted_name}
+                              {report.interpreted_license ? ` • PRC ${report.interpreted_license}` : ""}
+                            </div>
+                          )}
+                          {!report && !reportsLoading && (
+                            <div className="mt-1 text-[11px] text-slate-400">
+                              Doctor review pending.
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
