@@ -50,10 +50,16 @@ export async function POST(req: Request) {
 
     // Group the batch under one folder to keep uploads tidy
     const basePrefix = `${data.patient_id}/${y}/${m}/${randomUUID()}`;
+    const categorySegment =
+      (data.category || "")
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9_-]/g, "") || "UNCATEGORIZED";
     const items: Array<{ uploadUrl: string; storagePath: string }> = [];
 
     for (const f of data.files) {
-      const objectPath = `${basePrefix}/${f.name}`;
+      const safeName = f.name.replace(/[^A-Za-z0-9._-]/g, "_");
+      const objectPath = `${basePrefix}/${categorySegment}/${safeName}`;
       const { data: signed, error } = await supa
         .storage
         .from(bucket)
