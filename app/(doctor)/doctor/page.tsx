@@ -139,6 +139,23 @@ export default async function DoctorHome({ searchParams }: Props) {
         </div>
       </div>
 
+      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">ECG Inbox</h2>
+            <p className="text-sm text-gray-600">
+              Review pending ECG strips, finalize interpretations, and ensure encounters are linked for PhilHealth YAKAP.
+            </p>
+          </div>
+          <Link
+            href="/doctor/ecg"
+            className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:text-gray-900"
+          >
+            Open ECG Inbox →
+          </Link>
+        </div>
+      </section>
+
       {/* ================= CONSULT QUEUE (TOP) ================= */}
       <section className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">

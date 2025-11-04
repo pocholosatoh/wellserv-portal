@@ -32,6 +32,7 @@ export async function POST(req: Request) {
     const supa = getSupabaseServer();
 
     // Insert one row per uploaded file
+    const isEcg = body.meta.category === "ecg";
     const rows = body.items.map((it) => ({
       patient_id: body.meta.patient_id,
       encounter_id: body.meta.encounter_id || null,
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
       url: it.storagePath, // store storage path only
       content_type: it.content_type || null,
       uploaded_by: "staff", // replace with session user later
-      type: body.meta.subtype || body.meta.category, // keeps your legacy viewer grouping
+      type: isEcg ? "ECG" : body.meta.subtype || body.meta.category, // keeps your legacy viewer grouping
       // uploaded_at defaults in DB
       // source default 'upload' in DB
     }));
@@ -58,21 +59,6 @@ export async function POST(req: Request) {
       .select("id, url, category");
 
     if (error) throw error;
-
-    // If this batch is ECG, create ECG cases now
-    if (body.meta.category === "ecg" && inserted?.length) {
-      const cases = inserted.map((r) => ({
-        patient_id: body.meta.patient_id,
-        encounter_id: body.meta.encounter_id || null,
-        external_result_id: r.id,
-        uploaded_by: "staff",
-        status: "pending" as const,
-        note: body.meta.note || null,
-      }));
-
-      const { error: ecgErr } = await supa.from("ecg_cases").insert(cases);
-      if (ecgErr) throw ecgErr;
-    }
 
     return NextResponse.json({ ok: true, saved: inserted });
   } catch (e: any) {
