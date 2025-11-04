@@ -159,8 +159,8 @@ export async function GET(req: Request) {
         `
       )
       .or(ecgFilter)
-      .order("taken_at", { ascending: false, nullsLast: false })
-      .order("uploaded_at", { ascending: false, nullsLast: false })
+      .order("taken_at", { ascending: false })
+      .order("uploaded_at", { ascending: false })
       .limit(Math.min(limit * 3, MAX_LIMIT * 2));
 
     if (from) query = query.gte("taken_at", from);
