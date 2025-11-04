@@ -168,7 +168,7 @@ export async function GET(
       .from("encounters")
       .select("id, patient_id, created_at, updated_at")
       .eq("patient_id", row.patient_id)
-      .order("created_at", { ascending: false, nullsLast: false })
+      .order("created_at", { ascending: false })
       .limit(50);
 
     if (encErr) throw encErr;
