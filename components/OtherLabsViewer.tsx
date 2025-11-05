@@ -20,12 +20,15 @@ export type OtherLabItem = {
   url: string;
   content_type: string;
   type: OtherLabType;              // required in UI
+  category?: string | null;
+  subtype?: string | null;
   encounter_id?: string | null;
   provider?: string | null;
   taken_at?: string | null;
   uploaded_at?: string | null;
   uploaded_by?: string | null;
   note?: string | null;
+  impression?: string | null;
 };
 
 type EcgReportSummary = {
@@ -38,8 +41,23 @@ type EcgReportSummary = {
   interpreted_name: string;
   interpreted_license: string | null;
   impression: string;
+  recommendations?: string | null;
   status: string;
 };
+
+function isEcgItem(item: { type?: string | null; category?: string | null; subtype?: string | null }) {
+  const type = String(item.type || "").trim().toUpperCase();
+  const category = String(item.category || "").trim().toUpperCase();
+  const subtype = String(item.subtype || "").trim().toUpperCase();
+  return (
+    type === "ECG" ||
+    type.startsWith("ECG") ||
+    type.includes("ECG") ||
+    category === "ECG" ||
+    category.startsWith("ECG") ||
+    subtype.startsWith("ECG")
+  );
+}
 
 export type OtherLabsViewerProps = {
   /** If omitted, component fetches via session (/api/patient/other-labs) */
@@ -233,9 +251,7 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
       return;
     }
 
-    const ecgIds = items
-      .filter((it) => String(it.type || "").toUpperCase() === "ECG")
-      .map((it) => it.id);
+    const ecgIds = items.filter((it) => isEcgItem(it)).map((it) => it.id);
 
     if (ecgIds.length === 0) {
       setEcgReports({});
@@ -368,11 +384,7 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
                 {(grouped[active || providers[0]] || []).map((item) => {
                   const isImg = item.content_type?.startsWith("image/");
                   const isPdf = item.content_type === "application/pdf" || item.url.toLowerCase().endsWith(".pdf");
-                  const normType = String(item.type || "").toUpperCase();
-                  const isEcg =
-                    normType === "ECG" ||
-                    normType.startsWith("ECG ") ||
-                    normType.includes("ECG");
+                  const isEcg = isEcgItem(item);
                   const report = isEcg ? ecgReports[item.id] : undefined;
                   return (
                     <div key={item.id} className="group relative rounded-2xl border border-white/80 bg-white/90 p-3 shadow-[0_14px_35px_rgba(15,23,42,0.07)] backdrop-blur transition">
@@ -422,34 +434,70 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
                         {fmtDate(item.taken_at)}
                         {item.provider ? ` • ${item.provider}` : ""}
                       </div>
-                      {isEcg && (
-                        <div className="mt-2 text-xs text-slate-600">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                              report?.status === "final"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-amber-100 text-amber-700"
-                            }`}
-                          >
-                            {report?.status === "final"
-                              ? `Interpreted ${fmtDate(report.interpreted_at)}`
-                              : reportsLoading
-                              ? "Checking interpretation…"
-                              : "Awaiting interpretation"}
-                          </span>
-                          {report?.interpreted_name && (
-                            <div className="mt-1 text-[11px] text-slate-500">
-                              by {report.interpreted_name}
-                              {report.interpreted_license ? ` • PRC ${report.interpreted_license}` : ""}
+                      <div className="mt-2 space-y-2 text-xs text-slate-600">
+                        {isEcg ? (
+                          <div>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                report?.status === "final"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {report?.status === "final"
+                                ? `Interpreted ${fmtDate(report.interpreted_at)}`
+                                : reportsLoading
+                                ? "Checking interpretation…"
+                                : "Awaiting interpretation"}
+                            </span>
+                            {report?.interpreted_name && (
+                              <div className="mt-1 text-[11px] text-slate-500">
+                                by {report.interpreted_name}
+                                {report.interpreted_license ? ` • PRC ${report.interpreted_license}` : ""}
+                              </div>
+                            )}
+                            {!report && !reportsLoading && (
+                              <div className="mt-1 text-[11px] text-slate-400">
+                                Doctor review pending.
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+
+                        {isEcg && report?.impression && (
+                          <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-2 text-xs text-emerald-900">
+                            <div className="mb-1 font-semibold uppercase tracking-wide text-[10px] text-emerald-700">
+                              Interpretation
                             </div>
-                          )}
-                          {!report && !reportsLoading && (
-                            <div className="mt-1 text-[11px] text-slate-400">
-                              Doctor review pending.
-                            </div>
-                          )}
-                        </div>
-                      )}
+                            <div className="text-[12px] leading-snug whitespace-pre-wrap">{report.impression}</div>
+                            {report.recommendations && (
+                              <div className="mt-1 text-[11px] text-emerald-800">
+                                <span className="font-medium">Recommendations:</span>{" "}
+                                {report.recommendations}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {!isEcg && item.impression && (
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[12px] text-slate-700 whitespace-pre-wrap">
+                            <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                              Impression
+                            </span>
+                            {item.impression}
+                          </div>
+                        )}
+                        {!isEcg && !item.impression && item.note && (
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[12px] text-slate-600 whitespace-pre-wrap">
+                            {item.note}
+                          </div>
+                        )}
+                        {isEcg && !report?.impression && item.impression && (
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[12px] text-slate-600 whitespace-pre-wrap">
+                            {item.impression}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

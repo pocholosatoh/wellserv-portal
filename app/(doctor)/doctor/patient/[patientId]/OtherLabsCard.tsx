@@ -36,6 +36,7 @@ type EcgReportSummary = {
   interpreted_name: string;
   interpreted_license: string | null;
   impression: string;
+  recommendations?: string | null;
   status: string;
 };
 
@@ -45,6 +46,20 @@ function fmtDate(d?: string | null) {
   return Number.isNaN(dt.getTime())
     ? d
     : dt.toLocaleString(undefined, { year: "numeric", month: "short", day: "2-digit" });
+}
+
+function isEcgItem(item: Item) {
+  const type = String(item.type || "").trim().toUpperCase();
+  const category = String(item.category || "").trim().toUpperCase();
+  const subtype = String(item.subtype || "").trim().toUpperCase();
+  return (
+    type === "ECG" ||
+    type.startsWith("ECG") ||
+    type.includes("ECG") ||
+    category === "ECG" ||
+    category.startsWith("ECG") ||
+    subtype.startsWith("ECG")
+  );
 }
 
 export default function OtherLabsCard({
@@ -89,9 +104,7 @@ export default function OtherLabsCard({
       return;
     }
 
-    const ecgIds = items
-      .filter((it) => String(it.type || "").toUpperCase() === "ECG")
-      .map((it) => it.id);
+    const ecgIds = items.filter((it) => isEcgItem(it)).map((it) => it.id);
 
     if (ecgIds.length === 0) {
       setEcgReports({});
@@ -192,13 +205,7 @@ export default function OtherLabsCard({
 
                   <div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-2 lg:grid-cols-3">
                     {grouped[group].map((it) => {
-                      const normType = String(it.type || "").toUpperCase();
-                      const normCategory = String(it.category || "").toUpperCase();
-                      const isEcg =
-                        normType === "ECG" ||
-                        normType.startsWith("ECG ") ||
-                        normType.includes("ECG") ||
-                        normCategory === "ECG";
+                      const isEcg = isEcgItem(it);
                       const report = isEcg ? ecgReports[it.id] : undefined;
                       const isImg = (it.content_type || "").startsWith("image/");
                       const isPdf =
@@ -355,6 +362,20 @@ export default function OtherLabsCard({
                                 {!report && !reportsLoading && (
                                   <div className="mt-1 text-xs text-gray-500">
                                     Doctor interpretation pending.
+                                  </div>
+                                )}
+                                {report?.impression && (
+                                  <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/80 p-2 text-[12px] text-emerald-900 whitespace-pre-wrap">
+                                    <span className="block text-[10px] font-semibold uppercase tracking-wide text-emerald-700 mb-1">
+                                      Interpretation
+                                    </span>
+                                    {report.impression}
+                                    {report.recommendations && (
+                                      <div className="mt-1 text-emerald-800">
+                                        <span className="font-medium">Recommendations:</span>{" "}
+                                        {report.recommendations}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>

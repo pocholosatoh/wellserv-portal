@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireActor } from "@/lib/api-actor";
+import { getDoctorSession } from "@/lib/doctorSession";
 
 const Payload = z.object({
   external_result_id: z.string().uuid(),
@@ -36,8 +36,8 @@ function sanitise(value: string | null | undefined) {
 
 export async function POST(req: Request) {
   try {
-    const actor = await requireActor();
-    if (!actor || actor.kind !== "doctor") {
+    const doctorSession = await getDoctorSession().catch(() => null);
+    if (!doctorSession?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
     }
 
     // Fetch doctor profile to snapshot
-    const doctorId = actor.id;
+    const doctorId = doctorSession.doctorId;
     const { data: docRow } = await sb
       .from("doctors")
       .select("doctor_id, display_name, full_name, credentials, prc_no")
@@ -109,8 +109,8 @@ export async function POST(req: Request) {
     const baseName =
       sanitise(docRow?.display_name) ||
       sanitise(docRow?.full_name) ||
-      sanitise(actor.display_name) ||
-      sanitise((actor as any).name) ||
+      sanitise(doctorSession.display_name) ||
+      sanitise(doctorSession.name) ||
       "Physician";
 
     const interpretedName = (() => {
@@ -125,7 +125,7 @@ export async function POST(req: Request) {
       external_result_id: input.external_result_id,
       patient_id: patientId,
       encounter_id: input.encounter_id,
-      doctor_id: doctorId,
+      doctor_id: doctorSession.doctorId,
       interpreted_name: interpretedName,
       interpreted_license: interpretedLicense,
       rhythm: sanitise(input.rhythm),
