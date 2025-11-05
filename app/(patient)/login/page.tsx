@@ -103,6 +103,7 @@ function LoginPageContent() {
     setLoading(true);
     const controller = new AbortController();
     let timeoutId: number | null = null;
+    let didSucceed = false;
     try {
       timeoutId = window.setTimeout(() => controller.abort(), 10000);
       // server validates access code + patient existence, sets httpOnly cookie, returns {ok:true}
@@ -123,8 +124,8 @@ function LoginPageContent() {
       }
 
       // success: cookie already set by server → go to new landing page
+      didSucceed = true;
       router.replace(nextPath);
-      router.refresh();
     } catch (error: any) {
       if (error?.name === "AbortError") {
         setErr("Login is taking longer than expected. Please try again.");
@@ -133,7 +134,7 @@ function LoginPageContent() {
       }
     } finally {
       if (timeoutId !== null) window.clearTimeout(timeoutId);
-      setLoading(false);
+      if (!didSucceed) setLoading(false);
     }
   }
 
