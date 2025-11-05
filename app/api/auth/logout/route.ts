@@ -23,7 +23,9 @@ async function handle(req: Request) {
   const session = await getSession().catch(() => null);
   const dest = pickDest(req, who, session?.role || null);
 
-  const res = NextResponse.redirect(dest);
+  // For POST logout, follow-up request should be GET, so use 303 instead of default 307.
+  const status = req.method === "POST" ? 303 : 307;
+  const res = NextResponse.redirect(dest, status);
   // wipe all the cookies the helper knows about (role, patient_id, staff_*)
   clearSession(res);
 

@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireActor } from "@/lib/api-actor";
+import { getDoctorSession } from "@/lib/doctorSession";
 
 const BUCKET = process.env.NEXT_PUBLIC_PATIENT_BUCKET?.trim() || "patient-files";
 
@@ -96,8 +96,8 @@ export async function GET(
   context: { params: Promise<{ externalResultId: string }> }
 ) {
   try {
-    const actor = await requireActor();
-    if (!actor || actor.kind !== "doctor") {
+    const doctor = await getDoctorSession().catch(() => null);
+    if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

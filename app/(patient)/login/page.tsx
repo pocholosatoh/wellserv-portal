@@ -1,7 +1,7 @@
 // app/login/page.tsx
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // --- tiny helpers for image and formatting ---
 function extractDriveId(url?: string) {
@@ -23,18 +23,23 @@ function driveImageUrls(url?: string) {
   };
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [pid, setPid] = useState("");
   const [code, setCode] = useState("");
   const [consent, setConsent] = useState(false);
   const [showNotice, setShowNotice] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [loadingDots, setLoadingDots] = useState(0);
+  const [isTakingLong, setIsTakingLong] = useState(false);
+  const [isVeryLong, setIsVeryLong] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [cfg, setCfg] = useState<Record<string, string>>({});
   const [ready, setReady] = useState(false);
   useEffect(() => { setReady(true); }, []);
   const router = useRouter();
+  const search = useSearchParams();
+  const nextPath = useMemo(() => search.get("next") || "/patient", [search]);
 
   // pull config (clinic header + optional custom privacy copy)
   useEffect(() => {
@@ -54,6 +59,25 @@ export default function LoginPage() {
 
   // Always require an Access Code (server will validate via PATIENT_PORTAL_ACCESS_CODE)
   const needsCode = true;
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingDots(0);
+      setIsTakingLong(false);
+      setIsVeryLong(false);
+      return;
+    }
+    const dots = window.setInterval(() => {
+      setLoadingDots((prev) => ((prev + 1) % 3));
+    }, 400);
+    const longTimer = window.setTimeout(() => setIsTakingLong(true), 2500);
+    const veryLongTimer = window.setTimeout(() => setIsVeryLong(true), 6000);
+    return () => {
+      window.clearInterval(dots);
+      window.clearTimeout(longTimer);
+      window.clearTimeout(veryLongTimer);
+    };
+  }, [loading]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,29 +101,38 @@ export default function LoginPage() {
     }
 
     setLoading(true);
+    const controller = new AbortController();
+    let timeoutId: number | null = null;
     try {
+      timeoutId = window.setTimeout(() => controller.abort(), 10000);
       // server validates access code + patient existence, sets httpOnly cookie, returns {ok:true}
       const res = await fetch("/api/auth/patient/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ patient_id, access_code, remember: true }),
+        signal: controller.signal,
       });
-
       const j = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
+      if (!res.ok || !j?.ok) {
         // mirror common errors
         if (res.status === 401) setErr("Invalid access code. Please try again.");
         else if (res.status === 404) setErr("No matching Patient ID. Please check and try again.");
         else setErr(j?.error || "Something went wrong. Please try again.");
-        setLoading(false);
         return;
       }
 
       // success: cookie already set by server → go to new landing page
-      router.push("/patient");
-    } catch {
-      setErr("Network error. Please try again.");
+      router.replace(nextPath);
+      router.refresh();
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        setErr("Login is taking longer than expected. Please try again.");
+      } else {
+        setErr("Network error. Please try again.");
+      }
+    } finally {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }
@@ -176,7 +209,8 @@ requests (access, correction, deletion), contact our Data Protection Officer via
   `.trim();
 
   return (
-    <main style={page}>
+    <>
+      <main style={page}>
       {/* Header */}
       {(cfg.clinic_name || cfg.clinic_logo_url || cfg.clinic_address || cfg.clinic_phone) && (
         <div style={clinicWrap}>
@@ -233,18 +267,16 @@ requests (access, correction, deletion), contact our Data Protection Officer via
           />
 
           {/* Access Code */}
-          <>
-            <label htmlFor="pcode" style={label}>Access Code</label>
-            <input
-              id="pcode"
-              type="password"
-              autoComplete="off"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Access Code (ask staff 😉)"
-              style={input}
-            />
-          </>
+          <label htmlFor="pcode" style={label}>Access Code</label>
+          <input
+            id="pcode"
+            type="password"
+            autoComplete="off"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Access Code (ask staff 😉)"
+            style={input}
+          />
 
           {/* Consent */}
           <label style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13, color: "#444", marginTop: 4 }}>
@@ -279,6 +311,7 @@ requests (access, correction, deletion), contact our Data Protection Officer via
           <button
             type="submit"
             style={btn}
+            className={`login-btn${loading ? " loading" : ""}`}
             disabled={
               loading ||
               pid.trim() === "" ||
@@ -286,8 +319,38 @@ requests (access, correction, deletion), contact our Data Protection Officer via
               (needsCode && code.trim() === "")
             }
           >
-            {loading ? "Checking..." : "Continue"}
+            {loading ? (
+              <span className="login-btn__content">
+                <span className="spinner" aria-hidden />
+                <span className="btn-text">
+                  Checking{".".repeat(loadingDots + 1)}
+                </span>
+              </span>
+            ) : (
+              "Continue"
+            )}
           </button>
+
+          {loading && (
+            <div
+              className={`loading-note${isVeryLong ? " loading-note--alert" : ""}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                fontSize: 12,
+                color: isVeryLong ? "#b45309" : "#0f766e",
+                background: isVeryLong ? "rgba(251, 191, 36, 0.12)" : "rgba(15, 118, 110, 0.08)",
+                border: isVeryLong ? "1px solid rgba(217, 119, 6, 0.3)" : "1px solid rgba(45, 212, 191, 0.3)",
+                padding: "8px 10px",
+                borderRadius: 10,
+                textAlign: "center",
+              }}
+            >
+              {isVeryLong ? "Still verifying… please wait a moment longer or try again soon." : "Hang tight, we’re verifying your access."}
+            </div>
+          )}
 
           <div style={footerNote}>
             Tip: Patient ID is not case sensitive.
@@ -323,6 +386,82 @@ requests (access, correction, deletion), contact our Data Protection Officer via
           </div>
         </div>
       </div>
+      </main>
+      <style jsx>{`
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      @keyframes gentlePulse {
+        0%, 100% { opacity: 0.9; transform: translateY(0); }
+        50% { opacity: 1; transform: translateY(-1px); }
+      }
+      @keyframes alertPulse {
+        0%, 100% { opacity: 0.85; }
+        50% { opacity: 1; }
+      }
+      .login-btn.loading .spinner {
+        animation: spin 0.8s linear infinite;
+      }
+      .login-btn.loading .btn-text {
+        letter-spacing: 0.4px;
+      }
+      .login-btn__content {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .spinner {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.55);
+        border-top-color: rgba(255, 255, 255, 0.95);
+      }
+      .loading-note {
+        animation: gentlePulse 1.8s ease-in-out infinite;
+      }
+      .loading-note--alert {
+        animation: alertPulse 1.4s ease-in-out infinite;
+      }
+      `}</style>
+    </>
+  );
+}
+
+function LoginPageFallback() {
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        padding: "24px",
+        background: "#f8fafc",
+      }}
+    >
+      <div
+        style={{
+          padding: "16px 20px",
+          borderRadius: 12,
+          border: "1px solid rgba(15, 118, 110, 0.15)",
+          background: "#ffffff",
+          boxShadow: "0 10px 30px rgba(15, 23, 42, 0.08)",
+          textAlign: "center",
+          color: "#0f766e",
+          fontSize: 13,
+        }}
+      >
+        Preparing the portal…
+      </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
