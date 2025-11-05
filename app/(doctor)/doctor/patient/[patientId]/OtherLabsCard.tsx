@@ -36,6 +36,7 @@ type EcgReportSummary = {
   interpreted_name: string;
   interpreted_license: string | null;
   impression: string;
+  recommendations?: string | null;
   status: string;
 };
 
