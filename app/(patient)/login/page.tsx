@@ -1,6 +1,6 @@
 // app/login/page.tsx
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // --- tiny helpers for image and formatting ---
@@ -23,7 +23,7 @@ function driveImageUrls(url?: string) {
   };
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [pid, setPid] = useState("");
   const [code, setCode] = useState("");
   const [consent, setConsent] = useState(false);
@@ -426,5 +426,42 @@ requests (access, correction, deletion), contact our Data Protection Officer via
       }
       `}</style>
     </>
+  );
+}
+
+function LoginPageFallback() {
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        padding: "24px",
+        background: "#f8fafc",
+      }}
+    >
+      <div
+        style={{
+          padding: "16px 20px",
+          borderRadius: 12,
+          border: "1px solid rgba(15, 118, 110, 0.15)",
+          background: "#ffffff",
+          boxShadow: "0 10px 30px rgba(15, 23, 42, 0.08)",
+          textAlign: "center",
+          color: "#0f766e",
+          fontSize: 13,
+        }}
+      >
+        Preparing the portal…
+      </div>
+    </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
