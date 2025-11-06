@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServer } from "@/lib/supabaseServer";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { randomUUID } from "crypto";
+
+import { getSupabaseServer } from "@/lib/supabaseServer";
+import { getSession } from "@/lib/session";
 
 const Category = z.enum([
   "imaging",
@@ -34,8 +37,57 @@ const PresignRequest = z.object({
   note: z.string().optional(),
 });
 
+function getExpectedSecret() {
+  return (
+    process.env.RMT_UPLOAD_SECRET ||
+    process.env.NEXT_PUBLIC_RMT_UPLOAD_SECRET ||
+    ""
+  ).trim();
+}
+
+async function requireStaffIdentity() {
+  const session = await getSession().catch(() => null);
+  const c = await cookies();
+
+  const roleCookie = c.get("role")?.value || "";
+  const staffRole = session?.staff_role || c.get("staff_role")?.value || "";
+  const staffInitials = session?.staff_initials || c.get("staff_initials")?.value || "";
+  const staffId = c.get("staff_id")?.value || "";
+
+  const isStaff =
+    (session?.role || roleCookie) === "staff" || !!staffRole || !!staffId;
+
+  if (!isStaff) return null;
+
+  const identifier = staffId || staffInitials || staffRole;
+  if (!identifier) return null;
+
+  return {
+    id: identifier,
+    role: staffRole || "staff",
+    initials: staffInitials || null,
+  } as const;
+}
+
+function isSecretAuthorized(req: Request) {
+  const expected = getExpectedSecret();
+  if (!expected) return false;
+  const provided =
+    req.headers.get("x-rmt-upload-secret") ||
+    req.headers.get("x-upload-secret") ||
+    "";
+  return provided.trim() === expected;
+}
+
 export async function POST(req: Request) {
   try {
+    const staff = await requireStaffIdentity();
+    const secretOk = isSecretAuthorized(req);
+
+    if (!staff && !secretOk) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const data = PresignRequest.parse(body);
 
