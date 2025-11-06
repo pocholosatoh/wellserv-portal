@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+
 import { getSupabaseServer } from "@/lib/supabaseServer";
+import { getSession } from "@/lib/session";
 
 type FinalizePayload = {
   meta: {
@@ -21,8 +24,37 @@ type FinalizePayload = {
   }>;
 };
 
+async function requireStaffIdentity() {
+  const session = await getSession().catch(() => null);
+  const c = await cookies();
+
+  const roleCookie = c.get("role")?.value || "";
+  const staffRole = session?.staff_role || c.get("staff_role")?.value || "";
+  const staffInitials = session?.staff_initials || c.get("staff_initials")?.value || "";
+  const staffId = c.get("staff_id")?.value || "";
+
+  const isStaff =
+    (session?.role || roleCookie) === "staff" || !!staffRole || !!staffId;
+
+  if (!isStaff) return null;
+
+  const identifier = staffId || staffInitials || staffRole;
+  if (!identifier) return null;
+
+  return {
+    id: identifier,
+    role: staffRole || "staff",
+    initials: staffInitials || null,
+  } as const;
+}
+
 export async function POST(req: Request) {
   try {
+    const staff = await requireStaffIdentity();
+    if (!staff) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = (await req.json()) as FinalizePayload;
 
     if (!body?.meta || !Array.isArray(body.items) || body.items.length === 0) {
@@ -47,7 +79,7 @@ export async function POST(req: Request) {
       note: body.meta.note || null,
       url: it.storagePath, // store storage path only
       content_type: it.content_type || null,
-      uploaded_by: "staff", // replace with session user later
+      uploaded_by: staff.initials || staff.id,
       type: isEcg ? "ECG" : body.meta.subtype || body.meta.category, // keeps your legacy viewer grouping
       // uploaded_at defaults in DB
       // source default 'upload' in DB

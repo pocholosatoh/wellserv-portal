@@ -63,7 +63,7 @@ export default async function LabelPage(props: {
     full_name: pat?.full_name ?? "",
     sex: (pat?.sex ?? "") as "M" | "F" | "",
     age: (pat?.age ?? null) as number | null,
-    date: (enc.visit_date_local as string) || manilaTodayISO(),
+    date_label: (enc.visit_date_local as string) || manilaTodayISO(),
     branch: ((enc.branch_code as "SI" | "SL") || "SI") as "SI" | "SL",
   };
 
@@ -78,7 +78,7 @@ export default async function LabelPage(props: {
       <div className="wrap">
         <div className="preview">
           <div className="label-sheet">
-            <Label50x30 {...(payload as any)} />
+            <Label50x30 {...payload} />
           </div>
         </div>
       </div>
