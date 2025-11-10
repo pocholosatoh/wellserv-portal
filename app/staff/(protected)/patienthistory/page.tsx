@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import type { VitalsSnapshot } from "@/lib/data/data-provider";
 
 // OLD (problematic: pointed to mixed server/client file)
 // import { getSupabaseBrowser } from "@/lib/supabase";
@@ -56,11 +57,6 @@ const EDITABLE_FIELDS: (keyof Patient)[] = [
   "contact",
   "address",
   "email",
-  "height_ft",
-  "height_inch",
-  "weight_kg",
-  "systolic_bp",
-  "diastolic_bp",
   "chief_complaint",
   "present_illness_history",
   "past_medical_history",
@@ -72,7 +68,20 @@ const EDITABLE_FIELDS: (keyof Patient)[] = [
   "alcohol_hx",
 ];
 
-const READONLY_FIELDS: (keyof Patient)[] = ["patient_id", "full_name", "birthday", "age", "last_updated", "created_at", "updated_at"];
+const READONLY_FIELDS: (keyof Patient)[] = [
+  "patient_id",
+  "full_name",
+  "birthday",
+  "age",
+  "height_ft",
+  "height_inch",
+  "weight_kg",
+  "systolic_bp",
+  "diastolic_bp",
+  "last_updated",
+  "created_at",
+  "updated_at",
+];
 
 const LABELS: Record<keyof Patient, string> = {
   patient_id: "Patient ID",
@@ -135,6 +144,14 @@ function coerce(value: any, field: keyof Patient) {
   return String(value);
 }
 
+type Branch = "SI" | "SL";
+
+function nowLocalInput() {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function PatientHistoryPage() {
   const [searchId, setSearchId] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -151,6 +168,45 @@ export default function PatientHistoryPage() {
   const [newSurname, setNewSurname] = React.useState("");
   const [newFirstname, setNewFirstname] = React.useState("");
   const [newBirthday, setNewBirthday] = React.useState(""); // "YYYY-MM-DD"
+
+  const [branchFilter, setBranchFilter] = React.useState<Branch>("SI");
+  const [todayPatients, setTodayPatients] = React.useState<Array<{
+    encounter_id: string;
+    patient_id: string;
+    full_name: string | null;
+    queue_number: number | null;
+    status: string | null;
+    consult_status: string | null;
+  }>>([]);
+  const [todayLoading, setTodayLoading] = React.useState(false);
+  const [todayError, setTodayError] = React.useState<string | null>(null);
+
+  const [vitals, setVitals] = React.useState<VitalsSnapshot[]>([]);
+  const [vitalsLoading, setVitalsLoading] = React.useState(false);
+  const [vitalsError, setVitalsError] = React.useState<string | null>(null);
+  const [vitalsSubmitError, setVitalsSubmitError] = React.useState<string | null>(null);
+  const [vitalsSaving, setVitalsSaving] = React.useState(false);
+  const [encounters, setEncounters] = React.useState<Array<{
+    id: string;
+    visit_date_local: string | null;
+    branch_code: string | null;
+    status: string | null;
+    queue_number: number | null;
+  }>>([]);
+  const [vitalsForm, setVitalsForm] = React.useState({
+    encounter_id: "",
+    measured_at: nowLocalInput(),
+    height_ft: "",
+    height_inch: "",
+    weight_kg: "",
+    systolic_bp: "",
+    diastolic_bp: "",
+    hr: "",
+    rr: "",
+    temp_c: "",
+    o2sat: "",
+    notes: "",
+  });
 
 
 
@@ -177,11 +233,199 @@ export default function PatientHistoryPage() {
     return `${mm}/${dd}/${yyyy}`; // matches your existing data
   }
 
+  const resetVitalsForm = React.useCallback(() => {
+    setVitalsForm((prev) => ({
+      encounter_id: prev.encounter_id || "",
+      measured_at: nowLocalInput(),
+      height_ft: "",
+      height_inch: "",
+      weight_kg: "",
+      systolic_bp: "",
+      diastolic_bp: "",
+      hr: "",
+      rr: "",
+      temp_c: "",
+      o2sat: "",
+      notes: "",
+    }));
+    setVitalsSubmitError(null);
+  }, []);
+
+  const loadVitals = React.useCallback(async (pid: string) => {
+    if (!pid) return;
+    setVitalsLoading(true);
+    setVitalsError(null);
+    try {
+      const res = await fetch(`/api/staff/vitals?patient_id=${encodeURIComponent(pid)}&limit=8`, { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || "Failed to fetch vitals");
+      setVitals(json.snapshots || []);
+    } catch (e: any) {
+      setVitalsError(e?.message || "Failed to fetch vitals");
+      setVitals([]);
+    } finally {
+      setVitalsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (encounters.length === 0) return;
+    setVitalsForm((prev) => {
+      if (prev.encounter_id) return prev;
+      return { ...prev, encounter_id: encounters[0].id };
+    });
+  }, [encounters]);
+
+  const loadEncounters = React.useCallback(async (pid: string) => {
+    if (!pid) return;
+    const { data, error } = await supabase
+      .from("encounters")
+      .select("id, visit_date_local, branch_code, status, queue_number")
+      .eq("patient_id", pid)
+      .order("visit_date_local", { ascending: false })
+      .limit(12);
+    if (!error && Array.isArray(data)) {
+      setEncounters(data as any);
+    } else {
+      setEncounters([]);
+    }
+  }, []);
+
+  const loadTodayPatients = React.useCallback(async (branch: Branch) => {
+    setTodayLoading(true);
+    setTodayError(null);
+    try {
+      const today = todayPhilippinesISODate();
+      const { data, error } = await supabase
+        .from("encounters")
+        .select("id, patient_id, queue_number, status, consult_status, patients(full_name)")
+        .eq("visit_date_local", today)
+        .eq("branch_code", branch)
+        .order("queue_number", { ascending: true })
+        .limit(40);
+      if (error) throw error;
+      const rows =
+        data?.map((row: any) => ({
+          encounter_id: row.id,
+          patient_id: row.patient_id,
+          full_name: row.patients?.full_name ?? null,
+          queue_number: row.queue_number ?? null,
+          status: row.status ?? null,
+          consult_status: row.consult_status ?? null,
+        })) ?? [];
+      setTodayPatients(rows);
+    } catch (e: any) {
+      setTodayError(e?.message || "Failed to load today's patients");
+      setTodayPatients([]);
+    } finally {
+      setTodayLoading(false);
+    }
+  }, [supabase]);
+
+  React.useEffect(() => {
+    loadTodayPatients(branchFilter);
+  }, [branchFilter, loadTodayPatients]);
+
+  function heightToCm(ftStr: string, inStr: string) {
+    const ft = Number(ftStr) || 0;
+    const inch = Number(inStr) || 0;
+    if (!ft && !inch) return null;
+    const cm = ((ft * 12) + inch) * 2.54;
+    return Math.round(cm * 100) / 100;
+  }
+
+  function formatDateTimePH(value?: string | null) {
+    if (!value) return "—";
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return value;
+    return dt.toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+  }
+
+  function formatHeightFromCm(cm?: number | null) {
+    if (cm == null) return "—";
+    const num = Number(cm);
+    if (!Number.isFinite(num)) return "—";
+    const totalIn = num / 2.54;
+    const ft = Math.floor(totalIn / 12);
+    const inch = Math.round(totalIn - ft * 12);
+    return `${ft}ft ${inch}in`;
+  }
+
+  function describeEncounter(enc: { visit_date_local: string | null; branch_code: string | null; status: string | null; queue_number: number | null }) {
+    const date = enc.visit_date_local
+      ? new Date(enc.visit_date_local).toLocaleDateString("en-PH", { timeZone: "Asia/Manila" })
+      : "No date";
+    const branch = enc.branch_code || "—";
+    const status = enc.status || "pending";
+    const queue = enc.queue_number ? ` · Queue #${enc.queue_number}` : "";
+    return `${date} · ${branch} · ${status}${queue}`;
+  }
+
+  function toIsoString(local: string) {
+    if (!local) return new Date().toISOString();
+    const dt = new Date(local);
+    if (Number.isNaN(dt.getTime())) return new Date().toISOString();
+    return dt.toISOString();
+  }
+
+  function todayPhilippinesISODate() {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    return formatter.format(new Date()); // returns YYYY-MM-DD
+  }
+
+  const onSaveVitals = async () => {
+    if (!initial) return;
+    if (!vitalsForm.encounter_id) {
+      setVitalsSubmitError("Select an encounter before saving.");
+      return;
+    }
+    setVitalsSaving(true);
+    setVitalsSubmitError(null);
+    try {
+      const payload: Record<string, any> = {
+        patient_id: initial.patient_id,
+        encounter_id: vitalsForm.encounter_id,
+        measured_at: toIsoString(vitalsForm.measured_at),
+        notes: vitalsForm.notes?.trim() || null,
+      };
+
+      (["systolic_bp", "diastolic_bp", "hr", "rr", "temp_c", "o2sat", "weight_kg"] as const).forEach((key) => {
+        const raw = vitalsForm[key as keyof typeof vitalsForm];
+        payload[key] = raw ? Number(raw) : null;
+      });
+
+      const heightCm = heightToCm(vitalsForm.height_ft, vitalsForm.height_inch);
+      if (heightCm != null) payload.height_cm = heightCm;
+
+      const res = await fetch("/api/staff/vitals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || "Failed to save vitals");
+      resetVitalsForm();
+      await loadVitals(initial.patient_id);
+    } catch (e: any) {
+      setVitalsSubmitError(e?.message || "Failed to save vitals");
+    } finally {
+      setVitalsSaving(false);
+    }
+  };
+
   const onRetrieve = async (idOverride?: string) => {
     setError(null);
     setFound(false);
     setInitial(null);
     setForm({});
+    setVitals([]);
+    setEncounters([]);
+    resetVitalsForm();
 
     const target = (idOverride ?? searchId).trim();
     if (!target) {
@@ -214,6 +458,23 @@ export default function PatientHistoryPage() {
       copy[k] = (data as any)[k] ?? null;
     }
     setForm(copy);
+  };
+
+  const onVitalsChange = (field: keyof typeof vitalsForm, value: string) => {
+    setVitalsSubmitError(null);
+    setVitalsForm((prev) => ({ ...prev, [field]: value }));
+  };
+  React.useEffect(() => {
+    if (initial?.patient_id) {
+      loadVitals(initial.patient_id);
+      loadEncounters(initial.patient_id);
+      resetVitalsForm();
+    }
+  }, [initial?.patient_id, loadVitals, loadEncounters, resetVitalsForm]);
+
+  const onPickPatient = async (patientId: string) => {
+    setSearchId(patientId.toUpperCase());
+    await onRetrieve(patientId);
   };
 
   const onChange = (field: keyof Patient, value: string) => {
@@ -292,6 +553,8 @@ export default function PatientHistoryPage() {
   // /prescriptions?patient_id=${encodeURIComponent(initial.patient_id)}` : "#";
   const otherLabs = initial ? `/staff/other-labs` : "#";
 
+  const latestVitals = vitals[0] ?? null;
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <h1 className="text-2xl font-semibold">Staff · Patient History / Editor</h1>
@@ -300,7 +563,7 @@ export default function PatientHistoryPage() {
       <div className="rounded-2xl border p-4 space-y-3">
         <button
           type="button"
-          className="flex items-center justify-between w-full"
+          className="flex w-full items-center justify-between gap-3 text-left"
           onClick={() => setShowCreate((s) => !s)}
         >
           <span className="text-sm font-medium">Create New Patient</span>
@@ -447,23 +710,93 @@ export default function PatientHistoryPage() {
         )}
       </div>
 
+      {/* Today's queue */}
+      <div className="rounded-2xl border p-4 space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Today’s Patients</h2>
+            <p className="text-xs text-neutral-500">
+              Filter by branch, then tap a patient to load their chart.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className="rounded-xl border px-3 py-2 text-sm"
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value as Branch)}
+            >
+              <option value="SI">San Isidro (SI)</option>
+              <option value="SL">San Leonardo (SL)</option>
+            </select>
+            <button
+              type="button"
+              className="rounded-xl border px-3 py-2 text-sm text-[#44969b]"
+              onClick={() => loadTodayPatients(branchFilter)}
+              disabled={todayLoading}
+            >
+              {todayLoading ? "Loading…" : "Refresh"}
+            </button>
+          </div>
+        </div>
+
+        {todayError && <p className="text-sm text-red-600">{todayError}</p>}
+
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          {todayPatients.length === 0 && !todayLoading ? (
+            <div className="text-sm text-neutral-500">No patients queued today for this branch.</div>
+          ) : (
+            todayPatients.map((pat) => (
+              <button
+                key={pat.encounter_id}
+                type="button"
+                onClick={() => onPickPatient(pat.patient_id)}
+                className="min-w-[220px] flex-1 rounded-2xl border px-4 py-3 text-left shadow-sm bg-white"
+              >
+                <div className="text-xs uppercase text-neutral-500 flex items-center gap-2">
+                  <span className="font-semibold text-[#44969b]">#{pat.queue_number ?? "—"}</span>
+                  <span>{pat.status || "intake"}</span>
+                </div>
+                <div className="font-semibold text-sm truncate">
+                  {pat.full_name || pat.patient_id}
+                </div>
+                <div className="text-xs text-neutral-500">
+                  {pat.patient_id}
+                </div>
+                {pat.consult_status && (
+                  <div className="mt-1 text-[11px] uppercase tracking-wide text-neutral-600">
+                    Consult: {pat.consult_status}
+                  </div>
+                )}
+                <div className="mt-2 text-center text-xs text-[#44969b] font-medium">
+                  Tap to open
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
       {/* Search */}
       <div className="rounded-2xl border p-4 space-y-3">
         <label className="block text-sm font-medium">Enter Patient ID</label>
 
         <form
-            className="flex gap-2"
-            onSubmit={(e) => { e.preventDefault(); onRetrieve(); }}
+          className="flex flex-col gap-2 sm:flex-row"
+          onSubmit={(e) => { e.preventDefault(); onRetrieve(); }}
         >
-            <input
-            className="flex-1 rounded-xl border px-3 py-2"
+          <input
+            className="w-full rounded-xl border px-3 py-2"
             placeholder="e.g., SATOH010596"
             value={searchId}
             onChange={(e) => setSearchId(e.target.value.toUpperCase())}  // normalize
-            />
-            <button type="submit" disabled={loading || !searchId.trim()} className={BTN}>
+          />
+          <button
+            type="submit"
+            disabled={loading || !searchId.trim()}
+            className={[BTN, "w-full sm:w-auto"].join(" ")}
+          >
             {loading ? "Searching…" : "Retrieve Data"}
-            </button>
+          </button>
         </form>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -479,6 +812,258 @@ export default function PatientHistoryPage() {
           <a className="underline text-sm" href={otherLabs} target="_blank">Other Labs/Sendouts</a>
           <span className="text-xs text-neutral-500">(You can wire these to your actual routes later.)</span>
         </div>
+      )}
+
+      {initial && (
+        <section className="rounded-2xl border p-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Vitals Snapshots</h2>
+              <p className="text-xs text-neutral-500">
+                Linked to consultation + encounter for future XML exports.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="text-sm text-[#44969b]"
+              onClick={() => loadVitals(initial.patient_id)}
+              disabled={vitalsLoading}
+            >
+              {vitalsLoading ? "Refreshing…" : "Refresh list"}
+            </button>
+          </div>
+
+          {vitalsError && <p className="text-sm text-red-600">{vitalsError}</p>}
+
+          {latestVitals ? (
+            <div className="grid md:grid-cols-3 gap-3 text-sm">
+              <div>
+                <div className="text-xs text-neutral-500">Measured at</div>
+                <div className="font-medium">{formatDateTimePH(latestVitals.measured_at)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-neutral-500">Blood Pressure</div>
+                <div className="font-medium">
+                  {latestVitals.systolic_bp && latestVitals.diastolic_bp
+                    ? `${latestVitals.systolic_bp}/${latestVitals.diastolic_bp} mmHg`
+                    : "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-neutral-500">Weight</div>
+                <div className="font-medium">
+                  {latestVitals.weight_kg ? `${latestVitals.weight_kg} kg` : (form.weight_kg || "—")}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-neutral-500">Height</div>
+                <div className="font-medium">{formatHeightFromCm(latestVitals.height_cm)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-neutral-500">Vitals</div>
+                <div className="font-medium space-x-2">
+                  {latestVitals.hr && <span>HR {latestVitals.hr} bpm</span>}
+                  {latestVitals.rr && <span>RR {latestVitals.rr}/min</span>}
+                  {latestVitals.temp_c && <span>Temp {latestVitals.temp_c} °C</span>}
+                  {latestVitals.o2sat && <span>O₂ {latestVitals.o2sat}%</span>}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-neutral-500">Recorded by</div>
+                <div className="font-medium">{latestVitals.created_by_initials || "—"}</div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-neutral-500">No vitals recorded yet for this patient.</p>
+          )}
+
+          {vitals.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-xs">
+                <thead>
+                  <tr className="text-left text-neutral-500">
+                    <th className="py-2 pr-4">Measured</th>
+                    <th className="py-2 pr-4">BP</th>
+                    <th className="py-2 pr-4">HR/RR</th>
+                    <th className="py-2 pr-4">Temp</th>
+                    <th className="py-2 pr-4">Weight</th>
+                    <th className="py-2 pr-4">Notes</th>
+                    <th className="py-2 pr-4">Staff</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vitals.map((snap) => (
+                    <tr key={snap.id} className="border-t">
+                      <td className="py-2 pr-4">{formatDateTimePH(snap.measured_at)}</td>
+                      <td className="py-2 pr-4">
+                        {snap.systolic_bp && snap.diastolic_bp
+                          ? `${snap.systolic_bp}/${snap.diastolic_bp} mmHg`
+                          : "—"}
+                      </td>
+                      <td className="py-2 pr-4">
+                        {snap.hr ? `HR ${snap.hr} bpm` : ""}{" "}
+                        {snap.rr ? `RR ${snap.rr}/min` : ""}
+                      </td>
+                      <td className="py-2 pr-4">
+                        {snap.temp_c ? `${snap.temp_c} °C` : "—"}{" "}
+                        {snap.o2sat ? `· O₂ ${snap.o2sat}%` : ""}
+                      </td>
+                      <td className="py-2 pr-4">{snap.weight_kg ? `${snap.weight_kg} kg` : "—"}</td>
+                      <td className="py-2 pr-4">{snap.notes || "—"}</td>
+                      <td className="py-2 pr-4">{snap.created_by_initials || snap.source || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="border-t pt-4 space-y-4">
+            <h3 className="text-md font-semibold">Record New Vitals</h3>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="space-y-1 md:col-span-2">
+                <label className="block text-sm font-medium">Encounter</label>
+                <select
+                  className="w-full rounded-xl border px-3 py-2"
+                  value={vitalsForm.encounter_id}
+                  onChange={(e) => onVitalsChange("encounter_id", e.target.value)}
+                >
+                  <option value="">Select recent encounter…</option>
+                  {encounters.map((enc) => (
+                    <option key={enc.id} value={enc.id}>
+                      {describeEncounter(enc)}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-neutral-500">
+                  Defaults to the latest encounter checked-in at reception.
+                </p>
+                {encounters.length === 0 && (
+                  <p className="text-xs text-amber-600">
+                    No encounters found. Ask reception to create one before recording vitals.
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium">Encounter ID</label>
+                <div className="rounded-xl border px-3 py-2 font-mono text-xs bg-neutral-50 break-all">
+                  {vitalsForm.encounter_id || "—"}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium">Measured at</label>
+                <input
+                  type="datetime-local"
+                  className="w-full rounded-xl border px-3 py-2"
+                  value={vitalsForm.measured_at}
+                  onChange={(e) => onVitalsChange("measured_at", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium">Height (ft / in)</label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="number"
+                    className="w-full rounded-xl border px-3 py-2"
+                    placeholder="ft"
+                    value={vitalsForm.height_ft}
+                    onChange={(e) => onVitalsChange("height_ft", e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    className="w-full rounded-xl border px-3 py-2"
+                    placeholder="in"
+                    value={vitalsForm.height_inch}
+                    onChange={(e) => onVitalsChange("height_inch", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium">Weight (kg)</label>
+                <input
+                  type="number"
+                  className="w-full rounded-xl border px-3 py-2"
+                  value={vitalsForm.weight_kg}
+                  onChange={(e) => onVitalsChange("weight_kg", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium">Blood Pressure</label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <input
+                    type="number"
+                    className="w-full rounded-xl border px-3 py-2"
+                    placeholder="Sys"
+                    value={vitalsForm.systolic_bp}
+                    onChange={(e) => onVitalsChange("systolic_bp", e.target.value)}
+                  />
+                  <span className="text-center text-sm text-neutral-500 sm:w-auto">/</span>
+                  <input
+                    type="number"
+                    className="w-full rounded-xl border px-3 py-2"
+                    placeholder="Dia"
+                    value={vitalsForm.diastolic_bp}
+                    onChange={(e) => onVitalsChange("diastolic_bp", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium">Heart Rate (bpm)</label>
+                <input
+                  type="number"
+                  className="w-full rounded-xl border px-3 py-2"
+                  value={vitalsForm.hr}
+                  onChange={(e) => onVitalsChange("hr", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium">Respiratory Rate (/min)</label>
+                <input
+                  type="number"
+                  className="w-full rounded-xl border px-3 py-2"
+                  value={vitalsForm.rr}
+                  onChange={(e) => onVitalsChange("rr", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium">Temperature (°C)</label>
+                <input
+                  type="number"
+                  className="w-full rounded-xl border px-3 py-2"
+                  value={vitalsForm.temp_c}
+                  onChange={(e) => onVitalsChange("temp_c", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium">O₂ Saturation (%)</label>
+                <input
+                  type="number"
+                  className="w-full rounded-xl border px-3 py-2"
+                  value={vitalsForm.o2sat}
+                  onChange={(e) => onVitalsChange("o2sat", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1 md:col-span-3">
+                <label className="block text-sm font-medium">Notes</label>
+                <textarea
+                  className="w-full rounded-xl border px-3 py-2"
+                  rows={2}
+                  value={vitalsForm.notes}
+                  onChange={(e) => onVitalsChange("notes", e.target.value)}
+                />
+              </div>
+            </div>
+            {vitalsSubmitError && <p className="text-sm text-red-600">{vitalsSubmitError}</p>}
+            <button
+              type="button"
+              className={BTN}
+              onClick={onSaveVitals}
+              disabled={vitalsSaving}
+            >
+              {vitalsSaving ? "Saving vitals…" : "Save Vitals"}
+            </button>
+          </div>
+        </section>
       )}
 
       {/* Form */}
@@ -547,59 +1132,6 @@ export default function PatientHistoryPage() {
             </div>
           </section>
 
-          {/* Vitals */}
-          <section>
-            <h2 className="text-lg font-semibold mb-3">Vitals</h2>
-            <div className="grid md:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="block text-sm font-medium">{LABELS.height_ft}</label>
-                <input
-                  type="number"
-                  className="w-full rounded-xl border px-3 py-2"
-                  value={(form.height_ft ?? "") as any}
-                  onChange={(e) => onChange("height_ft", e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-medium">{LABELS.height_inch}</label>
-                <input
-                  type="number"
-                  className="w-full rounded-xl border px-3 py-2"
-                  value={(form.height_inch ?? "") as any}
-                  onChange={(e) => onChange("height_inch", e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-medium">{LABELS.weight_kg}</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className="w-full rounded-xl border px-3 py-2"
-                  value={(form.weight_kg ?? "") as any}
-                  onChange={(e) => onChange("weight_kg", e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-medium">{LABELS.systolic_bp}</label>
-                <input
-                  type="number"
-                  className="w-full rounded-xl border px-3 py-2"
-                  value={(form.systolic_bp ?? "") as any}
-                  onChange={(e) => onChange("systolic_bp", e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-medium">{LABELS.diastolic_bp}</label>
-                <input
-                  type="number"
-                  className="w-full rounded-xl border px-3 py-2"
-                  value={(form.diastolic_bp ?? "") as any}
-                  onChange={(e) => onChange("diastolic_bp", e.target.value)}
-                />
-              </div>
-            </div>
-          </section>
-
           {/* Medical Histories */}
           <section>
             <h2 className="text-lg font-semibold mb-3">Medical Interview</h2>
@@ -643,15 +1175,15 @@ export default function PatientHistoryPage() {
             ))}
           </section>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
               onClick={onUpdate}
               disabled={saving}
-              className={BTN}
+              className={[BTN, "w-full sm:w-auto"].join(" ")}
             >
               {saving ? "Updating…" : "Update"}
             </button>
-            <span className="text-xs text-neutral-500">
+            <span className="text-center text-xs text-neutral-500 sm:text-left">
               Only changed (and non-blank) fields are saved. Keys are locked.
             </span>
           </div>

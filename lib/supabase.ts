@@ -8,6 +8,26 @@ if (!SUPABASE_URL) throw new Error("SUPABASE_URL is required");
 if (!SUPABASE_SERVICE_ROLE_KEY) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required");
 
 export type Row = Record<string, any>;
+export type VitalsSnapshotRow = Row & {
+  id: string;
+  patient_id: string;
+  consultation_id: string;
+  encounter_id: string;
+  measured_at: string;
+  systolic_bp?: number | null;
+  diastolic_bp?: number | null;
+  hr?: number | null;
+  rr?: number | null;
+  temp_c?: number | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  bmi?: number | null;
+  o2sat?: number | null;
+  notes?: string | null;
+  source?: string | null;
+  created_by_initials?: string | null;
+  created_at?: string | null;
+};
 
 export function getSupabase(): SupabaseClient {
   return createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, {
@@ -139,4 +159,33 @@ export async function sbReadPatientById(patientId: string): Promise<Row | null> 
     .maybeSingle();
   if (error) throw error;
   return data ? snake(data as Row) : null;
+}
+
+export async function sbListVitalsByPatient(
+  patientId: string,
+  opts?: { limit?: number; consultationId?: string; encounterId?: string }
+): Promise<VitalsSnapshotRow[]> {
+  const supabase = getSupabase();
+  const pid = escapeLikeExact(String(patientId || "").trim());
+  let query = supabase
+    .from("vitals_snapshots")
+    .select("*")
+    .ilike("patient_id", pid)
+    .order("measured_at", { ascending: false });
+
+  if (opts?.consultationId) query = query.eq("consultation_id", opts.consultationId);
+  if (opts?.encounterId) query = query.eq("encounter_id", opts.encounterId);
+  query = query.limit(opts?.limit ?? 8);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map((r) => snake(r as Row)) as VitalsSnapshotRow[];
+}
+
+export async function sbReadLatestVitalsByPatient(
+  patientId: string,
+  opts?: { consultationId?: string; encounterId?: string }
+): Promise<VitalsSnapshotRow | null> {
+  const rows = await sbListVitalsByPatient(patientId, { ...opts, limit: 1 });
+  return rows[0] ?? null;
 }

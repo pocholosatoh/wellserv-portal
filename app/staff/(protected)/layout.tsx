@@ -41,23 +41,25 @@ export default async function StaffProtectedLayout({
 
       {/* Role / branch strip */}
       <div className="border-b bg-white/80 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-4 md:px-6 py-2 flex flex-wrap items-center gap-3 text-sm">
-          <span className="rounded pill-accent px-2 py-1">
-            Signed in: <span className="font-medium">{staffInitials || "—"}</span>
-          </span>
-          <span className="rounded pill-accent px-2 py-1">
-            Role: <span className="font-medium capitalize">{staffRole || "—"}</span>
-          </span>
-          <span className="rounded pill-accent px-2 py-1">
-            Branch: <span className="font-medium">{branchLabel || "—"}</span>
-          </span>
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-2 text-sm md:flex-row md:flex-wrap md:items-center md:gap-3 md:px-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded pill-accent px-2 py-1">
+              Signed in: <span className="font-medium">{staffInitials || "—"}</span>
+            </span>
+            <span className="rounded pill-accent px-2 py-1">
+              Role: <span className="font-medium capitalize">{staffRole || "—"}</span>
+            </span>
+            <span className="rounded pill-accent px-2 py-1">
+              Branch: <span className="font-medium">{branchLabel || "—"}</span>
+            </span>
+          </div>
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 md:ml-auto">
             <BranchPicker />
             {canSeeReception && (
               <a
                 href="/staff/reception"
-                className="rounded px-3 py-1.5 border hover:bg-gray-50"
+                className="rounded border px-3 py-1.5 hover:bg-gray-50"
               >
                 Reception
               </a>
@@ -65,7 +67,7 @@ export default async function StaffProtectedLayout({
             {canSeeRmt && (
               <a
                 href="/staff/rmt"
-                className="rounded px-3 py-1.5 border hover:bg-gray-50"
+                className="rounded border px-3 py-1.5 hover:bg-gray-50"
               >
                 RMT Workboard
               </a>

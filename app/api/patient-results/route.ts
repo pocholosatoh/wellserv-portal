@@ -85,6 +85,7 @@ function logRequest(method: "GET" | "POST", patient_id: string, reports: any[]) 
 
 /* ---------- adapters to UI shape ---------- */
 function adaptPatientForUI(p: any) {
+  const vitals = adaptVitalsBlock(p?.vitals);
   return {
     patient_id: asStr(p?.patient_id),
     full_name:  asStr(p?.full_name),
@@ -117,7 +118,42 @@ function adaptPatientForUI(p: any) {
 
     smoking_hx: asStr(p?.smoking_hx),
     alcohol_hx: asStr(p?.alcohol_hx),
+    vitals,
   };
+}
+
+function adaptVitalsSnapshot(v: any) {
+  if (!v) return null;
+  return {
+    id: asStr(v?.id),
+    patient_id: asStr(v?.patient_id),
+    consultation_id: asStr(v?.consultation_id),
+    encounter_id: asStr(v?.encounter_id),
+    measured_at: asStr(v?.measured_at),
+    systolic_bp: toNum(v?.systolic_bp),
+    diastolic_bp: toNum(v?.diastolic_bp),
+    hr: toNum(v?.hr),
+    rr: toNum(v?.rr),
+    temp_c: toNum(v?.temp_c),
+    height_cm: toNum(v?.height_cm),
+    weight_kg: toNum(v?.weight_kg),
+    bmi: toNum(v?.bmi),
+    o2sat: toNum(v?.o2sat),
+    notes: asStr(v?.notes),
+    source: asStr(v?.source),
+    created_at: asStr(v?.created_at),
+    created_by_initials: asStr(v?.created_by_initials),
+  };
+}
+
+function adaptVitalsBlock(v: any) {
+  if (!v) return undefined;
+  const latest = adaptVitalsSnapshot(v.latest);
+  const history = Array.isArray(v.history)
+    ? v.history.map((item: any) => adaptVitalsSnapshot(item)).filter(Boolean)
+    : [];
+  if (!latest && history.length === 0) return undefined;
+  return { latest, history };
 }
 
 function adaptReportForUI(report: any) {

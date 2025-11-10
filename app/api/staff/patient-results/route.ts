@@ -8,19 +8,54 @@ function toNum(x: any): number | null { if (x == null) return null; const s = St
 function coerceFlag(f: any): ""|"L"|"H"|"A" { if (!f) return ""; const u = String(f).toUpperCase(); return (u==="L"||u==="H"||u==="A") ? (u as any) : ""; }
 function ts(d?: string|null) { if(!d) return 0; const s=String(d).trim(); const t=Date.parse(s); if(!Number.isNaN(t)) return t; const m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/); if(m){ const a=parseInt(m[1],10), b=parseInt(m[2],10), y=m[3].length===2?2000+parseInt(m[3],10):parseInt(m[3],10); const isDMY=a>12; const month=(isDMY?b:a)-1; const day=isDMY?a:b; return new Date(y,month,day).getTime(); } return 0; }
 
-function adaptPatientForUI(p:any){ return {
-  patient_id: asStr(p?.patient_id), full_name: asStr(p?.full_name), age: asStr(p?.age),
-  sex: asStr(p?.sex), birthday: asStr(p?.birthday), contact: asStr(p?.contact),
-  address: asStr(p?.address), email: asStr(p?.email), height_ft: asStr(p?.height_ft),
-  height_inch: asStr(p?.height_inch), weight_kg: asStr(p?.weight_kg),
-  systolic_bp: asStr(p?.systolic_bp), diastolic_bp: asStr(p?.diastolic_bp),
-  last_updated: asStr(p?.last_updated), present_illness_history: asStr(p?.present_illness_history),
-  past_medical_history: asStr(p?.past_medical_history), past_surgical_history: asStr(p?.past_surgical_history),
-  chief_complaint: asStr(p?.chief_complaint), allergies_text: asStr(p?.allergies_text),
-  medications_current: asStr(p?.medications_current), medications: asStr(p?.medications ?? p?.medications_current),
-  family_hx: asStr(p?.family_hx ?? p?.family_history), family_history: asStr(p?.family_history ?? p?.family_hx),
-  smoking_hx: asStr(p?.smoking_hx), alcohol_hx: asStr(p?.alcohol_hx),
-};}
+function adaptPatientForUI(p:any){
+  const vitals = adaptVitalsBlock(p?.vitals);
+  return {
+    patient_id: asStr(p?.patient_id), full_name: asStr(p?.full_name), age: asStr(p?.age),
+    sex: asStr(p?.sex), birthday: asStr(p?.birthday), contact: asStr(p?.contact),
+    address: asStr(p?.address), email: asStr(p?.email), height_ft: asStr(p?.height_ft),
+    height_inch: asStr(p?.height_inch), weight_kg: asStr(p?.weight_kg),
+    systolic_bp: asStr(p?.systolic_bp), diastolic_bp: asStr(p?.diastolic_bp),
+    last_updated: asStr(p?.last_updated), present_illness_history: asStr(p?.present_illness_history),
+    past_medical_history: asStr(p?.past_medical_history), past_surgical_history: asStr(p?.past_surgical_history),
+    chief_complaint: asStr(p?.chief_complaint), allergies_text: asStr(p?.allergies_text),
+    medications_current: asStr(p?.medications_current), medications: asStr(p?.medications ?? p?.medications_current),
+    family_hx: asStr(p?.family_hx ?? p?.family_history), family_history: asStr(p?.family_history ?? p?.family_hx),
+    smoking_hx: asStr(p?.smoking_hx), alcohol_hx: asStr(p?.alcohol_hx),
+    vitals,
+  };
+}
+
+function adaptVitalsSnapshot(v:any){
+  if(!v) return null;
+  return {
+    id: asStr(v?.id),
+    patient_id: asStr(v?.patient_id),
+    consultation_id: asStr(v?.consultation_id),
+    encounter_id: asStr(v?.encounter_id),
+    measured_at: asStr(v?.measured_at),
+    systolic_bp: toNum(v?.systolic_bp),
+    diastolic_bp: toNum(v?.diastolic_bp),
+    hr: toNum(v?.hr),
+    rr: toNum(v?.rr),
+    temp_c: toNum(v?.temp_c),
+    height_cm: toNum(v?.height_cm),
+    weight_kg: toNum(v?.weight_kg),
+    bmi: toNum(v?.bmi),
+    o2sat: toNum(v?.o2sat),
+    notes: asStr(v?.notes),
+    source: asStr(v?.source),
+    created_at: asStr(v?.created_at),
+    created_by_initials: asStr(v?.created_by_initials),
+  };
+}
+function adaptVitalsBlock(v:any){
+  if(!v) return undefined;
+  const latest = adaptVitalsSnapshot(v.latest);
+  const history = Array.isArray(v.history) ? v.history.map((item:any)=>adaptVitalsSnapshot(item)).filter(Boolean) : [];
+  if(!latest && history.length===0) return undefined;
+  return { latest, history };
+}
 function adaptReportForUI(report:any){ return {
   patient: adaptPatientForUI(report?.patient),
   visit: { date_of_test: asStr(report?.visit?.date_of_test), barcode: asStr(report?.visit?.barcode), notes: asStr(report?.visit?.notes), branch: asStr(report?.visit?.branch) },
