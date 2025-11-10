@@ -67,7 +67,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const actor = await requireActor();
+  const [actor, cookieStore] = await Promise.all([requireActor(), cookies()]);
   if (!actor || actor.kind !== "staff") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -116,11 +116,10 @@ export async function POST(req: Request) {
     o2sat: toNullableNumber(body.o2sat),
   };
 
-  const c = cookies();
   const initials =
-    c.get("staff_initials")?.value ||
-    c.get("staff_id")?.value ||
-    c.get("staff_role")?.value ||
+    cookieStore.get("staff_initials")?.value ||
+    cookieStore.get("staff_id")?.value ||
+    cookieStore.get("staff_role")?.value ||
     actor.id;
 
   const payload = {
