@@ -35,7 +35,8 @@ function Panel({ label, sheetKey }: { label: string; sheetKey: string }) {
         setRows(res.data || []);
         setStatus(`Parsed ${res.data?.length ?? 0} rows`);
       },
-      error: (err) => setStatus(`Parse error${(err as any)?.message ? `: ${(err as any).message}` : ""}`),
+      error: (err) =>
+        setStatus(`Parse error${(err as any)?.message ? `: ${(err as any).message}` : ""}`),
     });
   }
 
@@ -52,8 +53,8 @@ function Panel({ label, sheetKey }: { label: string; sheetKey: string }) {
       body: JSON.stringify({
         sheetKey,
         rows,
-        sheetName: "Results",               // optional; our API defaults to "Database"
-        secret: UPLOAD_SECRET,               // <-- send secret in BODY (not header)
+        sheetName: "Results", // optional; our API defaults to "Database"
+        secret: UPLOAD_SECRET, // <-- send secret in BODY (not header)
       }),
     });
 
@@ -72,33 +73,39 @@ function Panel({ label, sheetKey }: { label: string; sheetKey: string }) {
     const total = updatedExisting + appended;
 
     setStatus(
-      `Done. Updated: ${total} (modified existing: ${updatedExisting}, added new: ${appended})`
+      `Done. Updated: ${total} (modified existing: ${updatedExisting}, added new: ${appended})`,
     );
   }
 
   return (
-    <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <h2 style={{ margin: 0 }}>{label}</h2>
-        <div style={{ color: "#666" }}>{status}</div>
+    <div className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-lg font-semibold">{label}</h2>
+        <div className="text-sm text-gray-600">{status || "Waiting for CSV…"}</div>
       </div>
-      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
-        <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
-        <button onClick={upload} disabled={rows.length === 0} style={{ padding: "8px 14px" }}>
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <input
+          type="file"
+          accept=".csv"
+          onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+          className="text-sm"
+        />
+        <button
+          onClick={upload}
+          disabled={rows.length === 0}
+          className="w-full rounded bg-[#44969b] px-4 py-2 text-sm font-medium text-white disabled:opacity-50 sm:w-auto"
+        >
           Upload to {label}
         </button>
       </div>
       {rows.length > 0 && (
-        <div style={{ overflowX: "auto", fontSize: 12 }}>
-          <div style={{ marginBottom: 6, fontWeight: 600 }}>Preview (first 10 rows)</div>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
+        <div className="mt-4 overflow-x-auto text-xs">
+          <div className="mb-2 font-semibold">Preview (first 10 rows)</div>
+          <table className="min-w-full border-collapse text-left">
             <thead>
               <tr>
-                {PREVIEW_HEADERS.map(h => (
-                  <th
-                    key={h}
-                    style={{ textAlign: "left", padding: "6px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" }}
-                  >
+                {PREVIEW_HEADERS.map((h) => (
+                  <th key={h} className="whitespace-nowrap border-b px-2 py-1 font-medium">
                     {h}
                   </th>
                 ))}
@@ -106,9 +113,9 @@ function Panel({ label, sheetKey }: { label: string; sheetKey: string }) {
             </thead>
             <tbody>
               {rows.slice(0, 10).map((r, i) => (
-                <tr key={i}>
-                  {PREVIEW_HEADERS.map(h => (
-                    <td key={h} style={{ padding: "6px 8px", borderBottom: "1px solid #f6f6f6", whiteSpace: "nowrap" }}>
+                <tr key={i} className="odd:bg-gray-50/60">
+                  {PREVIEW_HEADERS.map((h) => (
+                    <td key={h} className="whitespace-nowrap border-b px-2 py-1">
                       {String((r as Record<string, any>)[h] ?? "")}
                     </td>
                   ))}
@@ -124,14 +131,17 @@ function Panel({ label, sheetKey }: { label: string; sheetKey: string }) {
 
 export default function RmtUploadPage() {
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16, display: "grid", gap: 16 }}>
-      <h1 style={{ marginBottom: 0 }}>Hematology Upload</h1>
-      <p style={{ marginTop: 8, color: "#666" }}>
+    <div className="mx-auto max-w-5xl space-y-3 p-4 sm:p-6">
+      <h1 className="text-2xl font-semibold">Hematology Upload</h1>
+      <p className="text-sm text-gray-600">
         Google Sheet must have these destination columns (row 1):{" "}
-        <code>patient_id, hema_wbc, hema_lymph, hema_mid, hema_gran, hema_rbc, hema_hgb, hema_hct, hema_mcv, hema_mch, hema_mchc, hema_plt</code>.
+        <code className="whitespace-pre-wrap break-words">
+          patient_id, hema_wbc, hema_lymph, hema_mid, hema_gran, hema_rbc, hema_hgb, hema_hct,
+          hema_mcv, hema_mch, hema_mchc, hema_plt
+        </code>
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        {BRANCHES.map(b => (
+      <div className="grid gap-4 sm:grid-cols-2">
+        {BRANCHES.map((b) => (
           <Panel key={b.key} label={b.label} sheetKey={b.key} />
         ))}
       </div>

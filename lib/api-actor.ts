@@ -18,20 +18,37 @@ export type Actor =
     };
 
 export async function requireActor(): Promise<Actor | null> {
+  let session: Awaited<ReturnType<typeof getSession>> | null = null;
+
   // 1) Patient (self-view via httpOnly session)
   try {
-    const s = await getSession();
-    if (s && s.role === "patient" && s.patient_id) {
-      return { kind: "patient", patient_id: String(s.patient_id) };
+    session = await getSession();
+    if (session && session.role === "patient" && session.patient_id) {
+      return { kind: "patient", patient_id: String(session.patient_id) };
     }
   } catch {
-    // not a patient portal call – ignore
+    session = null; // ignore and fall through
   }
 
-  // 2) Staff cookie (works with your existing staff flows)
+  // 2) Staff (either legacy staff_id cookie or new staff_* cookies)
   const c = await getCookies();
-  const staffId = c.get("staff_id")?.value;
-  if (staffId) return { kind: "staff", id: staffId };
+  const roleCookie = c.get("role")?.value || "";
+  const staffRole = session?.staff_role || c.get("staff_role")?.value || "";
+  const staffInitials = session?.staff_initials || c.get("staff_initials")?.value || "";
+  const staffId = c.get("staff_id")?.value || "";
+
+  const isStaff =
+    session?.role === "staff" ||
+    roleCookie === "staff" ||
+    !!staffRole ||
+    !!staffId;
+
+  if (isStaff) {
+    const identifier = staffId || staffInitials || staffRole || roleCookie;
+    if (identifier) {
+      return { kind: "staff", id: identifier };
+    }
+  }
 
   // 3) Doctor session (regular or reliever)
   const doc = await getDoctorSession().catch(() => null);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { BRANCHES } from "@/lib/hubs";
 import { phTodayYMD, addDaysYMD, isDueTodayYMD, isOverdueYMD, isPastGraceYMD } from "@/lib/time";
 
@@ -29,6 +29,13 @@ type Attempt = {
   notes: string | null;
   attempted_by_name: string | null;
 };
+
+function parseExpectedTokens(raw?: string | null) {
+  return (raw || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 const STATUS_FILTERS = ["all", "scheduled", "completed", "canceled", "skipped"] as const;
 type StatusFilter = typeof STATUS_FILTERS[number];
@@ -187,6 +194,44 @@ export default function StaffFollowupsPage() {
     if (open.has(f.id)) await fetchAttempts(f.id);
   }
 
+  function renderAttemptsPanel(f: Followup) {
+    if (loadingAttempts[f.id]) {
+      return <div className="text-gray-600">Loading attempts…</div>;
+    }
+    if (attemptErr[f.id]) {
+      return <div className="text-red-600">Failed to load: {attemptErr[f.id]}</div>;
+    }
+    const attempts = attemptsById[f.id] || [];
+    if (attempts.length === 0) {
+      return <div className="text-gray-600">No attempts yet.</div>;
+    }
+    return (
+      <ul className="space-y-2">
+        {attempts.map((a) => (
+          <li key={a.id} className="rounded border bg-white p-2 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-500">
+                {new Date(a.attempted_at).toLocaleString()}
+              </span>
+              <span className="text-[10px] rounded bg-gray-800 px-1.5 py-0.5 text-white">
+                {a.channel}
+              </span>
+              <span className="text-[10px] rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-800">
+                {a.outcome}
+              </span>
+              {a.attempted_by_name && (
+                <span className="text-[10px] rounded border px-1.5 py-0.5">
+                  {a.attempted_by_name}
+                </span>
+              )}
+            </div>
+            {a.notes ? <div className="mt-1 text-sm">{a.notes}</div> : null}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
     <section className="space-y-4">
       <h1 className="text-lg font-semibold">Follow-Ups</h1>
@@ -217,7 +262,7 @@ export default function StaffFollowupsPage() {
           </div>
         </div>
 
-        <div className="mt-3 flex items-center gap-4">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={onlyDueToday} onChange={(e) => setOnlyDueToday(e.target.checked)} />
             Only Due Today
@@ -227,15 +272,133 @@ export default function StaffFollowupsPage() {
             Only Overdue
           </label>
 
-          <button type="button" onClick={load} disabled={busy} className="ml-auto rounded border px-3 py-1.5 text-sm">
+          <button
+            type="button"
+            onClick={load}
+            disabled={busy}
+            className="w-full rounded border px-3 py-1.5 text-sm sm:ml-auto sm:w-auto"
+          >
             {busy ? "Loading…" : "Refresh"}
           </button>
           {err && <div className="text-sm text-red-600">{err}</div>}
         </div>
       </div>
 
+      {/* Mobile cards */}
+      <div className="space-y-3 md:hidden">
+        {filtered.length === 0 ? (
+          <div className="rounded-xl border bg-white p-4 text-center text-gray-500">
+            No follow-ups in this range.
+          </div>
+        ) : (
+          filtered.map((f) => {
+            const isOpen = open.has(f.id);
+            const dueToday = isDueTodayYMD(f.due_date, today);
+            const overdue = isOverdueYMD(f.due_date, today);
+            const pastGrace = isPastGraceYMD(f.valid_until, today);
+            const expectedTokens = parseExpectedTokens(f.expected_tests);
+
+            return (
+              <article key={f.id} className="rounded-2xl border bg-white p-4 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-gray-500">
+                      {f.return_branch ?? "—"}
+                    </p>
+                    <p className="text-lg font-semibold text-gray-900">{f.patient_id}</p>
+                  </div>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                    {f.status}
+                    {f.cancel_reason ? ` (${f.cancel_reason})` : ""}
+                  </span>
+                </div>
+
+                <div className="mt-3 space-y-1 text-sm text-gray-700">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-gray-900">{f.due_date}</span>
+                    {dueToday && (
+                      <span className="text-[10px] rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">
+                        today
+                      </span>
+                    )}
+                    {overdue && !pastGrace && f.status === "scheduled" && (
+                      <span className="text-[10px] rounded bg-red-100 px-1.5 py-0.5 text-red-700">
+                        overdue
+                      </span>
+                    )}
+                    {pastGrace && (
+                      <span className="text-[10px] rounded bg-gray-200 px-1.5 py-0.5 text-gray-700">
+                        past-grace
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-900">Intended:</span>{" "}
+                    {f.intended_outcome ?? "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-900">Tests:</span>{" "}
+                    {expectedTokens.length === 0 ? "—" : null}
+                  </div>
+                  {expectedTokens.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {expectedTokens.map((tok) => (
+                        <span
+                          key={tok}
+                          className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-mono text-gray-700"
+                        >
+                          {tok}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    className="flex-1 min-w-[140px] rounded border px-3 py-1.5 text-sm"
+                    onClick={() => logAttempt(f)}
+                  >
+                    Log attempt
+                  </button>
+                  {f.status === "scheduled" && (
+                    <>
+                      <button
+                        className="flex-1 min-w-[140px] rounded border px-3 py-1.5 text-sm"
+                        onClick={() => reschedule(f)}
+                      >
+                        Reschedule
+                      </button>
+                      <button
+                        className="flex-1 min-w-[140px] rounded border px-3 py-1.5 text-sm"
+                        onClick={() => cancelF(f)}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                  <button
+                    className="flex-1 min-w-[140px] rounded border px-3 py-1.5 text-sm"
+                    onClick={() => toggle(f.id)}
+                    aria-expanded={isOpen}
+                  >
+                    {isOpen ? "Hide attempts" : "Show attempts"}
+                  </button>
+                </div>
+
+                {isOpen && (
+                  <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-sm">
+                    {renderAttemptsPanel(f)}
+                  </div>
+                )}
+              </article>
+            );
+          })
+        )}
+      </div>
+
       {/* Table */}
-      <div className="rounded-xl border bg-white shadow-sm overflow-auto">
+      <div className="hidden overflow-auto rounded-xl border bg-white shadow-sm md:block">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50 text-gray-700">
             <tr>
@@ -255,6 +418,7 @@ export default function StaffFollowupsPage() {
               const dueToday = isDueTodayYMD(f.due_date, today);
               const overdue = isOverdueYMD(f.due_date, today);
               const pastGrace = isPastGraceYMD(f.valid_until, today);
+              const expectedTokens = parseExpectedTokens(f.expected_tests);
 
               return (
                 <Fragment key={f.id}>
@@ -273,14 +437,31 @@ export default function StaffFollowupsPage() {
                       <div className="flex items-center gap-2">
                         <span>{f.due_date}</span>
                         {dueToday && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">today</span>}
-                        {overdue && !pastGrace && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700">overdue</span>}
+                        {overdue && !pastGrace && f.status === "scheduled" && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700">overdue</span>
+                        )}
                         {pastGrace && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-700">past-grace</span>}
                       </div>
                     </td>
                     <td className="px-3 py-2">{f.patient_id}</td>
                     <td className="px-3 py-2">{f.return_branch ?? "—"}</td>
                     <td className="px-3 py-2">{f.intended_outcome ?? "—"}</td>
-                    <td className="px-3 py-2">{f.expected_tests ?? "—"}</td>
+                    <td className="px-3 py-2">
+                      {expectedTokens.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {expectedTokens.map((tok) => (
+                            <span
+                              key={tok}
+                              className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-mono text-gray-700"
+                            >
+                              {tok}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="px-3 py-2">{f.status}{f.cancel_reason ? ` (${f.cancel_reason})` : ""}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-2">
@@ -300,27 +481,7 @@ export default function StaffFollowupsPage() {
                     <tr className="border-t bg-gray-50/60">
                       <td className="px-3 py-2"></td>
                       <td className="px-3 py-2" colSpan={7}>
-                        {loadingAttempts[f.id] ? (
-                          <div className="text-gray-600">Loading attempts…</div>
-                        ) : attemptErr[f.id] ? (
-                          <div className="text-red-600">Failed to load: {attemptErr[f.id]}</div>
-                        ) : (attemptsById[f.id]?.length || 0) === 0 ? (
-                          <div className="text-gray-600">No attempts yet.</div>
-                        ) : (
-                          <ul className="space-y-2">
-                            {attemptsById[f.id]!.map(a => (
-                              <li key={a.id} className="rounded border bg-white p-2 shadow-sm">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-xs text-gray-500">{new Date(a.attempted_at).toLocaleString()}</span>
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-white">{a.channel}</span>
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">{a.outcome}</span>
-                                  {a.attempted_by_name && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 border">{a.attempted_by_name}</span>}
-                                </div>
-                                {a.notes ? <div className="mt-1 text-sm">{a.notes}</div> : null}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
+                        {renderAttemptsPanel(f)}
                       </td>
                     </tr>
                   )}
@@ -340,5 +501,3 @@ export default function StaffFollowupsPage() {
     </section>
   );
 }
-
-import { Fragment } from "react";

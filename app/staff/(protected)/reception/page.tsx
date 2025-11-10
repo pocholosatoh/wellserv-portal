@@ -421,7 +421,7 @@ export default function Reception() {
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <h1 className="text-xl md:text-2xl font-semibold">Reception {branch ? `— ${branch}` : ""}</h1>
         <button
-          className="rounded px-3 py-2 border hover:bg-gray-50 text-sm md:text-base"
+          className="w-full rounded border px-3 py-2 text-sm hover:bg-gray-50 md:text-base sm:w-auto"
           onClick={() => setOpenForm((x) => !x)}
         >
           {openForm ? "Hide Intake Form" : "New / Update (Toggle)"}

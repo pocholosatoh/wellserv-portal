@@ -70,7 +70,7 @@ const yakapOptions: { label: string; value: Category; subtypes: { label: string;
 function SectionCard(props: { title: string; icon?: React.ReactNode; children: React.ReactNode; className?: string; actions?: React.ReactNode }) {
   return (
     <div className={`rounded-2xl border bg-white shadow-sm ${props.className || ''}`}>
-      <div className="flex items-center justify-between border-b p-4">
+      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-slate-800">
           {props.icon}
           <h2 className="text-lg font-semibold">{props.title}</h2>
@@ -85,7 +85,7 @@ function SectionCard(props: { title: string; icon?: React.ReactNode; children: R
 function Stepper({ step }: { step: number }) {
   const steps = ['Patient', 'Encounter', 'Test', 'Files', 'Details', 'Review'];
   return (
-    <ol className="mb-4 flex flex-wrap items-center gap-2">
+    <ol className="mb-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
       {steps.map((s, i) => {
         const active = i === step;
         const done = i < step;
@@ -334,7 +334,7 @@ export default function OtherLabsUploadPage() {
   // ---- UI
   return (
     <main className="mx-auto max-w-5xl p-4">
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Attach External Results</h1>
         <div className="text-sm text-slate-600">
           <span className="inline-block rounded-full px-3 py-1" style={{ backgroundColor: ACCENT + '20', color: ACCENT }}>
@@ -379,7 +379,7 @@ export default function OtherLabsUploadPage() {
             <button
               onClick={verifyPatient}
               disabled={checkingPatient || !patientId.trim()}
-              className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-white"
+              className="inline-flex w-full items-center justify-center rounded-lg px-4 py-2 text-white sm:w-auto"
               style={{ backgroundColor: ACCENT, opacity: checkingPatient ? 0.7 : 1 }}
             >
               {checkingPatient ? 'Checking…' : 'Verify & Continue'}
@@ -396,10 +396,10 @@ export default function OtherLabsUploadPage() {
           title="Encounter"
           icon={<Calendar style={{ color: ACCENT }} className="h-5 w-5" />}
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <button
                 onClick={() => setStep(step - 1)}
-                className="rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border px-3 py-2 text-sm sm:w-auto"
               >
                 <ChevronLeft className="mr-1 inline-block h-4 w-4" />
                 Back
@@ -407,7 +407,7 @@ export default function OtherLabsUploadPage() {
               <button
                 onClick={() => setStep(step + 1)}
                 disabled={!patientOk}
-                className="rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full rounded-lg px-3 py-2 text-sm text-white sm:w-auto"
                 style={{ backgroundColor: ACCENT, opacity: !patientOk ? 0.6 : 1 }}
               >
                 Next
@@ -416,19 +416,21 @@ export default function OtherLabsUploadPage() {
             </div>
           }
         >
-          <div className="mb-3 flex items-center justify-between">
-            <div className="text-sm text-slate-600">Patient: <span className="font-medium">{patientId}</span></div>
-            <div className="flex items-center gap-2">
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="text-sm text-slate-600">
+              Patient: <span className="font-medium">{patientId}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <button
                 onClick={() => loadEncounters()}
-                className="rounded-lg border px-3 py-1.5 text-sm"
+                className="w-full rounded-lg border px-3 py-1.5 text-sm sm:w-auto"
               >
                 Refresh
               </button>
               <button
                 onClick={createEncounter}
                 disabled={creatingEnc}
-                className="rounded-lg px-3 py-1.5 text-sm text-white"
+                className="w-full rounded-lg px-3 py-1.5 text-sm text-white sm:w-auto"
                 style={{ backgroundColor: ACCENT, opacity: creatingEnc ? 0.7 : 1 }}
               >
                 {creatingEnc ? 'Creating…' : 'Create new encounter'}
@@ -481,14 +483,17 @@ export default function OtherLabsUploadPage() {
           title="Test"
           icon={<Building2 style={{ color: ACCENT }} className="h-5 w-5" />}
           actions={
-            <div className="flex items-center gap-2">
-              <button onClick={() => setStep(step - 1)} className="rounded-lg border px-3 py-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <button
+                onClick={() => setStep(step - 1)}
+                className="w-full rounded-lg border px-3 py-2 text-sm sm:w-auto"
+              >
                 <ChevronLeft className="mr-1 inline-block h-4 w-4" />
                 Back
               </button>
               <button
                 onClick={() => setStep(step + 1)}
-                className="rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full rounded-lg px-3 py-2 text-sm text-white sm:w-auto"
                 style={{ backgroundColor: ACCENT }}
               >
                 Next
@@ -556,15 +561,18 @@ export default function OtherLabsUploadPage() {
           title="Files"
           icon={<Upload style={{ color: ACCENT }} className="h-5 w-5" />}
           actions={
-            <div className="flex items-center gap-2">
-              <button onClick={() => setStep(step - 1)} className="rounded-lg border px-3 py-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <button
+                onClick={() => setStep(step - 1)}
+                className="w-full rounded-lg border px-3 py-2 text-sm sm:w-auto"
+              >
                 <ChevronLeft className="mr-1 inline-block h-4 w-4" />
                 Back
               </button>
               <button
                 onClick={() => setStep(step + 1)}
                 disabled={!files.length}
-                className="rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full rounded-lg px-3 py-2 text-sm text-white sm:w-auto"
                 style={{ backgroundColor: ACCENT, opacity: files.length ? 1 : 0.6 }}
               >
                 Next
@@ -584,10 +592,10 @@ export default function OtherLabsUploadPage() {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="rounded-lg border px-4 py-2 text-sm"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm sm:w-auto"
               style={{ borderColor: ACCENT, color: ACCENT }}
             >
-              <Upload className="mr-2 inline h-4 w-4" />
+              <Upload className="h-4 w-4" />
               Add files
             </button>
             <p className="mt-1 text-xs text-slate-500">Accepts images or PDF. You can use the camera on mobile.</p>
@@ -625,14 +633,17 @@ export default function OtherLabsUploadPage() {
           title="Details"
           icon={<ImageIcon style={{ color: ACCENT }} className="h-5 w-5" />}
           actions={
-            <div className="flex items-center gap-2">
-              <button onClick={() => setStep(step - 1)} className="rounded-lg border px-3 py-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <button
+                onClick={() => setStep(step - 1)}
+                className="w-full rounded-lg border px-3 py-2 text-sm sm:w-auto"
+              >
                 <ChevronLeft className="mr-1 inline-block h-4 w-4" />
                 Back
               </button>
               <button
                 onClick={() => setStep(step + 1)}
-                className="rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full rounded-lg px-3 py-2 text-sm text-white sm:w-auto"
                 style={{ backgroundColor: ACCENT }}
               >
                 Next
@@ -722,15 +733,18 @@ export default function OtherLabsUploadPage() {
           title="Review & Submit"
           icon={<CheckCircle2 style={{ color: ACCENT }} className="h-5 w-5" />}
           actions={
-            <div className="flex items-center gap-2">
-              <button onClick={() => setStep(step - 1)} className="rounded-lg border px-3 py-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <button
+                onClick={() => setStep(step - 1)}
+                className="w-full rounded-lg border px-3 py-2 text-sm sm:w-auto"
+              >
                 <ChevronLeft className="mr-1 inline-block h-4 w-4" />
                 Back
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full rounded-lg px-3 py-2 text-sm text-white sm:w-auto"
                 style={{ backgroundColor: ACCENT, opacity: submitting ? 0.7 : 1 }}
               >
                 {submitting ? 'Uploading…' : 'Submit'}
@@ -754,7 +768,7 @@ export default function OtherLabsUploadPage() {
           {resultMsg && (
             <div className="mt-4">
               <button
-                className="rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border px-3 py-2 text-sm sm:w-auto"
                 onClick={resetAfterSubmit}
               >
                 Add another
@@ -765,18 +779,18 @@ export default function OtherLabsUploadPage() {
       )}
 
       {/* Footer nav */}
-      <div className="mt-6 flex justify-between">
+      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-between">
         <button
           onClick={() => setStep((s) => Math.max(0, s - 1))}
           disabled={step === 0}
-          className="rounded-lg border px-4 py-2 disabled:opacity-50"
+          className="w-full rounded-lg border px-4 py-2 disabled:opacity-50 sm:w-auto"
         >
           Back
         </button>
         <button
           onClick={() => setStep((s) => Math.min(5, s + 1))}
           disabled={step >= 5}
-          className="rounded-lg px-4 py-2 text-white disabled:opacity-50"
+          className="w-full rounded-lg px-4 py-2 text-white disabled:opacity-50 sm:w-auto"
           style={{ backgroundColor: ACCENT }}
         >
           Next

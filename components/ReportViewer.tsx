@@ -58,6 +58,13 @@ const fmtFtIn = (ft?: any, inch?: any): string => {
   if (f == null && i == null) return "";
   return `${f ?? 0}′ ${i ?? 0}″`;
 };
+const ftInFromCm = (cm?: number | null): { ft: number; inch: number } | null => {
+  if (cm == null) return null;
+  const totalIn = cm / 2.54;
+  const ft = Math.floor(totalIn / 12);
+  const inch = Math.round(totalIn - ft * 12);
+  return { ft, inch };
+};
 const withUnit = (v: any, u: string): string =>
   String(v ?? "").toString().trim() ? `${v} ${u}` : "";
 const suffixIfNumeric = (v: any, suffix: string): string => {
@@ -1382,11 +1389,29 @@ export default function ReportViewer(props: ReportViewerProps) {
         {/* ---------- Patient Summary Card (hidden on print) ---------- */}
         {report && (() => {
           const p: any = report.patient || {};
+          const vitalsLatest = p.vitals?.latest || null;
 
           // Vitals & contact
-          const htFt = p.height_ft, htIn = p.height_inch, wtKg = p.weight_kg;
-          const bmi = bmiFromFtInKg(htFt, htIn, wtKg);
-          const bpStr = (p.systolic_bp && p.diastolic_bp) ? `${p.systolic_bp}/${p.diastolic_bp} mmHg` : "";
+          let htFt = p.height_ft;
+          let htIn = p.height_inch;
+          const ftInConverted = ftInFromCm(
+            typeof vitalsLatest?.height_cm === "number" ? vitalsLatest.height_cm : num(vitalsLatest?.height_cm)
+          );
+          if (ftInConverted) {
+            htFt = ftInConverted.ft;
+            htIn = ftInConverted.inch;
+          }
+
+          const wtKg = vitalsLatest?.weight_kg ?? p.weight_kg;
+          const systolic = vitalsLatest?.systolic_bp ?? p.systolic_bp;
+          const diastolic = vitalsLatest?.diastolic_bp ?? p.diastolic_bp;
+          const hr = vitalsLatest?.hr;
+          const rr = vitalsLatest?.rr;
+          const tempC = vitalsLatest?.temp_c;
+          const o2sat = vitalsLatest?.o2sat;
+          const vitalsTimestamp = formatVitalsTimestamp(vitalsLatest?.measured_at);
+          const bmi = vitalsLatest?.bmi ?? bmiFromFtInKg(htFt, htIn, wtKg);
+          const bpStr = (systolic && diastolic) ? `${systolic}/${diastolic} mmHg` : "";
           const smoking = suffixIfNumeric(p.smoking_hx, "packs/mo");
           const alcohol = suffixIfNumeric(p.alcohol_hx, "bottles/mo");
 
@@ -1405,7 +1430,9 @@ export default function ReportViewer(props: ReportViewerProps) {
 
           const lastUpd = (p.last_updated || "").trim();
 
-          const hasVitals = (!!htFt || !!htIn || !!wtKg || !!bmi || !!bpStr || !!smoking || !!alcohol);
+          const hasVitals =
+            !!htFt || !!htIn || !!wtKg || !!bmi || !!bpStr || !!smoking || !!alcohol ||
+            hr != null || rr != null || tempC != null || o2sat != null || !!vitalsTimestamp;
           const hasContact = (!!email || !!phone || !!addr);
           const hasNarr = (!!chief || !!hpi || !!pmh || !!psh || !!allergies || !!medsText || !!famHx);
 
@@ -1413,6 +1440,7 @@ export default function ReportViewer(props: ReportViewerProps) {
           if (bpStr) collapsedHighlights.push(`BP ${bpStr}`);
           if (bmi != null) collapsedHighlights.push(`BMI ${bmi} ${bmiClass(bmi)}`);
           if (wtKg) collapsedHighlights.push(`Weight ${withUnit(wtKg, "kg")}`);
+          if (vitalsTimestamp) collapsedHighlights.push(`Vitals @ ${vitalsTimestamp}`);
           if (smoking) collapsedHighlights.push(`Smoking ${smoking}`);
           if (alcohol) collapsedHighlights.push(`Alcohol ${alcohol}`);
           if (collapsedHighlights.length === 0 && email) collapsedHighlights.push(`Email ${email}`);
@@ -1465,6 +1493,11 @@ export default function ReportViewer(props: ReportViewerProps) {
                     </div>
                   )}
                   {!!bpStr && (<div><div className="ps-label">Latest Known Blood Pressure</div><div className="ps-value">{bpStr}</div></div>)}
+                  {hr != null && (<div><div className="ps-label">Heart Rate</div><div className="ps-value">{withUnit(hr, "bpm")}</div></div>)}
+                  {rr != null && (<div><div className="ps-label">Respiratory Rate</div><div className="ps-value">{withUnit(rr, "/min")}</div></div>)}
+                  {tempC != null && (<div><div className="ps-label">Temperature</div><div className="ps-value">{withUnit(tempC, "°C")}</div></div>)}
+                  {o2sat != null && (<div><div className="ps-label">O₂ Saturation</div><div className="ps-value">{withUnit(o2sat, "%")}</div></div>)}
+                  {vitalsTimestamp && (<div><div className="ps-label">Last Vitals Recorded</div><div className="ps-value">{vitalsTimestamp}</div></div>)}
                   {!!smoking && (<div><div className="ps-label">Smoking History</div><div className="ps-value">{smoking}</div></div>)}
                   {!!alcohol && (<div><div className="ps-label">Alcohol History</div><div className="ps-value">{alcohol}</div></div>)}
 
@@ -1702,4 +1735,16 @@ export default function ReportViewer(props: ReportViewerProps) {
       )}
     </div>
   );
+}
+function formatVitalsTimestamp(s?: string | null) {
+  if (!s) return "";
+  const dt = new Date(s);
+  if (Number.isNaN(dt.getTime())) return s;
+  return dt.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
