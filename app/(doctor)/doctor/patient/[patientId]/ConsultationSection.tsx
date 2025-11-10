@@ -89,7 +89,7 @@ export default function ConsultationSection({
 
         <div className="divide-y">
           <div className="p-4">
-            <h3 className="font-medium text-gray-800 mb-2">Follow-Up</h3>
+            <h3 className="font-medium text-gray-800 mb-2"></h3>
             <FollowUpPanel patientId={patientId} consultationId={consultationId} defaultBranch={undefined} />
           </div>
 

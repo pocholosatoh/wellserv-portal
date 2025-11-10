@@ -26,6 +26,13 @@ function badge(dueYMD: string, validUntilYMD: string) {
   return null;
 }
 
+function parseExpectedTokens(raw?: string | null) {
+  return (raw || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export default async function FollowUpCard() {
   const s = await getSession();
   if (!s || s.role !== "patient") return null;
@@ -46,6 +53,7 @@ export default async function FollowUpCard() {
   const rightLabel = f ? fmtManilaDate(f.due_date) : "—";
   const rightBadge = f ? badge(f.due_date, f.valid_until) : null;
   const hub = f?.return_branch ? HUB_BY_NAME[f.return_branch] : undefined;
+  const expectedTokens = parseExpectedTokens(f?.expected_tests);
 
   return (
     <div
@@ -82,9 +90,19 @@ export default async function FollowUpCard() {
             <div className="text-slate-700">
               <span className="font-semibold text-slate-800">Where:</span> {hub?.label ?? f.return_branch ?? "—"}
             </div>
-            {f.expected_tests && (
+            {expectedTokens.length > 0 && (
               <div className="text-slate-700">
-                <span className="font-semibold text-slate-800">Bring / Tests:</span> {f.expected_tests}
+                <span className="font-semibold text-slate-800">Bring / Tests:</span>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {expectedTokens.map((tok) => (
+                    <span
+                      key={tok}
+                      className="rounded-full bg-white/80 px-2 py-0.5 font-mono text-xs text-slate-700 ring-1 ring-slate-200"
+                    >
+                      {tok}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
             {f.intended_outcome && (

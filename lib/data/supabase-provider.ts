@@ -6,6 +6,7 @@ import type {
   Report,
   ReportSection,
   ReportItem,
+  VitalsSnapshot,
 } from "./data-provider";
 import { getSupabase } from "@/lib/supabase";
 
@@ -166,6 +167,7 @@ export function createSupabaseProvider(): DataProvider {
   const TABLE_PATIENTS = "patients";
   const TABLE_RESULTS  = "results_flat";
   const TABLE_RANGES   = "ranges";
+  const TABLE_VITALS   = "vitals_snapshots";
 
   const db = getSupabase();
 
@@ -202,6 +204,53 @@ export function createSupabaseProvider(): DataProvider {
     return { map, rows };
   }
 
+  type VitalsBundle = { latest: VitalsSnapshot | null; history: VitalsSnapshot[] };
+
+  async function fetchVitalsSnapshots(
+    patient_id: string,
+    opts?: { limit?: number; consultation_id?: string | null; encounter_id?: string | null; }
+  ): Promise<VitalsBundle> {
+    const pid = escapeLikeExact(String(patient_id || "").trim());
+    let query = db
+      .from(TABLE_VITALS)
+      .select("*")
+      .ilike("patient_id", pid)
+      .order("measured_at", { ascending: false });
+
+    if (opts?.consultation_id) query = query.eq("consultation_id", opts.consultation_id);
+    if (opts?.encounter_id) query = query.eq("encounter_id", opts.encounter_id);
+    query = query.limit(opts?.limit ?? 8);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const rows: VitalsSnapshot[] = (data || []).map((r) => ({
+      id: String(r.id),
+      patient_id: String(r.patient_id),
+      consultation_id: String(r.consultation_id),
+      encounter_id: String(r.encounter_id),
+      measured_at: (r.measured_at ?? r.created_at ?? new Date().toISOString()) as string,
+      systolic_bp: toNum(r.systolic_bp),
+      diastolic_bp: toNum(r.diastolic_bp),
+      hr: toNum(r.hr),
+      rr: toNum(r.rr),
+      temp_c: r.temp_c == null ? null : Number(r.temp_c),
+      height_cm: r.height_cm == null ? null : Number(r.height_cm),
+      weight_kg: r.weight_kg == null ? null : Number(r.weight_kg),
+      bmi: r.bmi == null ? null : Number(r.bmi),
+      o2sat: toNum(r.o2sat),
+      notes: r.notes ?? null,
+      source: r.source ?? null,
+      created_at: r.created_at ?? null,
+      created_by_initials: r.created_by_initials ?? null,
+    }));
+
+    return {
+      latest: rows[0] ?? null,
+      history: rows,
+    };
+  }
+
   return {
     async getPatient(patient_id: string): Promise<Patient | null> {
       const pid = escapeLikeExact(String(patient_id || "").trim());
@@ -216,6 +265,10 @@ export function createSupabaseProvider(): DataProvider {
       if (!data) return null;
 
       const medsCurrent = data.medications_current ?? "";
+
+      const vitals = await fetchVitalsSnapshots(patient_id).catch(
+        (): VitalsBundle => ({ latest: null, history: [] })
+      );
 
       const p: Patient = {
         patient_id: data.patient_id,
@@ -242,6 +295,7 @@ export function createSupabaseProvider(): DataProvider {
         family_history:          data.family_hx ?? "",  // source is family_hx
         smoking_hx:              data.smoking_hx ?? "",
         alcohol_hx:              data.alcohol_hx ?? "",
+        vitals,
       };
       return p;
     },

@@ -67,15 +67,15 @@ export default function StaffPrescriptionsPage() {
         Prices and totals here are for staff use only. Patient printouts never show prices.
       </p>
 
-      <div className="flex gap-2 mb-4">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <input
-          className="border rounded px-3 py-2 flex-1"
+          className="w-full rounded border px-3 py-2 sm:flex-1"
           placeholder="Patient ID…"
           value={patientId}
           onChange={(e) => setPatientId(e.target.value)}
         />
         <button
-          className="rounded bg-[#44969b] text-white px-4 py-2"
+          className="w-full rounded bg-[#44969b] px-4 py-2 text-white sm:w-auto"
           onClick={search}
           disabled={loading}
         >

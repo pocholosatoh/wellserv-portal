@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BRANCHES } from "@/lib/hubs";
+import LabTestQuickSearch from "./LabTestQuickSearch";
 
 type Followup = {
   id: string;
@@ -11,6 +12,13 @@ type Followup = {
   status: "scheduled" | "completed" | "canceled" | "skipped";
   cancel_reason?: string | null;
 };
+
+function parseExpectedTokens(raw?: string | null) {
+  return (raw || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 export default function FollowUpPanel({
   patientId,
@@ -34,6 +42,10 @@ export default function FollowUpPanel({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const canSave = consultationId && (attachChecked || due);
+  const activeExpectedTokens = useMemo(
+    () => parseExpectedTokens(active?.expected_tests),
+    [active?.expected_tests]
+  );
 
   async function load() {
     setErr(null);
@@ -106,7 +118,7 @@ export default function FollowUpPanel({
   return (
     <div className="rounded-xl border p-4 shadow-card">
       <div className="flex items-center gap-2 mb-2">
-        <h3 className="font-semibold">Follow-Up</h3>
+        <h3 className="font-semibold">Follow-Ups</h3>
       </div>
 
       {/* Active / none */}
@@ -124,8 +136,20 @@ export default function FollowUpPanel({
           {active.intended_outcome && (
             <div><span className="font-medium">Intended:</span> {active.intended_outcome}</div>
           )}
-          {active.expected_tests && (
-            <div><span className="font-medium">Tests:</span> {active.expected_tests}</div>
+          {activeExpectedTokens.length > 0 && (
+            <div>
+              <span className="font-medium">Tests:</span>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {activeExpectedTokens.map((tok) => (
+                  <span
+                    key={tok}
+                    className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-mono"
+                  >
+                    {tok}
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
           {active.status === "canceled" && (
             <div className="text-red-600">Canceled ({active.cancel_reason ?? "—"})</div>
@@ -145,17 +169,26 @@ export default function FollowUpPanel({
       {/* Collapsible new follow-up */}
       <button
         type="button"
-        onClick={() => setShowNew(!showNew)}
-        className="flex items-center gap-1 text-xs text-gray-700 mb-2 select-none"
+        onClick={() => setShowNew((prev) => !prev)}
+        className="group mb-3 inline-flex items-center gap-2 rounded-full border border-[#44969b]/60 bg-[#44969b]/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#2e6468] select-none"
+        aria-expanded={showNew}
+        aria-controls="doctor-followup-form"
       >
-        <span className="text-lg leading-none">
-          {showNew ? "▾" : "▸"}
+        <span
+          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#2e6468] shadow-sm transition-transform duration-200"
+          style={{ transform: showNew ? "rotate(90deg)" : "rotate(0deg)" }}
+          aria-hidden
+        >
+          ▸
         </span>
-        Make new follow-up below
+        {showNew ? "Hide follow-up form" : "Make new follow-up"}
       </button>
 
       {showNew && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2 pl-4 border-l border-gray-200">
+        <div
+          id="doctor-followup-form"
+          className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2 pl-4 border-l border-gray-200"
+        >
           <div>
             <label className="block text-xs text-gray-600 mb-1">Return date</label>
             <input
@@ -189,14 +222,7 @@ export default function FollowUpPanel({
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-xs text-gray-600 mb-1">Expected tests / bring-backs</label>
-            <input
-              type="text"
-              value={tests}
-              onChange={(e) => setTests(e.target.value)}
-              placeholder="e.g., FBS + Lipid; bring BP log"
-              className="w-full border rounded px-2 py-1 text-sm"
-            />
+            <LabTestQuickSearch value={tests} onChange={setTests} />
           </div>
         </div>
       )}
