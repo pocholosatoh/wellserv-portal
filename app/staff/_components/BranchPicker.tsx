@@ -38,11 +38,14 @@ export default function BranchPicker() {
   const active = "rounded px-3 py-1.5 border bg-gray-900 text-white";
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-600">Switch branch:</span>
+    <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+      <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+        Branch
+      </span>
       <button
         type="button"
         className={branch === "SI" ? active : btn}
+        aria-pressed={branch === "SI"}
         onClick={() => setBranchAndReload("SI")}
         title="San Isidro"
       >
@@ -51,6 +54,7 @@ export default function BranchPicker() {
       <button
         type="button"
         className={branch === "SL" ? active : btn}
+        aria-pressed={branch === "SL"}
         onClick={() => setBranchAndReload("SL")}
         title="San Leonardo"
       >

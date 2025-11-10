@@ -99,8 +99,8 @@ export default async function StaffHome() {
             "linear-gradient(135deg, rgba(68,150,155,0.12) 0%, rgba(68,150,155,0.05) 45%, rgba(255,255,255,0.0) 100%)",
         }}
       >
-        <div className="mx-auto max-w-5xl px-6 pt-10 pb-8">
-          <div className="flex items-start gap-4">
+        <div className="mx-auto max-w-5xl px-4 pt-8 pb-6 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
             <div
               className="h-14 w-14 shrink-0 rounded-2xl grid place-items-center text-white text-xl font-semibold shadow-sm"
               style={{ backgroundColor: accent }}
@@ -120,9 +120,13 @@ export default async function StaffHome() {
               </div>
             </div>
 
-            <form action="/api/auth/logout?who=staff" method="post" className="ml-auto">
+            <form
+              action="/api/auth/logout?who=staff"
+              method="post"
+              className="w-full sm:ml-auto sm:w-auto"
+            >
               <button
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm hover:bg-gray-50 active:scale-[0.99] transition"
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm transition hover:bg-gray-50 active:scale-[0.99]"
                 type="submit"
               >
                 Logout

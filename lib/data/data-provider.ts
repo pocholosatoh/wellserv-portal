@@ -3,6 +3,27 @@
 // --- Domain shapes returned to the UI (keep these stable) ---
 export type Sex = "Male" | "Female" | string;
 
+export interface VitalsSnapshot {
+  id: string;
+  patient_id: string;
+  consultation_id: string;
+  encounter_id: string;
+  measured_at: string;
+  systolic_bp?: number | null;
+  diastolic_bp?: number | null;
+  hr?: number | null;
+  rr?: number | null;
+  temp_c?: number | null;
+  height_cm?: number | null;
+  weight_kg?: number | string | null;
+  bmi?: number | null;
+  o2sat?: number | null;
+  notes?: string | null;
+  source?: string | null;
+  created_at?: string | null;
+  created_by_initials?: string | null;
+}
+
 export interface Patient {
   patient_id: string;
   full_name?: string;
@@ -31,6 +52,10 @@ export interface Patient {
   family_history?: string;
   smoking_hx?: string;
   alcohol_hx?: string;
+  vitals?: {
+    latest?: VitalsSnapshot | null;
+    history?: VitalsSnapshot[];
+  };
 }
 
 export interface Visit {
