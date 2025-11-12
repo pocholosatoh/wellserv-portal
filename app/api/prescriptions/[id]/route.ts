@@ -57,7 +57,7 @@ export async function GET(
   const rx = await db
     .from("prescriptions")
     .select(
-      "id, consultation_id, patient_id, doctor_id, status, notes_for_patient, created_at"
+      "id, consultation_id, patient_id, doctor_id, status, notes_for_patient, created_at, valid_days, valid_until"
     )
     .eq("id", rxId)
     .maybeSingle();
@@ -177,6 +177,8 @@ export async function GET(
     created_at: rx.data.created_at,
     status: rx.data.status,
     notes_for_patient: rx.data.notes_for_patient ?? "",
+    valid_days: rx.data.valid_days ?? null,
+    valid_until: rx.data.valid_until ?? null,
     patient: patient.data ?? null,
     doctor, // has display_name/prc_no and signed signature_url if available
     items: items.data ?? [],

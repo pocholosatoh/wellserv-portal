@@ -1,14 +1,17 @@
 // app/api/prescriptions/upsert/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { DEFAULT_RX_VALID_DAYS, normalizeValidDays } from "@/lib/rx";
 
 export async function POST(req: NextRequest) {
   const supabase = getSupabase();
-  const { consultationId, patientId, notesForPatient, items } = await req.json();
+  const { consultationId, patientId, notesForPatient, items, validDays } = await req.json();
 
   if (!consultationId || !patientId) {
     return NextResponse.json({ error: "consultationId and patientId are required" }, { status: 400 });
   }
+
+  const finalValidDays = normalizeValidDays(validDays, DEFAULT_RX_VALID_DAYS);
 
   // find or create draft
   const { data: existing, error: findErr } = await supabase
@@ -34,6 +37,7 @@ export async function POST(req: NextRequest) {
         notes_for_patient: notesForPatient ?? "",
         active: false,
         is_superseded: false,
+        valid_days: finalValidDays,
       })
       .select("id")
       .single();
@@ -42,7 +46,7 @@ export async function POST(req: NextRequest) {
   } else {
     const { error: updErr } = await supabase
       .from("prescriptions")
-      .update({ notes_for_patient: notesForPatient ?? "" })
+      .update({ notes_for_patient: notesForPatient ?? "", valid_days: finalValidDays })
       .eq("id", draftId);
     if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
   }

@@ -8,6 +8,13 @@ import StaffNavi from "@/app/staff/_components/StaffNavi";
 
 type Rx = any;
 
+function formatDateOnly(iso?: string | null) {
+  if (!iso) return null;
+  const dt = new Date(iso);
+  if (Number.isNaN(+dt)) return null;
+  return dt.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+}
+
 export default function StaffPrescriptionsPage() {
   const [patientId, setPatientId] = useState("");
   const [list, setList] = useState<Rx[]>([]);
@@ -123,6 +130,16 @@ export default function StaffPrescriptionsPage() {
                     {fmtManila(r.created_at)}
                   </div>
                 </div>
+                {(r.valid_until || r.valid_days) && (
+                  <div className="mt-1 text-xs text-gray-500">
+                    {r.valid_until
+                      ? `Valid until ${formatDateOnly(r.valid_until) || "—"}`
+                      : r.valid_days
+                      ? `Valid for ${r.valid_days} day${Number(r.valid_days) === 1 ? "" : "s"} from signing`
+                      : "Validity duration not specified"}
+                    {r.valid_until && r.valid_days ? ` (${r.valid_days} days)` : ""}
+                  </div>
+                )}
 
                 <div className="mt-2 text-sm">
                   <div>

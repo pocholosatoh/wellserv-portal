@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import FollowUpCard from "@/components/FollowUpCard";
 import { redirect } from "next/navigation";
+import { getDataProvider } from "@/lib/data/provider-factory";
 
 const SI_NUMBER = "09939854927";
 const SL_NUMBER = "09942760253";
@@ -21,20 +22,20 @@ function nameInitials(name: string) {
   return (t[0]?.[0] || "") + (t[1]?.[0] || "");
 }
 
+function formatDateLabel(value?: string | null) {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
+}
+
 export default async function PatientHome() {
   const s = await getSession();
   if (!s || s.role !== "patient") redirect("/login?next=/patient");
 
   const db = supa();
+  const providerPromise = getDataProvider();
 
-  const [{ data: lastRes }, { data: lastRx }, { data: pat }] = await Promise.all([
-    db
-      .from("results_wide")
-      .select("date_of_test")
-      .eq("patient_id", s.patient_id)
-      .order("date_of_test", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+  const [{ data: lastRx }, { data: pat }, { data: medcerts }, visits] = await Promise.all([
     db
       .from("prescriptions")
       .select("created_at")
@@ -48,15 +49,23 @@ export default async function PatientHome() {
       .eq("patient_id", s.patient_id)
       .limit(1)
       .maybeSingle(),
+    db
+      .from("medical_certificates")
+      .select("id, certificate_no, issued_at")
+      .eq("patient_id", s.patient_id)
+      .order("issued_at", { ascending: false })
+      .limit(3),
+    providerPromise.then((provider) => provider.getVisits(s.patient_id)),
   ]);
 
   const displayName = (pat?.full_name || s.patient_id).trim();
-  const lastResultDate = lastRes?.date_of_test
-    ? new Date(lastRes.date_of_test as any).toLocaleDateString()
-    : "—";
-  const lastRxDate = lastRx?.created_at
-    ? new Date(lastRx.created_at as any).toLocaleDateString()
-    : "—";
+  const lastResultDate = formatDateLabel(visits?.[0]?.date_of_test);
+  const lastRxDate = formatDateLabel(lastRx?.created_at as string | null | undefined);
+  const medCertCount = medcerts?.length ?? 0;
+  const medCertLabel =
+    medcerts && medcerts.length > 0
+      ? formatDateLabel(medcerts[0].issued_at as string | null | undefined)
+      : "—";
 
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
   const initials = nameInitials(displayName).toUpperCase();
@@ -137,7 +146,7 @@ export default async function PatientHome() {
 
       {/* Actions */}
       <section className="mx-auto max-w-4xl px-6 pb-10">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <ActionCard
             href="/results"
             heading="View Results"
@@ -164,10 +173,22 @@ export default async function PatientHome() {
               </svg>
             }
           />
+          <ActionCard
+            href="/patient/medcerts"
+            heading="Medical Certificates"
+            sub="View issued certificates"
+            badge={medCertCount ? `Total: ${medCertCount}` : "No record"}
+            accent={accent}
+            icon={
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M6 3h12a1 1 0 0 1 1 1v16l-3-2-3 2-3-2-3 2V4a1 1 0 0 1 1-1Z" />
+                <path d="M9 8h6M9 12h6" />
+              </svg>
+            }
+          />
         </div>
 
-        {/* Extra module (kept from your app) */}
-        <div className="mt-6 overflow-hidden rounded-3xl border border-white/70 bg-white/80 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+        <div className="mt-6">
           <FollowUpCard />
         </div>
 
