@@ -4,6 +4,21 @@ import { headers } from "next/headers";
 import { getSupabase } from "@/lib/supabase";
 import { signDoctorSignature } from "@/lib/medicalCertificates";
 
+type SupportingSourceItem = {
+  id?: string | number | null;
+  label?: string | null;
+  summary?: string | null;
+  type?: string | null;
+  ordinal?: number | null;
+  source_type?: string | null;
+};
+
+type SupportingDisplayItem = {
+  id: string;
+  label: string;
+  summary: string;
+};
+
 async function getBaseUrl(): Promise<string> {
   const h = await headers();
   const host =
@@ -85,15 +100,18 @@ export default async function MedicalCertificatePrintPage({
   const baseUrl = await getBaseUrl();
   const data = await fetchCertificate(certificateId);
   const cert = data.certificate;
-  const fallbackSupporting = Array.isArray(cert.supporting_data) ? cert.supporting_data : [];
-  const supporting =
-    data.supporting.length > 0
-      ? data.supporting
-      : fallbackSupporting.map((item: any, idx: number) => ({
-          id: `fallback-${idx}`,
-          label: item.label || item.type || "Supporting data",
-          summary: item.summary || "",
-        }));
+  const fallbackSupporting: SupportingSourceItem[] = Array.isArray(cert.supporting_data)
+    ? (cert.supporting_data as SupportingSourceItem[])
+    : [];
+  const supportingSources: SupportingSourceItem[] =
+    data.supporting.length > 0 ? data.supporting : fallbackSupporting;
+  const supporting: SupportingDisplayItem[] = supportingSources.map(
+    (item: SupportingSourceItem, idx: number): SupportingDisplayItem => ({
+      id: String(item.id ?? `supporting-${idx}`),
+      label: item.label || item.type || "Supporting data",
+      summary: item.summary || "",
+    }),
+  );
   const physicalExam = cert.physical_exam || {};
   const verificationUrl = `${baseUrl}/verify/medical-certificate/${cert.verification_code}`;
   const qrSrc = `https://quickchart.io/qr?size=140&text=${encodeURIComponent(verificationUrl)}`;
