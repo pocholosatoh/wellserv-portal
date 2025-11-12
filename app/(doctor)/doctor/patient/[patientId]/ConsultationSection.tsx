@@ -8,6 +8,7 @@ import BranchPicker from "./BranchPicker";
 import FollowUpPanel from "./FollowUpPanel";
 import FinishConsultButton from "./FinishConsultButton";
 import ConsentModal from "./ConsentModal"; // ← ensure this file exists
+import MedicalCertificateDrawer from "./MedicalCertificateDrawer";
 
 export default function ConsultationSection({
   patientId,
@@ -25,6 +26,7 @@ export default function ConsultationSection({
 
   // consent modal state
   const [showConsent, setShowConsent] = useState(false);
+  const [showMedCert, setShowMedCert] = useState(false);
 
   useEffect(() => {
     if (initialConsultationId) setConsultationId(initialConsultationId);
@@ -61,6 +63,8 @@ export default function ConsultationSection({
   const badgeText = consultType ? (isFPE ? "FPE" : "Follow-up") : null;
   const badgeClass = isFPE ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-800";
 
+  const canIssueMedCert = Boolean(consultationId && encounterId);
+
   return (
     <section className="space-y-4">
       {!consultationId ? (
@@ -82,9 +86,24 @@ export default function ConsultationSection({
         disabled={!consultationId}
         className={`rounded-xl border bg-white shadow-sm transition ${!consultationId ? "opacity-60" : ""}`}
       >
-        <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
           <h2 className="text-sm font-semibold text-gray-700">Consultation Workspace</h2>
-          <BranchPicker consultationId={consultationId} initialBranch={null} />
+          <div className="flex items-center gap-2">
+            <BranchPicker consultationId={consultationId} initialBranch={null} />
+            <button
+              type="button"
+              onClick={() => setShowMedCert(true)}
+              disabled={!canIssueMedCert}
+              title={
+                canIssueMedCert
+                  ? "Generate a medical certificate for this patient"
+                  : "Start the consult and ensure an encounter is linked to create a certificate"
+              }
+              className="rounded-full border border-[#2e6468] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#2e6468] disabled:border-gray-300 disabled:text-gray-400"
+            >
+              Medical Certificate
+            </button>
+          </div>
         </div>
 
         <div className="divide-y">
@@ -157,6 +176,19 @@ export default function ConsultationSection({
             } catch {}
             setShowConsent(false);
             window.location.reload();
+          }}
+        />
+      )}
+
+      {showMedCert && consultationId && encounterId && (
+        <MedicalCertificateDrawer
+          open={showMedCert}
+          onClose={() => setShowMedCert(false)}
+          patientId={patientId}
+          consultationId={consultationId}
+          encounterId={encounterId}
+          onIssued={() => {
+            setShowMedCert(false);
           }}
         />
       )}

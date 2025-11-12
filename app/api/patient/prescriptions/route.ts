@@ -51,6 +51,8 @@ export async function GET(req: Request) {
         want_pharmacy_order,
         order_requested_at,
         delivery_address,
+        valid_days,
+        valid_until,
         supersedes_prescription_id,
         is_superseded,
         active,

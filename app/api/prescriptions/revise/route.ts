@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { DEFAULT_RX_VALID_DAYS } from "@/lib/rx";
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
     // 1) Find the active signed Rx for this consultation
     const active = await db
       .from("prescriptions")
-      .select("id, patient_id, doctor_id, notes_for_patient")
+      .select("id, patient_id, doctor_id, notes_for_patient, valid_days")
       .eq("consultation_id", consultationId)
       .eq("status", "signed")
       .eq("active", true)
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
         doctor_id: active.data.doctor_id,         // keep same doctor snapshot
         status: "draft",
         notes_for_patient: active.data.notes_for_patient ?? "",
+        valid_days: active.data.valid_days ?? DEFAULT_RX_VALID_DAYS,
         active: false,
         is_superseded: false,
         supersedes_prescription_id: active.data.id,
@@ -137,6 +139,7 @@ export async function POST(req: NextRequest) {
       patient_id: active.data.patient_id,
       doctor_id: active.data.doctor_id,
       notes_for_patient: active.data.notes_for_patient ?? "",
+      valid_days: active.data.valid_days ?? DEFAULT_RX_VALID_DAYS,
       items: (cloned || []).map((r) => ({
         med_id: r.med_id,
         generic_name: r.generic_name,
