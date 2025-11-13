@@ -56,10 +56,12 @@ export async function GET(req: Request) {
     let rxId: string | null = null;
     let rxStatus: string | null = null;
     let rxNotes: string | null = null;
+    let rxValidDays: number | null = null;
+    let rxValidUntil: string | null = null;
 
     const signed = await db
       .from("prescriptions")
-      .select("id, status, notes_for_patient, updated_at")
+      .select("id, status, notes_for_patient, updated_at, valid_days, valid_until")
       .eq("consultation_id", id)
       .eq("status", "signed")
       .eq("active", true) // ← use active flag
@@ -70,10 +72,12 @@ export async function GET(req: Request) {
       rxId = signed.data.id;
       rxStatus = signed.data.status;
       rxNotes = signed.data.notes_for_patient ?? null;
+      rxValidDays = signed.data.valid_days ?? null;
+      rxValidUntil = signed.data.valid_until ?? null;
     } else {
       const draft = await db
         .from("prescriptions")
-        .select("id, status, notes_for_patient, updated_at")
+        .select("id, status, notes_for_patient, updated_at, valid_days")
         .eq("consultation_id", id)
         .eq("status", "draft")
         .order("updated_at", { ascending: false })
@@ -83,6 +87,8 @@ export async function GET(req: Request) {
         rxId = draft.data.id;
         rxStatus = draft.data.status;
         rxNotes = draft.data.notes_for_patient ?? null;
+        rxValidDays = draft.data.valid_days ?? null;
+        rxValidUntil = null;
       }
     }
 
@@ -139,7 +145,16 @@ export async function GET(req: Request) {
         notes_markdown: dn.data?.notes_markdown ?? null,
         notes_soap: dn.data?.notes_soap ?? null,
       },
-      rx: rxId ? { id: rxId, status: rxStatus, notes_for_patient: rxNotes, items: items ?? [] } : null,
+      rx: rxId
+        ? {
+            id: rxId,
+            status: rxStatus,
+            notes_for_patient: rxNotes,
+            items: items ?? [],
+            valid_days: rxValidDays,
+            valid_until: rxValidUntil,
+          }
+        : null,
     };
 
     return NextResponse.json({ details });

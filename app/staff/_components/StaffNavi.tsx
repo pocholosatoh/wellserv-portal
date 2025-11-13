@@ -18,6 +18,7 @@ export default function StaffNavi({
     { href: "/staff/other-labs", label: "Other Labs" },
     { href: "/staff/patienthistory", label: "Patient History" },
     { href: "/staff/prescriptions", label: "Prescriptions" },
+    { href: "/staff/medcerts", label: "Medical Certs" },
     { href: "/staff/rmt/hemaupload", label: "RMT Hema Upload" },
   ];
 

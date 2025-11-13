@@ -3,11 +3,60 @@ import { NextResponse } from "next/server";
 import { setSession } from "@/lib/session";
 import { createClient } from "@supabase/supabase-js";
 
+type PatientRow = {
+  patient_id?: string | null;
+  full_name?: string | null;
+};
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   // accept either env name; prefer SERVICE_ROLE if present
   process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+export const dynamic = "force-dynamic";
+
+function normalizePatientId(raw: unknown) {
+  return String(raw ?? "").trim().toUpperCase();
+}
+
+function escapeLikeExact(s: string) {
+  return s.replace(/[%_]/g, (m) => `\\${m}`);
+}
+
+async function findPatientRecord(pid: string): Promise<PatientRow | null> {
+  const pattern = escapeLikeExact(pid);
+
+  // First, look at the canonical patients table (case-insensitive exact match).
+  const { data: patient, error: patientError } = await supabase
+    .from("patients")
+    .select("patient_id, full_name")
+    .ilike("patient_id", pattern)
+    .limit(1)
+    .maybeSingle();
+
+  if (patientError) throw patientError;
+  if (patient) return patient;
+
+  // Fallback: older records might exist only in results_wide.
+  const { data: visitRow, error: visitError } = await supabase
+    .from("results_wide")
+    .select("patient_id")
+    .ilike("patient_id", pattern)
+    .order("date_of_test", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (visitError) throw visitError;
+  if (visitRow) {
+    return {
+      patient_id: visitRow.patient_id ?? pid,
+      full_name: null,
+    };
+  }
+
+  return null;
+}
 
 export async function POST(req: Request) {
   try {
@@ -15,6 +64,11 @@ export async function POST(req: Request) {
 
     if (!rawPid || !access_code) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+
+    const normalized = normalizePatientId(rawPid);
+    if (!normalized) {
+      return NextResponse.json({ error: "Missing Patient ID" }, { status: 400 });
     }
 
     const expected = process.env.PATIENT_PORTAL_ACCESS_CODE;
@@ -26,24 +80,22 @@ export async function POST(req: Request) {
     }
 
     // Normalize to uppercase (your DB stores uppercase pids)
-    const target = String(rawPid).trim().toUpperCase();
+    const target = normalized;
 
-    // Look up exact patient_id (no wildcard needed)
-    const { data: row, error } = await supabase
-      .from("patients")
-      .select("patient_id, full_name")
-      .eq("patient_id", target)
-      .maybeSingle();
+    // Look up patient record (patients table first, then results_wide as fallback)
+    const row = await findPatientRecord(target);
 
-    if (error || !row) {
+    if (!row) {
       return NextResponse.json({ error: "No matching Patient ID" }, { status: 404 });
     }
+
+    const canonicalId = normalizePatientId(row.patient_id || target);
 
     // Create response and set session cookies
     const res = NextResponse.json({ ok: true });
     setSession(res, {
       role: "patient",
-      patient_id: row.patient_id,
+      patient_id: canonicalId,
       persist: !!remember,
     });
     return res;
