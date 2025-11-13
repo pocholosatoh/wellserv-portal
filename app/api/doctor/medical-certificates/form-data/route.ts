@@ -12,6 +12,18 @@ import {
 } from "@/lib/medicalCertificateSchema";
 import { signDoctorSignature } from "@/lib/medicalCertificates";
 
+type ConsultationRow = {
+  id: string;
+  patient_id: string;
+  encounter_id: string | null;
+  visit_at: string | null;
+  type: string | null;
+  status: string | null;
+  branch: string | null;
+  doctor_id: string | null;
+  doctor_name_at_time: string | null;
+};
+
 const DATE_FMT = new Intl.DateTimeFormat("en-PH", {
   timeZone: process.env.APP_TZ || "Asia/Manila",
   year: "numeric",
@@ -104,11 +116,12 @@ export async function GET(req: Request) {
       if (cons.error) {
         return NextResponse.json({ error: cons.error.message }, { status: 400 });
       }
-      if (cons.data) {
-        if (cons.data.patient_id !== patientId) {
+      const consultationRow = cons.data as ConsultationRow | null;
+      if (consultationRow) {
+        if (consultationRow.patient_id !== patientId) {
           return NextResponse.json({ error: "Consultation does not belong to patient" }, { status: 400 });
         }
-        consultation = cons.data;
+        consultation = consultationRow;
       }
     }
 
