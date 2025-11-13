@@ -30,7 +30,20 @@ export async function requireActor(): Promise<Actor | null> {
     session = null; // ignore and fall through
   }
 
-  // 2) Staff (either legacy staff_id cookie or new staff_* cookies)
+  // 2) Doctor session (regular or reliever). Must precede staff to avoid relievers getting downgraded.
+  const doc = await getDoctorSession().catch(() => null);
+  if (doc?.doctorId) {
+    return {
+      kind: "doctor",
+      id: doc.doctorId,
+      branch: doc.branch,
+      philhealth_md_id: doc.philhealth_md_id, // may be undefined for reliever/no-PHIC
+      name: doc.name,
+      display_name: doc.display_name,
+    };
+  }
+
+  // 3) Staff (either legacy staff_id cookie or new staff_* cookies)
   const c = await getCookies();
   const roleCookie = c.get("role")?.value || "";
   const staffRole = session?.staff_role || c.get("staff_role")?.value || "";
@@ -48,19 +61,6 @@ export async function requireActor(): Promise<Actor | null> {
     if (identifier) {
       return { kind: "staff", id: identifier };
     }
-  }
-
-  // 3) Doctor session (regular or reliever)
-  const doc = await getDoctorSession().catch(() => null);
-  if (doc?.doctorId) {
-    return {
-      kind: "doctor",
-      id: doc.doctorId,
-      branch: doc.branch,
-      philhealth_md_id: doc.philhealth_md_id, // may be undefined for reliever/no-PHIC
-      name: doc.name,
-      display_name: doc.display_name,
-    };
   }
 
   return null;

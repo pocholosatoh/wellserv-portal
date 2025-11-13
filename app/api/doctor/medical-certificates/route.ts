@@ -15,6 +15,72 @@ import {
   SupportingDataEntry,
 } from "@/lib/medicalCertificateSchema";
 
+type MedicalCertificateRow = {
+  id: string;
+  certificate_no: string | null;
+  patient_id: string;
+  consultation_id: string | null;
+  encounter_id: string | null;
+  issued_at: string | null;
+  valid_until: string | null;
+  status: string | null;
+  doctor_id: string | null;
+  doctor_snapshot: Record<string, any> | null;
+};
+
+type PatientRow = {
+  patient_id: string;
+  full_name: string | null;
+  birthday: string | null;
+  age: number | null;
+  sex: string | null;
+  address: string | null;
+};
+
+type ConsultationRow = {
+  id: string;
+  patient_id: string;
+  encounter_id: string | null;
+  branch: string | null;
+};
+
+type EncounterRow = {
+  id: string;
+  patient_id: string;
+};
+
+type DiagnosisRow = {
+  id: string;
+  consultation_id: string;
+  icd10_code: string | null;
+  icd10_text_snapshot: string | null;
+  is_primary: boolean | null;
+};
+
+type NotesRow = {
+  notes_markdown?: string | null;
+  notes_soap?: string | null;
+};
+
+type VitalsRow = {
+  id: string;
+  consultation_id: string | null;
+  measured_at: string | null;
+};
+
+type DoctorRow = {
+  doctor_id: string;
+  display_name: string | null;
+  full_name: string | null;
+  credentials: string | null;
+  specialty: string | null;
+  affiliations: string | null;
+  prc_no: string | null;
+  ptr_no: string | null;
+  s2_no: string | null;
+  signature_image_url: string | null;
+};
+
 function normalizePatientId(value?: string | null) {
   if (!value) return null;
   const trimmed = value.trim();
@@ -88,7 +154,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    const items = (data || []).map((row) => ({
+    const rows = ((data || []) as unknown) as MedicalCertificateRow[];
+    const items = rows.map((row) => ({
       id: row.id,
       certificate_no: row.certificate_no,
       consultation_id: row.consultation_id,
@@ -153,7 +220,8 @@ export async function POST(req: Request) {
     const db = getSupabase();
 
     // Ensure only one certificate per consultation/encounter.
-    let existingCert: any = null;
+    type IdRow = { id: string };
+    let existingCert: IdRow | null = null;
     if (consultationId) {
       const existingByConsult = await db
         .from("medical_certificates")
@@ -163,7 +231,7 @@ export async function POST(req: Request) {
       if (existingByConsult.error) {
         return NextResponse.json({ error: existingByConsult.error.message }, { status: 400 });
       }
-      existingCert = existingByConsult.data ?? null;
+      existingCert = (existingByConsult.data as IdRow | null) ?? null;
     }
     if (!existingCert && encounterId) {
       const existingByEncounter = await db
@@ -174,7 +242,7 @@ export async function POST(req: Request) {
       if (existingByEncounter.error) {
         return NextResponse.json({ error: existingByEncounter.error.message }, { status: 400 });
       }
-      existingCert = existingByEncounter.data ?? null;
+      existingCert = (existingByEncounter.data as IdRow | null) ?? null;
     }
 
     if (existingCert?.id) {
@@ -190,7 +258,8 @@ export async function POST(req: Request) {
       .eq("patient_id", patientId)
       .maybeSingle();
     if (patient.error) return NextResponse.json({ error: patient.error.message }, { status: 400 });
-    if (!patient.data) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
+    const patientRow = patient.data as PatientRow | null;
+    if (!patientRow) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
 
     const consultation = await db
       .from("consultations")
@@ -200,10 +269,11 @@ export async function POST(req: Request) {
     if (consultation.error) {
       return NextResponse.json({ error: consultation.error.message }, { status: 400 });
     }
-    if (!consultation.data) {
+    const consultationRow = consultation.data as ConsultationRow | null;
+    if (!consultationRow) {
       return NextResponse.json({ error: "Consultation not found" }, { status: 404 });
     }
-    if (consultation.data.patient_id !== patientId) {
+    if (consultationRow.patient_id !== patientId) {
       return NextResponse.json({ error: "Consultation does not belong to patient" }, { status: 400 });
     }
 
@@ -215,10 +285,11 @@ export async function POST(req: Request) {
     if (encounter.error) {
       return NextResponse.json({ error: encounter.error.message }, { status: 400 });
     }
-    if (!encounter.data) {
+    const encounterRow = encounter.data as EncounterRow | null;
+    if (!encounterRow) {
       return NextResponse.json({ error: "Encounter not found" }, { status: 404 });
     }
-    if (encounter.data.patient_id !== patientId) {
+    if (encounterRow.patient_id !== patientId) {
       return NextResponse.json({ error: "Encounter does not belong to patient" }, { status: 400 });
     }
 
@@ -240,6 +311,7 @@ export async function POST(req: Request) {
     if (diagnoses.error) {
       return NextResponse.json({ error: diagnoses.error.message }, { status: 400 });
     }
+    const diagnosisRows = ((diagnoses.data || []) as unknown) as DiagnosisRow[];
 
     const notes = await db
       .from("doctor_notes")
@@ -249,6 +321,7 @@ export async function POST(req: Request) {
     if (notes.error) {
       return NextResponse.json({ error: notes.error.message }, { status: 400 });
     }
+    const notesRow = notes.data as NotesRow | null;
 
     const vitals = await db
       .from("vitals_snapshots")
@@ -260,6 +333,7 @@ export async function POST(req: Request) {
     if (vitals.error) {
       return NextResponse.json({ error: vitals.error.message }, { status: 400 });
     }
+    const vitalsRow = vitals.data as VitalsRow | null;
 
     const doc = await db
       .from("doctors")
@@ -282,7 +356,8 @@ export async function POST(req: Request) {
     if (doc.error) {
       return NextResponse.json({ error: doc.error.message }, { status: 400 });
     }
-    if (!doc.data) {
+    const doctorRow = doc.data as DoctorRow | null;
+    if (!doctorRow) {
       return NextResponse.json({ error: "Doctor profile not found" }, { status: 404 });
     }
 
@@ -292,7 +367,7 @@ export async function POST(req: Request) {
     const qrToken = generateQrToken();
     const verificationCode = generateVerificationCode();
 
-    const diagnosisFromConsult = (diagnoses.data || [])
+    const diagnosisFromConsult = diagnosisRows
       .map((d) =>
         d.icd10_code
           ? `${d.icd10_code} — ${d.icd10_text_snapshot || ""}`.trim()
@@ -315,14 +390,14 @@ export async function POST(req: Request) {
       issued_at: issuedAt.toISOString(),
       valid_until: validUntil.toISOString(),
       status: "issued",
-      patient_full_name: patient.data.full_name || "",
-      patient_birthdate: patient.data.birthday || null,
+      patient_full_name: patientRow.full_name || "",
+      patient_birthdate: patientRow.birthday || null,
       patient_age:
-        patient.data.age ??
-        calcAge(patient.data.birthday as string | null) ??
+        patientRow.age ??
+        calcAge(patientRow.birthday as string | null) ??
         null,
-      patient_sex: patient.data.sex || null,
-      patient_address: patient.data.address || null,
+      patient_sex: patientRow.sex || null,
+      patient_address: patientRow.address || null,
       diagnosis_source: diagnosisSource || (body.diagnosis_text ? "manual" : "consultation"),
       diagnosis_text: diagnosisText,
       remarks: body.remarks ?? null,
@@ -330,19 +405,19 @@ export async function POST(req: Request) {
       findings_summary: body.findings_summary ?? null,
       physical_exam: physicalExam,
       supporting_data: supportingData,
-      patient_snapshot: patient.data,
+      patient_snapshot: patientRow,
       consultation_snapshot: {
-        consultation: consultation.data,
-        diagnoses: diagnoses.data ?? [],
-        notes: notes.data ?? null,
-        vitals: vitals.data ?? null,
+        consultation: consultationRow,
+        diagnoses: diagnosisRows,
+        notes: notesRow ?? null,
+        vitals: vitalsRow ?? null,
       },
-      doctor_snapshot: doc.data,
-      doctor_id: doc.data.doctor_id,
-      doctor_branch: consultation.data.branch || doctor.branch,
+      doctor_snapshot: doctorRow,
+      doctor_id: doctorRow.doctor_id,
+      doctor_branch: consultationRow.branch || doctor.branch,
       qr_token: qrToken,
       verification_code: verificationCode,
-      created_by_doctor_id: doc.data.doctor_id,
+      created_by_doctor_id: doctorRow.doctor_id,
       created_at: issuedAt.toISOString(),
       updated_at: issuedAt.toISOString(),
     };
@@ -357,7 +432,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: inserted.error.message }, { status: 400 });
     }
 
-    const certificate = inserted.data;
+    const certificate = inserted.data as MedicalCertificateRow;
 
     if (supportingData.length > 0) {
       const detailRows = supportingData.map((entry, idx) => ({

@@ -12,6 +12,29 @@ import {
   formatLabEntrySummary,
 } from "@/lib/medicalCertificateLabs";
 
+type EncounterRow = {
+  id: string;
+  patient_id: string;
+  visit_date_local: string | null;
+  notes_frontdesk: string | null;
+};
+
+type VitalsRow = {
+  id: string;
+  patient_id: string;
+  measured_at: string | null;
+};
+
+type DiagnosisRow = {
+  id: string;
+  icd10_code: string | null;
+  icd10_text_snapshot: string | null;
+};
+
+type NotesRow = {
+  notes_markdown?: string | null;
+};
+
 const DATE_FMT = new Intl.DateTimeFormat("en-PH", {
   timeZone: process.env.APP_TZ || "Asia/Manila",
   year: "numeric",
@@ -83,7 +106,8 @@ export async function GET(req: Request) {
     if (encounter.error) {
       return NextResponse.json({ error: encounter.error.message }, { status: 400 });
     }
-    if (encounter.data && encounter.data.patient_id !== patientId) {
+    const encounterRow = encounter.data as EncounterRow | null;
+    if (encounterRow && encounterRow.patient_id !== patientId) {
       return NextResponse.json({ error: "Encounter does not belong to patient" }, { status: 400 });
     }
 
@@ -115,13 +139,14 @@ export async function GET(req: Request) {
     if (vitals.error) {
       return NextResponse.json({ error: vitals.error.message }, { status: 400 });
     }
-    if (vitals.data) {
-      const summary = summarizeVitals(vitals.data);
+    const vitalsRow = vitals.data as VitalsRow | null;
+    if (vitalsRow) {
+      const summary = summarizeVitals(vitalsRow);
       if (summary) {
         suggestions.push({
           type: "vitals",
-          source_id: vitals.data.id,
-          label: `Vitals (${formatDate(vitals.data.measured_at) || "latest"})`,
+          source_id: vitalsRow.id,
+          label: `Vitals (${formatDate(vitalsRow.measured_at) || "latest"})`,
           summary,
         });
       }
@@ -174,7 +199,7 @@ export async function GET(req: Request) {
         if (!allowed.has(day)) continue;
         const entry = formatLabEntrySummary(lab, lab.resolved_flag, rangeMap);
         if (!entry) continue;
-        const bucket = buckets.get(day) || { iso: day, entries: [] };
+        const bucket: LabBucket = buckets.get(day) ?? { iso: day, entries: [] as string[] };
         bucket.entries.push(entry);
         buckets.set(day, bucket);
       }
@@ -223,13 +248,13 @@ export async function GET(req: Request) {
       }
     }
 
-    if (!labSuggestionAdded && encounter.data) {
-      const reason = encounter.data.notes_frontdesk || "";
-      const label = `Lab tests done (${encounter.data.visit_date_local || "today"})`;
+    if (!labSuggestionAdded && encounterRow) {
+      const reason = encounterRow.notes_frontdesk || "";
+      const label = `Lab tests done (${encounterRow.visit_date_local || "today"})`;
       if (reason) {
         suggestions.push({
           type: "labs",
-          source_id: encounter.data.id,
+          source_id: encounterRow.id,
           label,
           summary: reason,
         });
@@ -246,7 +271,8 @@ export async function GET(req: Request) {
       if (diagnoses.error) {
         return NextResponse.json({ error: diagnoses.error.message }, { status: 400 });
       }
-      const summary = (diagnoses.data || [])
+      const diagnosisRows = (diagnoses.data || []) as DiagnosisRow[];
+      const summary = diagnosisRows
         .map((d) =>
           d.icd10_code
             ? `${d.icd10_code} — ${d.icd10_text_snapshot || ""}`.trim()
@@ -270,8 +296,9 @@ export async function GET(req: Request) {
       if (notes.error) {
         return NextResponse.json({ error: notes.error.message }, { status: 400 });
       }
-      const plain = notes.data?.notes_markdown
-        ? String(notes.data.notes_markdown)
+      const notesRow = notes.data as NotesRow | null;
+      const plain = notesRow?.notes_markdown
+        ? String(notesRow.notes_markdown)
             .replace(/[#*_`>-]/g, "")
             .replace(/\s+/g, " ")
             .trim()

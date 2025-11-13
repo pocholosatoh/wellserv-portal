@@ -33,6 +33,14 @@ type EncounterRow = {
   consult_status: string | null;
 };
 
+type DiagnosisRow = {
+  id: string;
+  consultation_id: string;
+  icd10_code: string | null;
+  icd10_text_snapshot: string | null;
+  is_primary: boolean | null;
+};
+
 const DATE_FMT = new Intl.DateTimeFormat("en-PH", {
   timeZone: process.env.APP_TZ || "Asia/Manila",
   year: "numeric",
@@ -186,26 +194,28 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    const diagnoses = consultation
-      ? await db
-          .from("consultation_diagnoses")
-          .select(
-            [
-              "id",
-              "consultation_id",
-              "icd10_code",
-              "icd10_text_snapshot",
-              "is_primary",
-            ].join(", ")
-          )
-          .eq("consultation_id", consultation.id)
-          .order("is_primary", { ascending: false })
-          .order("created_at", { ascending: true })
-      : { data: [], error: null };
+    const diagnoses =
+      consultation
+        ? await db
+            .from("consultation_diagnoses")
+            .select(
+              [
+                "id",
+                "consultation_id",
+                "icd10_code",
+                "icd10_text_snapshot",
+                "is_primary",
+              ].join(", ")
+            )
+            .eq("consultation_id", consultation.id)
+            .order("is_primary", { ascending: false })
+            .order("created_at", { ascending: true })
+        : { data: [], error: null };
 
     if (diagnoses.error) {
       return NextResponse.json({ error: diagnoses.error.message }, { status: 400 });
     }
+    const diagnosisRows = (diagnoses.data || []) as DiagnosisRow[];
 
     const notes = consultation
       ? await db
@@ -269,7 +279,7 @@ export async function GET(req: Request) {
       physical_exam: basePhysicalExam,
       physical_exam_sections: PHYSICAL_EXAM_SECTIONS,
       defaults: {
-        diagnosis_text: (diagnoses.data || [])
+        diagnosis_text: diagnosisRows
           .map((d) =>
             d.icd10_code
               ? `${d.icd10_code} — ${d.icd10_text_snapshot || ""}`.trim()
