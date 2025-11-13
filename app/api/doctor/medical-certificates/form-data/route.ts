@@ -24,6 +24,15 @@ type ConsultationRow = {
   doctor_name_at_time: string | null;
 };
 
+type EncounterRow = {
+  id: string;
+  patient_id: string;
+  branch_code: string | null;
+  visit_date_local: string | null;
+  notes_frontdesk: string | null;
+  consult_status: string | null;
+};
+
 const DATE_FMT = new Intl.DateTimeFormat("en-PH", {
   timeZone: process.env.APP_TZ || "Asia/Manila",
   year: "numeric",
@@ -145,10 +154,11 @@ export async function GET(req: Request) {
       if (enc.error) {
         return NextResponse.json({ error: enc.error.message }, { status: 400 });
       }
-      if (enc.data && enc.data.patient_id !== patientId) {
+      const encounterRow = enc.data as EncounterRow | null;
+      if (encounterRow && encounterRow.patient_id !== patientId) {
         return NextResponse.json({ error: "Encounter does not belong to patient" }, { status: 400 });
       }
-      encounter = enc.data;
+      encounter = encounterRow;
     }
 
     const vitals = await db
