@@ -38,6 +38,8 @@ type ConsultDetails = {
       unit_price: number | null;
     }>;
     notes_for_patient?: string | null;
+    valid_days?: number | null;
+    valid_until?: string | null;
   } | null;
   doctor_name_at_time?: string | null;
   doctor?: Consult["doctor"];
@@ -70,6 +72,13 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
     }
     if (c.doctor_name_at_time) return c.doctor_name_at_time;
     return "Attending Doctor";
+  }
+
+  function formatDateOnly(iso?: string | null) {
+    if (!iso) return null;
+    const dt = new Date(iso);
+    if (Number.isNaN(+dt)) return null;
+    return dt.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
   }
 
   // ⬇️ Add this initial load effect
@@ -207,6 +216,12 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
                         <p className="text-sm text-gray-500">No prescription.</p>
                       ) : (
                         <div className="text-sm">
+                          {details.rx.valid_until && (
+                            <div className="text-xs text-gray-500 mb-2">
+                              Valid until {formatDateOnly(details.rx.valid_until) || "—"}
+                              {details.rx.valid_days ? ` (${details.rx.valid_days} days)` : ""}
+                            </div>
+                          )}
                           {details.rx.items.map((it, i) => (
                             <div key={i}>
                             {it.generic_name}

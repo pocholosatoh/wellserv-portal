@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   // return DRAFT only. If none, 404 (RxPanel will show locked banner if there is active signed)
   const { data: draft, error } = await supabase
     .from("prescriptions")
-    .select("id, notes_for_patient, status")
+    .select("id, notes_for_patient, status, valid_days")
     .eq("consultation_id", consultationId)
     .eq("status", "draft")
     .order("created_at", { ascending: false })
@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     id: draft.id,
     notes_for_patient: draft.notes_for_patient,
+    valid_days: draft.valid_days,
     items: items || [],
   });
 }

@@ -34,6 +34,8 @@ export async function GET(req: Request) {
         discount_expires_at,
         discount_applied_by,
         final_total,
+        valid_days,
+        valid_until,
         created_at,
         updated_at,
         want_pharmacy_order,

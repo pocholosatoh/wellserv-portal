@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireActor } from "@/lib/api-actor";
+import { computeValidUntil, DEFAULT_RX_VALID_DAYS, parseValidDays } from "@/lib/rx";
 
 function isUuid(v?: string | null) {
   return !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -25,12 +26,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     let prescriptionId = String(body?.prescription_id || body?.prescriptionId || "").trim();
     let consultationId = String(body?.consultation_id || body?.consultationId || "").trim();
+    const requestedValidDays = parseValidDays(body?.valid_days ?? body?.validDays);
+    let existingValidDays: number | null = null;
 
     // NEW: allow signing by prescription_id alone (resolve its consultation_id)
     if (!consultationId && prescriptionId) {
       const q = await db
         .from("prescriptions")
-        .select("id, consultation_id, status")
+        .select("id, consultation_id, status, valid_days")
         .eq("id", prescriptionId)
         .maybeSingle();
       if (q.error) return NextResponse.json({ error: q.error.message }, { status: 500 });
@@ -38,6 +41,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Prescription not found." }, { status: 404 });
       }
       consultationId = q.data.consultation_id as string;
+      existingValidDays = parseValidDays(q.data.valid_days);
       // also require it's a draft if they passed a specific id
       if (q.data.status !== "draft") {
         return NextResponse.json(
@@ -70,7 +74,7 @@ export async function POST(req: NextRequest) {
     if (!prescriptionId) {
       const latestDraft = await db
         .from("prescriptions")
-        .select("id")
+        .select("id, valid_days")
         .eq("consultation_id", consultationId)
         .eq("status", "draft")
         .order("created_at", { ascending: false })
@@ -105,11 +109,12 @@ export async function POST(req: NextRequest) {
         );
       }
       prescriptionId = latestDraft.data.id as string;
+      existingValidDays = parseValidDays(latestDraft.data.valid_days);
     } else {
       // Sanity: ensure the provided draft belongs to the same consultation
       const chk = await db
         .from("prescriptions")
-        .select("consultation_id, status")
+        .select("consultation_id, status, valid_days")
         .eq("id", prescriptionId)
         .maybeSingle();
       if (chk.error) return NextResponse.json({ error: chk.error.message }, { status: 500 });
@@ -119,6 +124,7 @@ export async function POST(req: NextRequest) {
           { status: 404 }
         );
       }
+      existingValidDays = parseValidDays(chk.data.valid_days);
       if (chk.data.status !== "draft") {
         return NextResponse.json(
           { error: "Only draft prescriptions can be signed. Create a Revision first." },
@@ -126,6 +132,11 @@ export async function POST(req: NextRequest) {
         );
       }
     }
+
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const finalValidDays = requestedValidDays ?? existingValidDays ?? DEFAULT_RX_VALID_DAYS;
+    const validUntilIso = computeValidUntil(finalValidDays, now).toISOString();
 
     // 5) Deactivate previous signed (one active signed only)
     const prevSigned = await db
@@ -142,7 +153,7 @@ export async function POST(req: NextRequest) {
     if (prevIds.length) {
       const sup = await db
         .from("prescriptions")
-        .update({ active: false, is_superseded: true, updated_at: new Date().toISOString() })
+        .update({ active: false, is_superseded: true, updated_at: nowIso })
         .in("id", prevIds);
       if (sup.error) return NextResponse.json({ error: sup.error.message }, { status: 500 });
     }
@@ -152,7 +163,9 @@ export async function POST(req: NextRequest) {
       status: "signed",
       active: true,
       doctor_id: signerDoctorId,
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
+      valid_days: finalValidDays,
+      valid_until: validUntilIso,
     };
     const sign = await db.from("prescriptions").update(signPayload).eq("id", prescriptionId);
     if (sign.error) return NextResponse.json({ error: sign.error.message }, { status: 500 });
@@ -166,7 +179,7 @@ export async function POST(req: NextRequest) {
         signing_doctor_name: signerName,
         signing_doctor_prc_no: signerPRC,
         signing_doctor_philhealth_md_id: signerPHIC,
-        updated_at: new Date().toISOString(),
+        updated_at: nowIso,
       })
       .eq("id", consultationId)
       .select("encounter_id")
@@ -188,7 +201,7 @@ export async function POST(req: NextRequest) {
           .update({
             consult_status: "done",
             status: "done",
-            updated_at: new Date().toISOString(),
+            updated_at: nowIso,
           })
           .eq("id", encounterId);
       } else {
@@ -196,7 +209,7 @@ export async function POST(req: NextRequest) {
           .from("encounters")
           .update({
             consult_status: "done",
-            updated_at: new Date().toISOString(),
+            updated_at: nowIso,
           })
           .eq("id", encounterId);
       }
@@ -219,6 +232,8 @@ export async function POST(req: NextRequest) {
       },
       claim_eligible: claimEligible,
       claim_block_reason: claimBlockReason,
+      valid_days: finalValidDays,
+      valid_until: validUntilIso,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });

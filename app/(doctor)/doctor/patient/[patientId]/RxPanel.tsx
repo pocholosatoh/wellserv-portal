@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { DEFAULT_RX_VALID_DAYS } from "@/lib/rx";
 
 type Med = {
   id: string;
@@ -54,7 +55,8 @@ export default function RxPanel({
   const [reviseBusy, setReviseBusy] = useState(false);
   const [signing, setSigning] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  
+  const [validDays, setValidDays] = useState<number>(DEFAULT_RX_VALID_DAYS);
+  const [signedValidUntil, setSignedValidUntil] = useState<string | null>(null);
 
   // new state for revision/sign flow
   const [rxId, setRxId] = useState<string | null>(null);
@@ -80,6 +82,28 @@ export default function RxPanel({
       ? "Signing…"
       : "Sign this prescription";
 
+  const validityPreviewDate = useMemo(() => {
+    if (lockedSigned && signedValidUntil) {
+      const dt = new Date(signedValidUntil);
+      return Number.isNaN(+dt) ? null : dt;
+    }
+    const days = Number(validDays);
+    if (!Number.isFinite(days) || days <= 0) return null;
+    const dt = new Date();
+    dt.setHours(0, 0, 0, 0);
+    dt.setDate(dt.getDate() + Math.round(days));
+    return dt;
+  }, [lockedSigned, signedValidUntil, validDays]);
+
+  const validityPreviewLabel = useMemo(() => {
+    if (!validityPreviewDate) return null;
+    return validityPreviewDate.toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }, [validityPreviewDate]);
+
 
   // If parent provides a consultation id
   useEffect(() => {
@@ -100,6 +124,8 @@ export default function RxPanel({
       setRxId(j.id);
       setItems(Array.isArray(j.items) ? j.items : []);
       setNotesForPatient(j.notes_for_patient ?? "");
+      setValidDays(j.valid_days ?? DEFAULT_RX_VALID_DAYS);
+      setSignedValidUntil(null);
       setIsDirty(false);
       return;
     }
@@ -114,6 +140,8 @@ export default function RxPanel({
       setRxId(null);             // no draft selected
       setItems(Array.isArray(rx.items) ? rx.items : []);
       setNotesForPatient(rx.notes_for_patient ?? "");
+      setValidDays(rx.valid_days ?? DEFAULT_RX_VALID_DAYS);
+      setSignedValidUntil(rx.valid_until ?? null);
       setIsDirty(false);
       return;
     }
@@ -123,6 +151,8 @@ export default function RxPanel({
     setRxId(null);
     setItems([]);
     setNotesForPatient("");
+    setValidDays(DEFAULT_RX_VALID_DAYS);
+    setSignedValidUntil(null);
     setIsDirty(false);
   }
 
@@ -239,6 +269,17 @@ export default function RxPanel({
     return Math.max(0, Math.round(perDose * perDay * days));
   }
 
+  function updateValidDaysInput(next: number) {
+    const num = Number(next);
+    if (!Number.isFinite(num) || num <= 0) {
+      setValidDays(1);
+    } else {
+      setValidDays(Math.min(365, Math.round(num)));
+    }
+    setSignedValidUntil(null);
+    setIsDirty(true);
+  }
+
   // Create a draft revision from the active signed Rx, switch UI to it, and return its id
   async function startRevision(): Promise<string | null> {
     if (reviseBusy) return null;
@@ -265,6 +306,8 @@ export default function RxPanel({
       if (Array.isArray(j.items)) {
         setItems(j.items);
         setNotesForPatient(j.notes_for_patient ?? "");
+        setValidDays(j.valid_days ?? DEFAULT_RX_VALID_DAYS);
+        setSignedValidUntil(null);
         setIsDirty(false);
       } else {
         // Otherwise, fall back to fetching the draft endpoint
@@ -275,6 +318,8 @@ export default function RxPanel({
         if (dr.ok && dj?.id) {
           setItems(Array.isArray(dj.items) ? dj.items : []);
           setNotesForPatient(dj.notes_for_patient ?? "");
+          setValidDays(dj.valid_days ?? DEFAULT_RX_VALID_DAYS);
+          setSignedValidUntil(null);
         } else {
           await loadCurrentDraft();
         }
@@ -323,6 +368,7 @@ export default function RxPanel({
         consultationId,
         patientId,
         notesForPatient,
+        validDays,
         items, // includes brand_name etc.
       }),
     });
@@ -361,6 +407,8 @@ export default function RxPanel({
     setItems([]);
     setNotesForPatient("");
     setRxId(null);
+    setValidDays(DEFAULT_RX_VALID_DAYS);
+    setSignedValidUntil(null);
     await loadCurrentDraft();
     setIsDirty(false);
   }
@@ -395,7 +443,7 @@ export default function RxPanel({
       const res = await fetch("/api/prescriptions/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prescriptionId: rxId }),
+        body: JSON.stringify({ prescriptionId: rxId, validDays }),
       });
       const j = await res.json().catch(() => ({}));
 
@@ -694,6 +742,40 @@ export default function RxPanel({
           }}
           placeholder="Diet, lifestyle, follow-up, special instructions…"
         />
+      </div>
+
+      {/* Validity */}
+      <div className="mt-4">
+        <label className="block text-sm mb-1">Prescription validity (days)</label>
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            className="w-28 border rounded px-2 py-1"
+            type="number"
+            min={1}
+            max={365}
+            value={validDays}
+            onChange={(e) => updateValidDaysInput(Number(e.target.value))}
+          />
+          <div className="text-xs text-gray-500">
+            {lockedSigned && signedValidUntil
+              ? `Signed Rx valid until ${validityPreviewLabel ?? "—"}.`
+              : validityPreviewLabel
+              ? `Will be valid until ${validityPreviewLabel}.`
+              : "Enter number of days to auto-compute expiry."}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1 mt-1 text-xs">
+          {[7, 14, 30, 60, 90].map((d) => (
+            <button
+              key={d}
+              type="button"
+              className="rounded border px-2 py-1"
+              onClick={() => updateValidDaysInput(d)}
+            >
+              {d}d
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Bottom actions */}

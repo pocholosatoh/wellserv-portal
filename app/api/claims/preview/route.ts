@@ -92,7 +92,7 @@ export async function GET(req: Request) {
     if (cons?.id) {
       const { data: r } = await sb
         .from("prescriptions")
-        .select("id, status, doctor_id, created_at, updated_at")
+        .select("id, status, doctor_id, created_at, updated_at, valid_days, valid_until")
         .eq("consultation_id", cons.id)
         .eq("status", "signed")
         .order("created_at", { ascending: false })

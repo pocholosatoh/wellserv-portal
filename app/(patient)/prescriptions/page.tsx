@@ -7,6 +7,13 @@ import { describeFrequency } from "@/lib/rx";
 
 type Rx = any;
 
+function formatDateOnly(iso?: string | null) {
+  if (!iso) return null;
+  const dt = new Date(iso);
+  if (Number.isNaN(+dt)) return null;
+  return dt.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+}
+
 export default function PatientPrescriptionsPage() {
   const [list, setList] = useState<Rx[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +126,16 @@ export default function PatientPrescriptionsPage() {
                       </span>
                     </div>
                   </div>
+                  {(r.valid_until || r.valid_days) && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      {r.valid_until
+                        ? `Valid until ${formatDateOnly(r.valid_until) || "—"}`
+                        : r.valid_days
+                        ? `Valid for ${r.valid_days} day${Number(r.valid_days) === 1 ? "" : "s"} from signing`
+                        : "Validity duration not specified"}
+                      {r.valid_until && r.valid_days ? ` (${r.valid_days} days)` : ""}
+                    </div>
+                  )}
 
                   {/* Notes for patient */}
                   {r.notes_for_patient && (

@@ -52,6 +52,12 @@ export default async function PrintRxPage({ params }: PageContext) {
   const age = calcAge(dobISO);
   const dobStr = dobISO ? new Date(dobISO).toLocaleDateString("en-PH") : null;
   const sex = data.patient?.sex ?? null;
+  const validUntilStr = (() => {
+    if (!data.valid_until) return null;
+    const dt = new Date(data.valid_until);
+    if (Number.isNaN(+dt)) return null;
+    return dt.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+  })();
 
   return (
     <div className="rx a5 mx-auto bg-white text-gray-900">
@@ -143,7 +149,18 @@ export default async function PrintRxPage({ params }: PageContext) {
         </div>
 
         <div className="ml-auto text-right text-[10px] text-gray-500">
-          This prescription is valid as issued by the prescribing physician. You can verify by calling branch below.
+          {validUntilStr ? (
+            <>
+              <div className="text-[11px] font-semibold text-gray-700">
+                Valid only until: {validUntilStr}
+              </div>
+              <div>
+                This prescription is valid as issued by the prescribing physician. You can verify by calling branch below.
+              </div>
+            </>
+          ) : (
+            "This prescription is valid as issued by the prescribing physician. You can verify by calling branch below."
+          )}
         </div>
       </div>
 
