@@ -1,6 +1,21 @@
 // app/verify/medical-certificate/[code]/page.tsx
 import { getSupabase } from "@/lib/supabase";
 
+type CertificateVerifyRow = {
+  certificate_no: string | null;
+  patient_full_name: string | null;
+  patient_birthdate: string | null;
+  patient_age: number | null;
+  patient_sex: string | null;
+  issued_at: string | null;
+  valid_until: string | null;
+  status: string | null;
+  verification_code: string | null;
+  doctor_snapshot?: { full_name?: string | null; display_name?: string | null } | null;
+  diagnosis_text: string | null;
+  remarks: string | null;
+};
+
 async function fetchByCode(code: string) {
   const db = getSupabase();
   const cert = await db
@@ -26,7 +41,7 @@ async function fetchByCode(code: string) {
   if (cert.error) {
     throw new Error(cert.error.message);
   }
-  return cert.data;
+  return cert.data as CertificateVerifyRow | null;
 }
 
 function formatDate(iso?: string | null) {
