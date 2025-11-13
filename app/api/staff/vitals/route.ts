@@ -68,7 +68,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const [actor, cookieStore] = await Promise.all([requireActor(), cookies()]);
-  if (!actor || actor.kind !== "staff") {
+  if (!actor || (actor.kind !== "staff" && actor.kind !== "doctor")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -212,6 +212,8 @@ export async function POST(req: Request) {
     cookieStore.get("staff_initials")?.value ||
     cookieStore.get("staff_id")?.value ||
     cookieStore.get("staff_role")?.value ||
+    cookieStore.get("doctor_initials")?.value ||
+    cookieStore.get("doctor_code")?.value ||
     actor.id;
 
   const payload = {
