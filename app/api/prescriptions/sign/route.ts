@@ -5,10 +5,24 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireActor } from "@/lib/api-actor";
+import { getDoctorSession } from "@/lib/doctorSession";
 import { computeValidUntil, DEFAULT_RX_VALID_DAYS, parseValidDays } from "@/lib/rx";
 
 function isUuid(v?: string | null) {
   return !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
+
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function ensureNameHasCredentials(name?: string | null, creds?: string | null) {
+  const base = (name || "").trim();
+  if (!base) return null;
+  const suffix = (creds || "").trim();
+  if (!suffix) return base;
+  const pattern = new RegExp(`,\\s*${escapeRegExp(suffix)}$`, "i");
+  return pattern.test(base) ? base : `${base}, ${suffix}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -21,6 +35,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const doctorId = isUuid(actor.id) ? (actor.id as string) : null;
+    const doctorSession = await getDoctorSession().catch(() => null);
+    let signerCredentials: string | null = doctorSession?.credentials?.trim() || null;
 
     // 2) Inputs
     const body = await req.json().catch(() => ({}));
@@ -67,7 +83,7 @@ export async function POST(req: NextRequest) {
     if (doctorId) {
       const docRes = await db
         .from("doctors")
-        .select("id, full_name, prc_no, philhealth_md_id")
+        .select("id, full_name, display_name, credentials, prc_no, philhealth_md_id")
         .eq("id", doctorId)
         .maybeSingle();
 
@@ -77,11 +93,15 @@ export async function POST(req: NextRequest) {
 
       if (docRes.data) {
         signerDoctorId = docRes.data.id ?? signerDoctorId;
-        signerName = docRes.data.full_name || signerName;
+        signerName = docRes.data.display_name || docRes.data.full_name || signerName;
         signerPRC = docRes.data.prc_no || null;
         signerPHIC = docRes.data.philhealth_md_id || signerPHIC;
+        signerCredentials = docRes.data.credentials?.trim() || signerCredentials;
       }
     }
+
+    const signerDisplay = ensureNameHasCredentials(signerName, signerCredentials);
+    if (signerDisplay) signerName = signerDisplay;
 
     // 4) Resolve which Rx to sign if id not provided -> pick most recent draft
     if (!prescriptionId) {
@@ -192,6 +212,7 @@ export async function POST(req: NextRequest) {
         signing_doctor_name: signerName,
         signing_doctor_prc_no: signerPRC,
         signing_doctor_philhealth_md_id: signerPHIC,
+        doctor_name_at_time: signerName,
         updated_at: nowIso,
       })
       .eq("id", consultationId)
@@ -240,6 +261,7 @@ export async function POST(req: NextRequest) {
       signer: {
         doctor_id: signerDoctorId,
         name: signerName,
+        credentials: signerCredentials,
         prc_no: signerPRC,
         philhealth_md_id: signerPHIC,
       },
