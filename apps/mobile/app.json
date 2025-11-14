@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "Wellserv Mobile",
+    "slug": "wellserv-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "wellserv",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "bundleIdentifier": "com.wellserv.mobile",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.wellserv.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "wellserv"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      },
+      "supabaseUrl": "${EXPO_PUBLIC_SUPABASE_URL}",
+      "supabaseAnonKey": "${EXPO_PUBLIC_SUPABASE_ANON_KEY}",
+      "patientAccessCode": "${EXPO_PUBLIC_PATIENT_ACCESS_CODE}"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

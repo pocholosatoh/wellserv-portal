@@ -1,0 +1,32 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"],
+      "@wellserv/core": ["../../packages/core/src"],
+      "@wellserv/core/*": ["../../packages/core/src/*"],
+      "@wellserv/data": ["../../packages/data/src"],
+      "@wellserv/data/*": ["../../packages/data/src/*"],
+      "@wellserv/theme": ["../../packages/theme/src"],
+      "@wellserv/theme/*": ["../../packages/theme/src/*"]
+    },
+    "incremental": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

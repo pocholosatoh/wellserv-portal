@@ -19,6 +19,8 @@
 
 # production
 /build
+apps/mobile/.expo
+apps/mobile/.expo-shared
 
 # misc
 .DS_Store

@@ -7,20 +7,37 @@ const __dirname = dirname(__filename);
 
 // Use Next's presets but then turn off the noisy rules globally (temporary)
 const compat = new FlatCompat({ baseDirectory: __dirname });
+const nextConfigs = compat
+  .extends("next/core-web-vitals", "next/typescript")
+  .map((cfg) => ({
+    ...cfg,
+    settings: {
+      ...(cfg.settings ?? {}),
+      next: { rootDir: ["apps/web/"] },
+    },
+  }));
 
 const config = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...nextConfigs,
   {
     ignores: [
       "node_modules/**",
       ".next/**",
+      ".expo/**",
+      "apps/**/.next/**",
+      "apps/**/dist/**",
+      "apps/**/build/**",
+      "apps/**/.expo/**",
       "out/**",
       "build/**",
+      "apps/mobile/.expo/**",
+      "apps/mobile/android/**",
+      "apps/mobile/ios/**",
       "next-env.d.ts",
       // optional: ignore legacy routes while you “watch logs”
-      "app/api/report/**",
-      "app/api/results/**",
-      "app/api/_debug/**",
+      "apps/web/app/api/report/**",
+      "apps/web/app/api/results/**",
+      "apps/web/app/api/_debug/**",
     ],
   },
   {
@@ -31,8 +48,24 @@ const config = [
       "@typescript-eslint/no-unused-vars": "off",
       "react-hooks/exhaustive-deps": "off",
       "@next/next/no-img-element": "off",
+       "@next/next/no-html-link-for-pages": "off",
       "no-console": "off",
       "prefer-const": "off",
+    },
+  },
+  {
+    files: ["packages/theme/tailwind.config.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
+    files: [
+      "apps/mobile/metro.config.js",
+      "apps/mobile/tailwind.config.js",
+    ],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 ];

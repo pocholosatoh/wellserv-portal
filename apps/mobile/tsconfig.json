@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "types": ["nativewind/types"],
+    "paths": {
+      "@wellserv/core": ["../../packages/core/src"],
+      "@wellserv/core/*": ["../../packages/core/src/*"],
+      "@wellserv/data": ["../../packages/data/src"],
+      "@wellserv/data/*": ["../../packages/data/src/*"],
+      "@wellserv/theme": ["../../packages/theme/src"],
+      "@wellserv/theme/*": ["../../packages/theme/src/*"]
+    }
+  },
+  "include": ["app/**/*", "src/**/*", "tailwind.config.js", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}
