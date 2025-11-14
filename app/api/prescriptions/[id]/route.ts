@@ -44,6 +44,20 @@ async function getSignedSignatureUrl(
   }
 }
 
+function splitDisplayName(display?: string | null) {
+  const raw = (display || "").trim();
+  if (!raw) return { name: null, credentials: null };
+  const [first, ...rest] = raw.split(",");
+  if (!rest.length) return { name: raw, credentials: null };
+  const maybeCreds = rest.join(",").trim();
+  const looksLikeCreds =
+    maybeCreds.length > 0 && /^[A-Z0-9 .;,\/-]+$/.test(maybeCreds.replace(/\s+/g, " "));
+  if (!looksLikeCreds) {
+    return { name: raw, credentials: null };
+  }
+  return { name: (first || "").trim() || raw, credentials: maybeCreds };
+}
+
 // NOTE: Next 15 => params is a Promise. Await it.
 export async function GET(
   _req: NextRequest,
@@ -125,7 +139,9 @@ export async function GET(
   if (!doctor) {
     const c = await db
       .from("consultations")
-      .select("doctor_id, doctor_name_at_time")
+      .select(
+        "doctor_id, doctor_name_at_time, signing_doctor_name, signing_doctor_prc_no, signing_doctor_philhealth_md_id"
+      )
       .eq("id", rx.data.consultation_id)
       .maybeSingle();
 
@@ -162,12 +178,23 @@ export async function GET(
       }
 
       // Final fallback: snapshot name
-      if (!doctor && c.data.doctor_name_at_time) {
-        doctor = {
-          display_name: c.data.doctor_name_at_time,
-          prc_no: null,
-          signature_url: null,
-        };
+      if (!doctor) {
+        const fallbackDisplay =
+          c.data.signing_doctor_name || c.data.doctor_name_at_time || null;
+        if (fallbackDisplay) {
+          const split = splitDisplayName(fallbackDisplay);
+          doctor = {
+            display_name: fallbackDisplay,
+            full_name: split.name ?? fallbackDisplay,
+            credentials: split.credentials,
+            specialty: null,
+            affiliations: null,
+            prc_no: c.data.signing_doctor_prc_no ?? null,
+            ptr_no: null,
+            s2_no: null,
+            signature_url: null,
+          };
+        }
       }
     }
   }

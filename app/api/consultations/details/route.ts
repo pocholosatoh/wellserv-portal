@@ -22,7 +22,8 @@ export async function GET(req: Request) {
         doctor_id,
         visit_at,
         plan_shared,
-        doctor_name_at_time
+        doctor_name_at_time,
+        signing_doctor_name
       `)
       .eq("id", id)
       .maybeSingle();
@@ -141,6 +142,7 @@ export async function GET(req: Request) {
       plan_shared: c.data.plan_shared ?? false,
       doctor,                               // may be null
       doctor_name_at_time: c.data.doctor_name_at_time ?? null, // reliever fallback
+      signing_doctor_name: c.data.signing_doctor_name ?? null,
       notes: {
         notes_markdown: dn.data?.notes_markdown ?? null,
         notes_soap: dn.data?.notes_soap ?? null,

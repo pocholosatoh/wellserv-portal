@@ -42,6 +42,7 @@ type ConsultDetails = {
     valid_until?: string | null;
   } | null;
   doctor_name_at_time?: string | null;
+  signing_doctor_name?: string | null;
   doctor?: Consult["doctor"];
 };
 
@@ -56,7 +57,11 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
   // - Prefer "full_name, credentials" when available
   // - Else use display_name and append credentials if they're not already included
   // - Else fall back to reliever snapshot (doctor_name_at_time)
-  function docName(c: { doctor?: Consult["doctor"]; doctor_name_at_time?: string | null }) {
+  function docName(c: {
+    doctor?: Consult["doctor"];
+    doctor_name_at_time?: string | null;
+    signing_doctor_name?: string | null;
+  }) {
     const d = c.doctor;
     const cred = (d?.credentials || "")?.trim();
     const hasCred = !!cred;
@@ -70,6 +75,7 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
       }
       return d.display_name;
     }
+    if (c.signing_doctor_name) return c.signing_doctor_name;
     if (c.doctor_name_at_time) return c.doctor_name_at_time;
     return "Attending Doctor";
   }
