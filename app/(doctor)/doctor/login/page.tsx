@@ -40,6 +40,7 @@ export default function DoctorLoginPage() {
   // ----- Reliever login -----
   const [reliefName, setReliefName] = useState("");
   const [reliefCreds, setReliefCreds] = useState("");
+  const [reliefLicense, setReliefLicense] = useState("");
   const [reliefPhic, setReliefPhic] = useState("");     // NEW
   const [reliefBranch, setReliefBranch] = useState("SI"); // NEW
   const [reliefPass, setReliefPass] = useState("");
@@ -58,6 +59,7 @@ export default function DoctorLoginPage() {
           name: reliefName,
           credentials: reliefCreds,
           passcode: reliefPass,
+          license_no: reliefLicense || undefined,
           philhealth_md_id: reliefPhic || undefined,
           branch: reliefBranch || "SI",
         }),
@@ -159,6 +161,14 @@ export default function DoctorLoginPage() {
               placeholder="Designations / Credentials (e.g., MD, FPCP)"
               value={reliefCreds}
               onChange={(e) => setReliefCreds(e.target.value)}
+              required
+            />
+
+            <input
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f766e33]"
+              placeholder="License / PRC No."
+              value={reliefLicense}
+              onChange={(e) => setReliefLicense(e.target.value)}
               required
             />
 

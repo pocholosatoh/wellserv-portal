@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     // 3) Load signer profile to snapshot
     let signerDoctorId: string | null = doctorId;
     let signerName: string | null = actor.display_name || actor.name || null;
-    let signerPRC: string | null = null;
+    let signerPRC: string | null = doctorSession?.prc_no?.trim() || null;
     let signerPHIC: string | null = actor.philhealth_md_id || null;
 
     if (doctorId) {
