@@ -38,8 +38,8 @@ export async function requireActor(): Promise<Actor | null> {
       id: doc.doctorId,
       branch: doc.branch,
       philhealth_md_id: doc.philhealth_md_id, // may be undefined for reliever/no-PHIC
-      name: doc.name,
-      display_name: doc.display_name,
+      name: doc.name || doc.display_name,
+      display_name: doc.display_name || doc.name,
     };
   }
 

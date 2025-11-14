@@ -17,10 +17,10 @@ export async function POST(req: NextRequest) {
 
     // 1) Auth
     const actor = await requireActor().catch(() => null);
-    if (!actor || actor.kind !== "doctor" || !isUuid(actor.id)) {
+    if (!actor || actor.kind !== "doctor") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const doctorId = actor.id as string;
+    const doctorId = isUuid(actor.id) ? (actor.id as string) : null;
 
     // 2) Inputs
     const body = await req.json().catch(() => ({}));
@@ -59,16 +59,29 @@ export async function POST(req: NextRequest) {
     }
 
     // 3) Load signer profile to snapshot
-    const { data: docRow } = await db
-      .from("doctors")
-      .select("id, full_name, prc_no, philhealth_md_id")
-      .eq("id", doctorId)
-      .maybeSingle();
+    let signerDoctorId: string | null = doctorId;
+    let signerName: string | null = actor.display_name || actor.name || null;
+    let signerPRC: string | null = null;
+    let signerPHIC: string | null = actor.philhealth_md_id || null;
 
-    const signerDoctorId = docRow?.id || doctorId;
-    const signerName = docRow?.full_name || actor.name || null;
-    const signerPRC = docRow?.prc_no || null;
-    const signerPHIC = docRow?.philhealth_md_id || null;
+    if (doctorId) {
+      const docRes = await db
+        .from("doctors")
+        .select("id, full_name, prc_no, philhealth_md_id")
+        .eq("id", doctorId)
+        .maybeSingle();
+
+      if (docRes.error) {
+        return NextResponse.json({ error: docRes.error.message }, { status: 500 });
+      }
+
+      if (docRes.data) {
+        signerDoctorId = docRes.data.id ?? signerDoctorId;
+        signerName = docRes.data.full_name || signerName;
+        signerPRC = docRes.data.prc_no || null;
+        signerPHIC = docRes.data.philhealth_md_id || signerPHIC;
+      }
+    }
 
     // 4) Resolve which Rx to sign if id not provided -> pick most recent draft
     if (!prescriptionId) {
@@ -162,7 +175,7 @@ export async function POST(req: NextRequest) {
     const signPayload: any = {
       status: "signed",
       active: true,
-      doctor_id: signerDoctorId,
+      doctor_id: signerDoctorId ?? null,
       updated_at: nowIso,
       valid_days: finalValidDays,
       valid_until: validUntilIso,
