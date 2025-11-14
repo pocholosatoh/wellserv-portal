@@ -81,6 +81,19 @@ type DoctorRow = {
   signature_image_url: string | null;
 };
 
+type DoctorSnapshot = {
+  doctor_id: string | null;
+  display_name: string | null;
+  full_name: string | null;
+  credentials: string | null;
+  specialty: string | null;
+  affiliations: string | null;
+  prc_no: string | null;
+  ptr_no: string | null;
+  s2_no: string | null;
+  signature_image_url: string | null;
+};
+
 function normalizePatientId(value?: string | null) {
   if (!value) return null;
   const trimmed = value.trim();
@@ -178,12 +191,7 @@ export async function POST(req: Request) {
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!isUuid(doctor.doctorId)) {
-      return NextResponse.json(
-        { error: "Only full doctor accounts can issue certificates right now." },
-        { status: 403 }
-      );
-    }
+    const isFullDoctor = isUuid(doctor.doctorId);
 
     const body = await req.json().catch(() => ({}));
     const patientId = normalizePatientId(body.patient_id || body.patientId);
@@ -335,31 +343,65 @@ export async function POST(req: Request) {
     }
     const vitalsRow = vitals.data as VitalsRow | null;
 
-    const doc = await db
-      .from("doctors")
-      .select(
-        [
-          "doctor_id",
-          "display_name",
-          "full_name",
-          "credentials",
-          "specialty",
-          "affiliations",
-          "prc_no",
-          "ptr_no",
-          "s2_no",
-          "signature_image_url",
-        ].join(", ")
-      )
-      .eq("doctor_id", doctor.doctorId)
-      .maybeSingle();
-    if (doc.error) {
-      return NextResponse.json({ error: doc.error.message }, { status: 400 });
+    let doctorRow: DoctorRow | null = null;
+    if (isFullDoctor) {
+      const doc = await db
+        .from("doctors")
+        .select(
+          [
+            "doctor_id",
+            "display_name",
+            "full_name",
+            "credentials",
+            "specialty",
+            "affiliations",
+            "prc_no",
+            "ptr_no",
+            "s2_no",
+            "signature_image_url",
+          ].join(", ")
+        )
+        .eq("doctor_id", doctor.doctorId)
+        .maybeSingle();
+      if (doc.error) {
+        return NextResponse.json({ error: doc.error.message }, { status: 400 });
+      }
+      doctorRow = (doc.data as DoctorRow | null) ?? null;
+      if (!doctorRow) {
+        return NextResponse.json({ error: "Doctor profile not found" }, { status: 404 });
+      }
     }
-    const doctorRow = doc.data as DoctorRow | null;
-    if (!doctorRow) {
-      return NextResponse.json({ error: "Doctor profile not found" }, { status: 404 });
-    }
+
+    const fallbackDisplay = (doctor.display_name || doctor.name || "").trim();
+    const fallbackFull = (doctor.name || doctor.display_name || fallbackDisplay || "").trim();
+
+    const doctorSnapshot: DoctorSnapshot = doctorRow
+      ? {
+          doctor_id: doctorRow.doctor_id || null,
+          display_name: doctorRow.display_name || fallbackDisplay || null,
+          full_name: doctorRow.full_name || fallbackFull || null,
+          credentials: doctorRow.credentials || doctor.credentials || null,
+          specialty: doctorRow.specialty || null,
+          affiliations: doctorRow.affiliations || null,
+          prc_no: doctorRow.prc_no || null,
+          ptr_no: doctorRow.ptr_no || null,
+          s2_no: doctorRow.s2_no || null,
+          signature_image_url: doctorRow.signature_image_url || null,
+        }
+      : {
+          doctor_id: null,
+          display_name: fallbackDisplay || (fallbackFull || "Reliever Doctor"),
+          full_name: fallbackFull || fallbackDisplay || "Reliever Doctor",
+          credentials: doctor.credentials || null,
+          specialty: null,
+          affiliations: null,
+          prc_no: null,
+          ptr_no: null,
+          s2_no: null,
+          signature_image_url: null,
+        };
+
+    const certificateDoctorId = doctorRow?.doctor_id ?? null;
 
     const issuedAt = new Date();
     const validUntil = new Date(issuedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -412,12 +454,12 @@ export async function POST(req: Request) {
         notes: notesRow ?? null,
         vitals: vitalsRow ?? null,
       },
-      doctor_snapshot: doctorRow,
-      doctor_id: doctorRow.doctor_id,
+      doctor_snapshot: doctorSnapshot,
+      doctor_id: certificateDoctorId,
       doctor_branch: consultationRow.branch || doctor.branch,
       qr_token: qrToken,
       verification_code: verificationCode,
-      created_by_doctor_id: doctorRow.doctor_id,
+      created_by_doctor_id: certificateDoctorId,
       created_at: issuedAt.toISOString(),
       updated_at: issuedAt.toISOString(),
     };
