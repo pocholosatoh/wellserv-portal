@@ -228,6 +228,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: notes.error.message }, { status: 400 });
     }
 
+    const fallbackDisplay = (doctor.display_name || doctor.name || "").trim();
+    const fallbackFull = (doctor.name || doctor.display_name || fallbackDisplay || "").trim();
+
     let doctorProfile: any = null;
     if (isUuid(doctor.doctorId)) {
       const prof = await db
@@ -252,12 +255,31 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: prof.error.message }, { status: 400 });
       }
       doctorProfile = prof.data;
+      if (doctorProfile) {
+        doctorProfile.display_name = doctorProfile.display_name || fallbackDisplay || null;
+        doctorProfile.full_name = doctorProfile.full_name || fallbackFull || null;
+        doctorProfile.credentials = doctorProfile.credentials || doctor.credentials || null;
+      }
       if (doctorProfile?.signature_image_url) {
         doctorProfile.signed_signature_url = await signDoctorSignature(
           db,
           doctorProfile.signature_image_url
         );
       }
+    } else {
+      doctorProfile = {
+        doctor_id: null,
+        display_name: fallbackDisplay || (fallbackFull || "Reliever Doctor"),
+        full_name: fallbackFull || fallbackDisplay || "Reliever Doctor",
+        credentials: doctor.credentials || null,
+        specialty: null,
+        affiliations: null,
+        prc_no: null,
+        ptr_no: null,
+        s2_no: null,
+        signature_image_url: null,
+        signed_signature_url: null,
+      };
     }
 
     const basePhysicalExam = createDefaultPhysicalExam();
