@@ -16,6 +16,12 @@ packages/
 
 Use `pnpm dev:web`, `pnpm dev:mobile`, or `pnpm dev` (Turborepo) for both. Shared packages build with `pnpm --filter @wellserv/core build` etc.
 
+## Deploying to Vercel
+
+- The Vercel project’s root dir must be `apps/web`. Set the build command to `pnpm --filter web build` (matches `vercel.json`).
+- Keep the repo-level `vercel.json` committed so auto-imports don’t override the settings.
+- When running locally you can mirror production with `pnpm --filter web build && pnpm --filter web start`.
+
 ## Stack
 
 - **Next.js App Router** (`/app`)
