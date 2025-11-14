@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireActor } from "@/lib/api-actor";
+import { getDoctorSession } from "@/lib/doctorSession";
 
 function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
   return new Intl.DateTimeFormat("en-CA", {
@@ -25,6 +26,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const docSession = await getDoctorSession().catch(() => null);
+
     const body = await req.json().catch(() => ({}));
     const patientId = String(body?.patientId || body?.patient_id || "").trim().toUpperCase();
     if (!patientId) {
@@ -35,8 +38,9 @@ export async function POST(req: Request) {
 
     // ---------- doctor identity & display ----------
     const doctor_id = actor.id; // may be relief_xxx
-    let docNameRaw = "";
-    let docCreds   = "";
+    const fallbackDisplay = (actor.display_name || actor.name || "").trim();
+    let docNameRaw = fallbackDisplay;
+    let docCreds = docSession?.credentials?.trim() || "";
 
     if (isUuid(doctor_id)) {
       const prof = await db
@@ -45,11 +49,22 @@ export async function POST(req: Request) {
         .eq("doctor_id", doctor_id)
         .maybeSingle();
       if (!prof.error && prof.data) {
-        docNameRaw = prof.data.display_name || prof.data.full_name || "";
-        docCreds   = prof.data.credentials || "";
+        docNameRaw =
+          prof.data.display_name || prof.data.full_name || docNameRaw || "";
+        docCreds = (prof.data.credentials || docCreds || "").trim();
       }
     }
-    const display = docCreds ? `${docNameRaw || ""}` : (docNameRaw || ""); // display_name usually includes creds already
+
+    const baseName = (docNameRaw || fallbackDisplay || "").trim();
+    const nameWithFallback = baseName || "Attending Doctor";
+    const normalizedCreds = docCreds.trim();
+    const hasCredSuffix = normalizedCreds
+      ? new RegExp(`,\\s*${normalizedCreds}$`).test(nameWithFallback)
+      : false;
+    const display =
+      normalizedCreds && !hasCredSuffix
+        ? `${nameWithFallback}, ${normalizedCreds}`
+        : nameWithFallback;
 
     // ---------- doctor branch ----------
     const branch: "SI" | "SL" = (actor.branch as "SI" | "SL") || "SI";
