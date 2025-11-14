@@ -4,10 +4,5 @@
   "buildCommand": "pnpm --filter web build",
   "outputDirectory": "apps/web/.next",
   "framework": "nextjs",
-  "functions": {
-    "api/**": {
-      "maxDuration": 60
-    }
-  },
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- apps/web"
 }
