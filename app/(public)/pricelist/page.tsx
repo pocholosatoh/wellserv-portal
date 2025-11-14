@@ -301,6 +301,10 @@ export default async function PriceListPage() {
           {/* Individual tests */}
           <div id="individual-tests">
             <TestsClient tests={tests} />
+            <p className="mt-4 rounded-2xl border border-white/70 bg-white/70 px-4 py-3 text-sm text-gray-600 shadow-inner backdrop-blur">
+              Note: Prices may change without prior notice and some specialty tests may require a separate turnaround time.
+              For other lab tests not listed here, please consult with our laboratories.
+            </p>
           </div>
         </section>
       </div>
