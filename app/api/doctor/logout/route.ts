@@ -10,6 +10,7 @@ const COOKIE_NAMES = [
   "doctor_role",
   "doctor_credentials",
   "doctor_display_name",
+  "doctor_prc_no",
   "doctor_branch",
   "doctor_philhealth_md_id",
 ];

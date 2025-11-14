@@ -50,6 +50,7 @@ export async function POST(req: Request) {
       credentials,
       passcode,
       branch,
+      license_no,
       philhealth_md_id,
     } = await req.json().catch(() => ({}));
 
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
     const fullName = cleanName(name);
     const creds = cleanCreds(credentials);
     const display = creds ? `${fullName}, ${creds}` : fullName;
+    const license = String(license_no || "").trim();
 
     // Ephemeral reliever id
     const reliefId = "relief_" + crypto.randomBytes(6).toString("hex");
@@ -79,6 +81,7 @@ export async function POST(req: Request) {
     setCookie(res, "doctor_role", "relief");
     setCookie(res, "doctor_credentials", creds || "");
     setCookie(res, "doctor_display_name", display || "");
+    if (license) setCookie(res, "doctor_prc_no", license);
 
     // Optional: PHIC id stored in cookie for claims/signing logic
     const phic = (philhealth_md_id || "").trim();

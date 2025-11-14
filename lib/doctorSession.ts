@@ -8,6 +8,7 @@ export type DoctorSession = {
   role: "regular" | "relief";
   credentials?: string;
   display_name?: string;
+  prc_no?: string;
   doctorId: string;                     // alias of id
   branch: "SI" | "SL";                  // normalized branch
   philhealth_md_id?: string;            // for claims when reliever logs in with PHIC
@@ -30,6 +31,7 @@ export async function getDoctorSession(): Promise<DoctorSession | null> {
   const role = (c.get("doctor_role")?.value || "regular") as "regular" | "relief";
   const credentials = c.get("doctor_credentials")?.value || undefined;
   const display_name = c.get("doctor_display_name")?.value || undefined;
+  const prc_no = c.get("doctor_prc_no")?.value || undefined;
   const philhealth_md_id = c.get("doctor_philhealth_md_id")?.value || undefined;
 
   const rawBranch =
@@ -47,6 +49,7 @@ export async function getDoctorSession(): Promise<DoctorSession | null> {
     role,
     credentials,
     display_name,
+    prc_no,
     philhealth_md_id,
     doctorId: id,
     branch,
