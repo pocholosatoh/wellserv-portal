@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "consultation_id required" }, { status: 400 });
   }
 
-  // return DRAFT only. If none, 404 (RxPanel will show locked banner if there is active signed)
+  // Return the draft when available; otherwise send an empty payload (RxPanel will decide what to show).
   const { data: draft, error } = await supabase
     .from("prescriptions")
     .select("id, notes_for_patient, status, valid_days")
@@ -22,7 +22,9 @@ export async function GET(req: NextRequest) {
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!draft) return NextResponse.json({ error: "No draft." }, { status: 404 });
+  if (!draft) {
+    return NextResponse.json({ id: null, items: [], notes_for_patient: null, valid_days: null }, { status: 200 });
+  }
 
   const { data: items, error: itemsErr } = await supabase
     .from("prescription_items")

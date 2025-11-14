@@ -20,30 +20,26 @@ export type Actor =
 export async function requireActor(): Promise<Actor | null> {
   let session: Awaited<ReturnType<typeof getSession>> | null = null;
 
-  // 1) Patient (self-view via httpOnly session)
   try {
     session = await getSession();
-    if (session && session.role === "patient" && session.patient_id) {
-      return { kind: "patient", patient_id: String(session.patient_id) };
-    }
   } catch {
-    session = null; // ignore and fall through
+    session = null;
   }
 
-  // 2) Doctor session (regular or reliever). Must precede staff to avoid relievers getting downgraded.
+  // Prefer doctor credentials when multiple roles are active in the same browser.
   const doc = await getDoctorSession().catch(() => null);
   if (doc?.doctorId) {
     return {
       kind: "doctor",
       id: doc.doctorId,
       branch: doc.branch,
-      philhealth_md_id: doc.philhealth_md_id, // may be undefined for reliever/no-PHIC
+      philhealth_md_id: doc.philhealth_md_id,
       name: doc.name || doc.display_name,
       display_name: doc.display_name || doc.name,
     };
   }
 
-  // 3) Staff (either legacy staff_id cookie or new staff_* cookies)
+  // Fall back to staff cookies / session hints.
   const c = await getCookies();
   const roleCookie = c.get("role")?.value || "";
   const staffRole = session?.staff_role || c.get("staff_role")?.value || "";
@@ -61,6 +57,11 @@ export async function requireActor(): Promise<Actor | null> {
     if (identifier) {
       return { kind: "staff", id: identifier };
     }
+  }
+
+  // Finally, treat as patient when a patient session exists.
+  if (session && session.role === "patient" && session.patient_id) {
+    return { kind: "patient", patient_id: String(session.patient_id) };
   }
 
   return null;

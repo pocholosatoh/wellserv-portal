@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ArrowUpDown, CheckCircle2, Search } from 'lucide-react';
+import { CheckCircle2, Search } from 'lucide-react';
 
 export type TestRow = {
   test_code: string;
@@ -10,17 +10,8 @@ export type TestRow = {
   is_active: boolean;
 };
 
-function peso(n: number) {
-  return n.toLocaleString('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
-    maximumFractionDigits: 0,
-  });
-}
-
 export default function TestsClient({ tests }: { tests: TestRow[] }) {
   const [q, setQ] = useState('');
-  const [sort, setSort] = useState<'name' | 'price'>('name');
   const accent = (typeof window !== 'undefined'
     ? getComputedStyle(document.documentElement).getPropertyValue('--accent')?.trim()
     : '') || '#44969b';
@@ -29,9 +20,8 @@ export default function TestsClient({ tests }: { tests: TestRow[] }) {
     const x = tests.filter((t) =>
       t.display_name.toLowerCase().includes(q.toLowerCase())
     );
-    if (sort === 'name') return [...x].sort((a, b) => a.display_name.localeCompare(b.display_name));
-    return [...x].sort((a, b) => a.default_price - b.default_price);
-  }, [tests, q, sort]);
+    return [...x].sort((a, b) => a.display_name.localeCompare(b.display_name));
+  }, [tests, q]);
 
   return (
     <div className="space-y-6">
@@ -53,18 +43,9 @@ export default function TestsClient({ tests }: { tests: TestRow[] }) {
                 className="w-64 rounded-2xl border border-white/70 bg-white/90 px-10 py-2 text-sm text-gray-700 shadow-inner transition focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30"
               />
             </label>
-            <label className="relative inline-flex items-center gap-2 text-sm text-gray-600">
-              <ArrowUpDown className="h-4 w-4 text-gray-400" />
-              <span className="sr-only">Sort tests</span>
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as 'name' | 'price')}
-                className="rounded-2xl border border-white/70 bg-white/90 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30"
-              >
-                <option value="name">Sort: Name</option>
-                <option value="price">Sort: Price</option>
-              </select>
-            </label>
+            <p className="text-xs text-gray-500">
+              Individual test rates are shared upon request.
+            </p>
           </div>
         </div>
       </div>
@@ -80,18 +61,12 @@ export default function TestsClient({ tests }: { tests: TestRow[] }) {
               {/* no code for patient view */}
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-              <div className="text-xl font-semibold" style={{ color: accent }}>
-                {peso(t.default_price)}
-              </div>
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
             </div>
           </div>
         ))}
       </div>
 
-      <p className="rounded-2xl border border-white/70 bg-white/60 px-4 py-3 text-xs text-gray-500 shadow-inner backdrop-blur">
-        Note: Prices subject to change without prior notice. Some specialty tests may require a separate turnaround time.
-      </p>
     </div>
   );
 }

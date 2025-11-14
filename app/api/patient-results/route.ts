@@ -3,36 +3,10 @@
 
 import { NextResponse } from "next/server";
 import { getDataProvider } from "@/lib/data/provider-factory";
-import { getSession } from "@/lib/session"; // patient portal session (unchanged)
-import { getDoctorSession } from "@/lib/doctorSession";
-import { cookies } from "next/headers";
+import { requireActor } from "@/lib/api-actor";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/* ---------------- auth helpers ---------------- */
-async function requireActor() {
-  // 1) patient portal session (unchanged)
-  try {
-    const session = await getSession();
-    if (session && session.role === "patient" && session.patient_id) {
-      return { kind: "patient" as const, patient_id: String(session.patient_id) };
-    }
-  } catch {
-    // ignore — not a patient portal call
-  }
-
-  // 2) staff cookie (if you later add staff)
-  const c = await cookies();
-  const staffId = c.get("staff_id")?.value;
-  if (staffId) return { kind: "staff" as const, id: staffId };
-
-  // 3) doctor cookie/JWT
-  const doc = await getDoctorSession().catch(() => null);
-  if (doc?.doctorId) return { kind: "doctor" as const, id: doc.doctorId, branch: doc.branch };
-
-  return null;
-}
 
 /* ---------------- utils ---------------- */
 function toNum(x: any): number | null {
