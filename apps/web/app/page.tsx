@@ -135,7 +135,7 @@ export default function HomePage() {
         <footer className="section text-sm text-gray-600">
           <div className="border-t pt-6">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-              <p>© {new Date().getFullYear()} WELLSERV® Medical Corporation • DOH Licensed Facilities</p>
+              <p>Established in 2023 • WELLSERV® Medical Corporation • DOH Licensed Facilities</p>
               <div className="flex items-center gap-4">
                 <a className="hover:underline" href="/patient/">
                   Results Portal
