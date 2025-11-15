@@ -38,7 +38,7 @@ UI (ReportViewer)
 Supabase (patients, results_flat, ranges)
 
 markdown
-Copy code
+Copy code new
 
 ## Key routes
 
