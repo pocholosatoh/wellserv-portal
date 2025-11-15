@@ -6,7 +6,7 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./tailwind": "./tailwind.config.js"
+    "./tailwind": "./tailwind.config.cjs"
   },
   "scripts": {
     "build": "tsc --project tsconfig.json"

@@ -1,5 +1,7 @@
 import type { Config } from "tailwindcss";
-import { webConfig } from "@wellserv/theme/tailwind";
+import themeConfig from "@wellserv/theme/tailwind";
+
+const { webConfig } = themeConfig as { webConfig: Config };
 
 const config: Config = {
   ...webConfig,

@@ -1,17 +1,9 @@
 // app/layout.tsx
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import { Open_Sans } from "next/font/google";
 import Script from "next/script";
 
 const SITE = "https://www.wellserv.co"; // primary domain (www)
-
-const openSans = Open_Sans({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  display: "swap",
-  variable: "--font-sans",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
@@ -57,10 +49,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={openSans.variable}>
-      <body className="min-h-screen bg-[#f8fafb] antialiased">
-        {children}
-      </body>
+    <html lang="en" className="font-sans">
+      <body className="min-h-screen bg-[#f8fafb] antialiased">{children}</body>
     </html>
   );
 }
