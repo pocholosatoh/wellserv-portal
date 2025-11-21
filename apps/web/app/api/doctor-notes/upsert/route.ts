@@ -57,19 +57,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Consultation not found" }, { status: 404 });
     }
 
-    // Normalize inputs – accept either {mode, notesMarkdown/notesSOAP} or direct fields
-    let notes_markdown: string | null = null;
-    let notes_soap: any | null = null;
-
-    if (body?.mode === "markdown") {
-      notes_markdown = (body?.notesMarkdown ?? body?.notes_markdown ?? null) || null;
-    } else if (body?.mode === "soap") {
-      notes_soap = body?.notesSOAP ?? body?.notes_soap ?? null;
-    } else {
-      notes_markdown = (body?.notesMarkdown ?? body?.notes_markdown ?? null) || null;
-      notes_soap = body?.notesSOAP ?? body?.notes_soap ?? null;
-    }
-
     // Who wrote it?
     // - If actor is DOCTOR and has a real UUID id → set created_by (FK ok)
     // - If actor is reliever (id like "relief_xxx") or STAFF → leave NULL to avoid FK break
@@ -78,12 +65,50 @@ export async function POST(req: Request) {
       createdBy = actor.id;
     }
 
-    // Upsert by consultation_id (one row per consultation)
+    // Upsert by consultation_id (one row per consultation) – merge with existing to avoid wiping other mode
     const existing = await db
       .from("doctor_notes")
-      .select("id")
+      .select("id, notes_markdown, notes_soap")
       .eq("consultation_id", consultationId)
       .maybeSingle();
+
+    const mdInput = body?.notesMarkdown ?? body?.notes_markdown;
+    const soapInput = body?.notesSOAP ?? body?.notes_soap;
+
+    const normalizeMd = (v: any): string | null | undefined => {
+      if (v === undefined) return undefined; // undefined → keep existing
+      const s = typeof v === "string" ? v : String(v ?? "");
+      const t = s.trim();
+      return t ? s : null; // allow clearing via empty string
+    };
+    const normalizeSoap = (v: any): any | null | undefined => {
+      if (v === undefined) return undefined; // undefined → keep existing
+      if (v === null) return null;
+      if (typeof v === "string") {
+        const t = v.trim();
+        return t ? v : null;
+      }
+      return v; // allow object payload
+    };
+
+    const currentMd = existing.data?.notes_markdown ?? null;
+    const currentSoap = existing.data?.notes_soap ?? null;
+
+    let notes_markdown: string | null = currentMd;
+    let notes_soap: any | null = currentSoap;
+
+    if (body?.mode === "markdown") {
+      const next = normalizeMd(mdInput);
+      if (next !== undefined) notes_markdown = next;
+    } else if (body?.mode === "soap") {
+      const next = normalizeSoap(soapInput);
+      if (next !== undefined) notes_soap = next;
+    } else {
+      const nextMd = normalizeMd(mdInput);
+      const nextSoap = normalizeSoap(soapInput);
+      if (nextMd !== undefined) notes_markdown = nextMd;
+      if (nextSoap !== undefined) notes_soap = nextSoap;
+    }
 
     if (existing.data?.id) {
       const upd = await db

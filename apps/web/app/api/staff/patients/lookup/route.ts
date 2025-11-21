@@ -1,11 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-function supa() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+import { getSupabase } from "@/lib/supabase";
 
 function isoToMMDDYYYY(iso?: string | null) {
   if (!iso) return "";
@@ -22,7 +16,7 @@ export async function GET(req: Request) {
   const pid = (url.searchParams.get("patient_id") || "").toUpperCase().trim();
   if (!pid) return NextResponse.json({ found: false });
 
-  const db = supa();
+  const db = getSupabase();
   const { data } = await db
     .from("patients")
     .select("patient_id,full_name,sex,birthday,contact,address,updated_at,last_updated")

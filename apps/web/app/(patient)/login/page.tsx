@@ -40,6 +40,10 @@ function LoginPageContent() {
   const router = useRouter();
   const search = useSearchParams();
   const nextPath = useMemo(() => search.get("next") || "/patient", [search]);
+  const redirectTarget = useMemo(() => {
+    const path = nextPath || "/patient";
+    return path.startsWith("/") ? path : "/patient";
+  }, [nextPath]);
 
   // pull config (clinic header + optional custom privacy copy)
   useEffect(() => {
@@ -81,6 +85,7 @@ function LoginPageContent() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     const patient_id = pid.trim();
     const access_code = code.trim();
 
@@ -103,9 +108,10 @@ function LoginPageContent() {
     setLoading(true);
     const controller = new AbortController();
     let timeoutId: number | null = null;
+    let hardNavTimer: number | null = null;
     let didSucceed = false;
     try {
-      timeoutId = window.setTimeout(() => controller.abort(), 10000);
+      timeoutId = window.setTimeout(() => controller.abort(), 8000);
       // server validates access code + patient existence, sets httpOnly cookie, returns {ok:true}
       const res = await fetch("/api/auth/patient/login", {
         method: "POST",
@@ -125,7 +131,21 @@ function LoginPageContent() {
 
       // success: cookie already set by server → go to new landing page
       didSucceed = true;
-      router.replace(nextPath);
+      router.replace(redirectTarget);
+
+      // In rare cases SPA navigation stalls, force a hard reload so patients don't get stuck.
+      const targetPath = (() => {
+        try {
+          return new URL(redirectTarget, window.location.origin).pathname;
+        } catch {
+          return "/patient";
+        }
+      })();
+      hardNavTimer = window.setTimeout(() => {
+        if (window.location.pathname !== targetPath) {
+          window.location.assign(redirectTarget);
+        }
+      }, 900);
     } catch (error: any) {
       if (error?.name === "AbortError") {
         setErr("Login is taking longer than expected. Please try again.");
@@ -134,6 +154,7 @@ function LoginPageContent() {
       }
     } finally {
       if (timeoutId !== null) window.clearTimeout(timeoutId);
+      if (!didSucceed && hardNavTimer !== null) window.clearTimeout(hardNavTimer);
       if (!didSucceed) setLoading(false);
     }
   }

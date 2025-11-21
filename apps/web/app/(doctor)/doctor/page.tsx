@@ -8,7 +8,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getDoctorSession } from "@/lib/doctorSession";
 import { getSupabase } from "@/lib/supabase";
-import { headers } from "next/headers";
+import { readTodayEncounters } from "@/lib/todayEncounters";
 
 const ACCENT = "#44969b";
 
@@ -28,22 +28,12 @@ type Med = {
   is_active: boolean | null;
 };
 
-// Build an absolute URL for server-side fetches (still used for queue fetch)
-async function abs(path: string) {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}${path}`;
-}
-
 async function fetchConsultQueue(branch: "SI" | "SL") {
-  const url = await abs(
-    `/api/staff/encounters/today?branch=${branch}&consultOnly=1&includeDone=1`
-  );
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) return [];
-  const j = await res.json();
-  return Array.isArray(j?.rows) ? j.rows : [];
+  return await readTodayEncounters({
+    branch,
+    consultOnly: true,
+    includeDone: true,
+  });
 }
 
 function TypeBadge({ type }: { type?: string | null }) {

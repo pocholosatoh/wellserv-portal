@@ -1,12 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-function supa() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+import { getSupabase } from "@/lib/supabase";
 
 export async function GET(req: Request) {
   try {
@@ -14,7 +7,7 @@ export async function GET(req: Request) {
     const id = url.searchParams.get("id") || "";
     if (!id) return NextResponse.json({ error: "missing id" }, { status: 400 });
 
-    const db = supa();
+    const db = getSupabase();
     const { data: enc, error } = await db
       .from("encounters")
       .select("id,patient_id,branch_code,notes_frontdesk,price_manual_add,price_auto_total,total_price")

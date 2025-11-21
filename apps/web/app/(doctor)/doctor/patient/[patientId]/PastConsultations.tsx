@@ -1,7 +1,7 @@
 // app/(doctor)/doctor/patient/[patientId]/PastConsultations.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fmtManila } from "@/lib/time";
 import ConsultDx from "./ConsultDx";
 
@@ -52,6 +52,7 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
   const [details, setDetails] = useState<ConsultDetails | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Build a display name:
   // - Prefer "full_name, credentials" when available
@@ -87,36 +88,33 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
     return dt.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
   }
 
-  // ⬇️ Add this initial load effect
-  useEffect(() => {
-    let aborted = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/consultations/list?patient_id=${encodeURIComponent(patientId)}`);
-        const j = await res.json();
-        if (!aborted && res.ok) setList((j.consultations || []) as Consult[]);
-      } catch {
-        if (!aborted) setErr("Failed to load past consultations.");
-      } finally {
-        if (!aborted) setLoading(false);
-      }
-    })();
-    return () => { aborted = true; };
-  }, [patientId]);  
-
-  // 🔁 Listen for Rx signed events so Past Consultations reloads automatically
-  useEffect(() => {
-    async function reloadList() {
+  const fetchList = useCallback(async () => {
+    setRefreshing(true);
+    setErr(null);
+    try {
       const res = await fetch(`/api/consultations/list?patient_id=${encodeURIComponent(patientId)}`);
       const j = await res.json();
       if (res.ok) setList((j.consultations || []) as Consult[]);
+    } catch {
+      setErr("Failed to load past consultations.");
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
     }
+  }, [patientId]);
 
+  // ⬇️ Add this initial load effect
+  useEffect(() => {
+    setLoading(true);
+    fetchList();
+  }, [fetchList]);
+
+  // 🔁 Listen for Rx signed events so Past Consultations reloads automatically
+  useEffect(() => {
     async function onSigned(e: CustomEvent) {
       const cid = e.detail?.consultationId;
       // Always refresh the list after signing
-      await reloadList();
+      await fetchList();
 
       // If the signed consultation is currently expanded → reload its details
       if (cid && openId === cid) {
@@ -128,7 +126,7 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
 
     window.addEventListener("rx:signed", onSigned as any);
     return () => window.removeEventListener("rx:signed", onSigned as any);
-  }, [patientId, openId]);
+  }, [patientId, openId, fetchList]);
 
 
   async function toggleOpen(id: string) {
@@ -151,7 +149,20 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
 
   return (
     <div className="mt-3">
-      <h3 className="text-lg font-semibold mb-2">Past Consultations</h3>
+      <div className="flex items-center justify-between mb-2 gap-3">
+        <h3 className="text-lg font-semibold">Past Consultations</h3>
+        <button
+          type="button"
+          onClick={() => {
+            setLoading(true);
+            fetchList();
+          }}
+          disabled={refreshing || loading}
+          className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+        >
+          {refreshing || loading ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
 
       {loading && <p className="text-sm text-gray-500">Loading…</p>}
 
@@ -192,27 +203,42 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
                         <ConsultDx consultationId={c.id} />
                       </div>
                       <div className="font-medium mb-1">Doctor Notes</div>
-                      {details.notes ? (
-                        <>
-                          {details.notes.notes_markdown ? (
-                            <pre className="whitespace-pre-wrap text-sm">
-                              {details.notes.notes_markdown}
-                            </pre>
-                          ) : details.notes.notes_soap ? (
-                            <div className="text-sm space-y-1">
-                              {(["S","O","A","P"] as const).map((k) => (
-                                <div key={k}>
-                                  <b>{k}:</b> {details.notes!.notes_soap?.[k] ?? ""}
+                      {(() => {
+                        const md = details.notes?.notes_markdown?.trim() || "";
+                        const soap = details.notes?.notes_soap || {};
+                        const soapHasContent = ["S","O","A","P"].some((k) => (soap?.[k] || "").trim());
+
+                        if (!md && !soapHasContent) {
+                          return <p className="text-sm text-gray-500">No notes.</p>;
+                        }
+
+                        return (
+                          <div className="space-y-3">
+                            {md && (
+                              <div>
+                                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Markdown</div>
+                                <pre className="whitespace-pre-wrap text-sm">{md}</pre>
+                              </div>
+                            )}
+                            {soapHasContent && (
+                              <div>
+                                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">SOAP</div>
+                                <div className="text-sm space-y-1">
+                                  {(["S","O","A","P"] as const).map((k) => {
+                                    const val = (soap?.[k] || "").trim();
+                                    if (!val) return null;
+                                    return (
+                                      <div key={k}>
+                                        <b>{k}:</b> {val}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-500">No notes.</p>
-                          )}
-                        </>
-                      ) : (
-                        <p className="text-sm text-gray-500">No notes.</p>
-                      )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Rx summary */}

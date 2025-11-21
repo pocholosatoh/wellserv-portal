@@ -1,14 +1,6 @@
 // app/api/staff/encounters/consult/reorder/route.ts
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-/** Supabase (server) */
-function supa() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+import { getSupabase } from "@/lib/supabase";
 
 /**
  * POST body:
@@ -20,7 +12,7 @@ function supa() {
  * Only applies to rows with consult_status in ('queued_for_consult','in_consult') for that branch.
  */
 export async function POST(req: Request) {
-  const db = supa();
+  const db = getSupabase();
   try {
     const { branch, ids } = await req.json();
 

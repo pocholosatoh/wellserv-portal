@@ -22,18 +22,18 @@
     "@wellserv/core": "workspace:*",
     "@wellserv/data": "workspace:*",
     "@wellserv/theme": "workspace:*",
-    "@expo/metro-runtime": "~4.0.1",
+    "@expo/metro-runtime": "^6.1.2",
     "expo": "~54.0.23",
     "expo-constants": "~18.0.10",
     "expo-dev-client": "~6.0.17",
     "expo-device": "~8.0.9",
-    "expo-linking": "~8.0.8",
+    "expo-linking": "^8.0.9",
     "expo-notifications": "~0.32.12",
     "expo-status-bar": "~3.0.8",
-    "expo-router": "4.0.0",
+    "expo-router": "~6.0.15",
     "expo-secure-store": "~15.0.7",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-native": "0.81.4",
     "react-native-gesture-handler": "^2.28.0",
     "react-native-reanimated": "^3.16.7",
@@ -42,7 +42,7 @@
     "react-native-web": "^0.19.11"
   },
   "devDependencies": {
-    "@types/react": "^18.2.47",
+    "@types/react": "^19.1.10",
     "eslint": "^9.16.0",
     "typescript": "^5.6.3"
   }

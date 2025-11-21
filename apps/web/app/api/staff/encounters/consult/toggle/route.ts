@@ -1,14 +1,6 @@
 // app/api/staff/encounters/consult/toggle/route.ts
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-/** Supabase (server) */
-function supa() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+import { getSupabase } from "@/lib/supabase";
 
 /** YYYY-MM-DD in Asia/Manila by default */
 function todayISOin(tz = process.env.APP_TZ || "Asia/Manila") {
@@ -22,7 +14,7 @@ function todayISOin(tz = process.env.APP_TZ || "Asia/Manila") {
 
 /** Find next available queue number for (branch, date) among consult-queued encounters */
 async function nextQueueNumber(
-  db: ReturnType<typeof supa>,
+  db: ReturnType<typeof getSupabase>,
   branch: string,
   visitDate: string
 ) {
@@ -51,7 +43,7 @@ async function nextQueueNumber(
  * }
  */
 export async function POST(req: Request) {
-  const db = supa();
+  const db = getSupabase();
   try {
     const { encounter_id, branch, enable } = await req.json();
     const branchCode = String(branch || "").toUpperCase();

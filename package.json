@@ -6,14 +6,16 @@
   "scripts": {
     "dev": "turbo dev",
     "dev:web": "pnpm --filter web dev",
-    "dev:mobile": "pnpm --filter mobile start",
+    "dev:mobile": "cd apps/mobile && pnpm expo start --clear",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "apply-patches": "node scripts/apply-patches.js",
+    "postinstall": "pnpm run apply-patches"
   },
   "devDependencies": {
     "eslint": "^9.16.0",

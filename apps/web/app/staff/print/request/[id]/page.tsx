@@ -1,13 +1,8 @@
 // app/staff/print/request/[id]/page.tsx
-import { createClient } from "@supabase/supabase-js";
 import PrintButton from "@/app/staff/_components/PrintButton";
+import { getSupabase } from "@/lib/supabase";
 
-function supa() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+const supa = () => getSupabase();
 
 function formatNowPH() {
   const tz = process.env.APP_TZ || "Asia/Manila";

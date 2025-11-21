@@ -1,7 +1,7 @@
 // app/staff/(protected)/rmt/page.tsx
 import { cookies } from "next/headers";
-import { createClient } from "@supabase/supabase-js";
 import RmtBoardClient from "@/app/staff/_components/RmtBoardClient";
+import { getSupabase } from "@/lib/supabase";
 
 type Row = {
   id: string;
@@ -15,12 +15,7 @@ type Row = {
   visit_date_local: string;
 };
 
-function supaServer() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+const supaServer = () => getSupabase();
 
 function todayISOin(tz = process.env.APP_TZ || "Asia/Manila") {
   // en-CA gives YYYY-MM-DD
@@ -98,4 +93,3 @@ export default async function RmtBoard() {
     </main>
   );
 }
-

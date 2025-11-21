@@ -83,8 +83,8 @@ export async function POST(req: NextRequest) {
     if (doctorId) {
       const docRes = await db
         .from("doctors")
-        .select("id, full_name, display_name, credentials, prc_no, philhealth_md_id")
-        .eq("id", doctorId)
+        .select("doctor_id, full_name, display_name, credentials, prc_no, philhealth_md_id")
+        .eq("doctor_id", doctorId)
         .maybeSingle();
 
       if (docRes.error) {
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (docRes.data) {
-        signerDoctorId = docRes.data.id ?? signerDoctorId;
+        signerDoctorId = docRes.data.doctor_id ?? signerDoctorId;
         signerName = docRes.data.display_name || docRes.data.full_name || signerName;
         signerPRC = docRes.data.prc_no || null;
         signerPHIC = docRes.data.philhealth_md_id || signerPHIC;

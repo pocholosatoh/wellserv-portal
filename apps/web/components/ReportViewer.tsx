@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 
 // ---------- types ----------
 type RefInfo = { low?: number; high?: number; normal_values?: string };
@@ -219,6 +220,7 @@ type ReportViewerProps = {
   apiPath?: string;
   autoFetch?: boolean;
   useSession?: boolean; 
+  sessionPatientId?: string;     // optional, when parent already knows the session PID
 
   // NEW (optional, non-breaking):
   headerOverride?: ReactNode;   // custom header JSX from parent
@@ -232,6 +234,7 @@ export default function ReportViewer(props: ReportViewerProps) {
     apiPath = "/api/patient-results",
     autoFetch = false,
     useSession = false,          // if true, hides patient ID input (expects session to provide it)
+    sessionPatientId = "",
 
     // NEW overrides
     headerOverride,
@@ -239,11 +242,22 @@ export default function ReportViewer(props: ReportViewerProps) {
     watermarkOpacity,
   } = props;
 
-  const [patientId, setPatientId] = useState(initialPatientId ?? "");
+  const searchParams = useSearchParams();
+  const searchPatientId = useMemo(() => {
+    if (!searchParams) return "";
+    const raw = (searchParams.get("patient_id") || searchParams.get("pid") || "").trim();
+    return raw ? raw.toUpperCase() : "";
+  }, [searchParams]);
+
+  const normalizedInitialId = (initialPatientId || "").trim();
+  const normalizedSessionId = (sessionPatientId || "").trim();
+
+  const [patientId, setPatientId] = useState(normalizedInitialId || normalizedSessionId || searchPatientId);
 
   useEffect(() => {
-    if (initialPatientId) setPatientId(initialPatientId);
-  }, [initialPatientId]);
+    const next = searchPatientId || normalizedInitialId || normalizedSessionId || "";
+    if (next && next !== patientId) setPatientId(next);
+  }, [searchPatientId, normalizedInitialId, normalizedSessionId, patientId]);
 
   const [data, setData] = useState<ReportResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -256,8 +270,8 @@ export default function ReportViewer(props: ReportViewerProps) {
   // Splash / preload states
   const [bootLoaded, setBootLoaded] = useState(false);
   const [logoLoaded, setLogoLoaded] = useState(false);
-  const [wmImgLoaded, setWmImgLoaded] = useState(false);
-  const [splashDone, setSplashDone] = useState(false);
+  const [watermarkLoaded, setWatermarkLoaded] = useState(false);
+  const [splashTimedOut, setSplashTimedOut] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -295,15 +309,6 @@ export default function ReportViewer(props: ReportViewerProps) {
   // Watermark config
   const { primary: wmPrimary, fallback: wmFallback } = driveImageUrls(cfg?.watermark_image_url);
   const wmImgUrl = wmPrimary || wmFallback;
-  const wmText = (cfg?.watermark_text || "").trim();
-
-  useEffect(() => {
-    setWmImgLoaded(false);
-    if (!wmImgUrl) { setWmImgLoaded(true); return; }
-    const img = new Image();
-    img.onload = img.onerror = () => setWmImgLoaded(true);
-    img.src = wmImgUrl;
-  }, [wmImgUrl]);
 
   const wmShowScreen = (cfg?.watermark_show_dashboard || "true").toLowerCase() === "true";
   const wmShowPrint  = (cfg?.watermark_show_print    || "true").toLowerCase() === "true";
@@ -311,7 +316,6 @@ export default function ReportViewer(props: ReportViewerProps) {
   const wmOpacityPrint  = Math.max(0, Math.min(1, Number(cfg?.watermark_opacity_print  || 0.08)));
   const wmAngleDeg = Number(cfg?.watermark_angle_deg || -30);
   const wmSize = (cfg?.watermark_size || "40vw");
-  const wmFallbackText = (cfg?.watermark_default_text || (reports.length === 0 ? "WELLSERV" : "")).trim();
 
   // --- Prop overrides (optional) ---
   const wmSizeEffective =
@@ -322,8 +326,6 @@ export default function ReportViewer(props: ReportViewerProps) {
 
   const wmOpacityPrintEffective =
     typeof watermarkOpacity === "number" ? watermarkOpacity : wmOpacityPrint;
-
-  const hasWm = Boolean(wmText || wmImgUrl || wmFallbackText);
 
   const showVisitNotes = (cfg?.show_visit_notes || "").toLowerCase() === "true";
 
@@ -481,13 +483,18 @@ export default function ReportViewer(props: ReportViewerProps) {
 
   useEffect(() => {
     if (!autoFetch) return;
+    const effectivePatientId = (patientId || normalizedSessionId || searchPatientId).trim();
     if (useSession) {
-      // session-derived patient; no ID required
-      fetchSessionReports();
-    } else if (patientId) {
-      fetchReports(patientId);
+      if (effectivePatientId) {
+        // Prefer an explicit patient ID to avoid relying on mixed-role cookies
+        fetchReports(effectivePatientId);
+      } else {
+        fetchSessionReports();
+      }
+    } else if (effectivePatientId) {
+      fetchReports(effectivePatientId);
     }
-  }, [autoFetch, useSession, patientId, apiPath]);
+  }, [autoFetch, useSession, patientId, normalizedSessionId, searchPatientId, apiPath]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -620,19 +627,34 @@ export default function ReportViewer(props: ReportViewerProps) {
     img.src = logoSrc;
   }, [logoSrc]);
 
+  // Watermark resolves to the explicit watermark image if set, otherwise falls back to the logo.
+  const watermarkSrc = wmImgUrl || logoSrc;
+  const watermarkFallback = wmImgUrl ? wmFallback : logoFallback;
+  const hasWm = Boolean(watermarkSrc);
+
+  useEffect(() => {
+    setWatermarkLoaded(false);
+    if (!watermarkSrc) { setWatermarkLoaded(true); return; }
+    const img = new Image();
+    img.onload = img.onerror = () => setWatermarkLoaded(true);
+    img.src = watermarkSrc;
+  }, [watermarkSrc]);
+
   // Splash control
   const splashEnabled = (cfg?.loading_splash_enabled ?? "true").toString().toLowerCase() === "true";
   const splashMaxMs   = Number(cfg?.loading_splash_max_ms ?? 900);
-  const readyTargetsOk = bootLoaded && logoLoaded && wmImgLoaded;
+  const waitingForAssets = !bootLoaded || !logoLoaded || !watermarkLoaded;
+  const waitingForData = loading;
 
   useEffect(() => {
-    if (!splashEnabled) { setSplashDone(true); return; }
-    if (readyTargetsOk) { setSplashDone(true); return; }
-    const t = setTimeout(() => setSplashDone(true), splashMaxMs);
+    if (!splashEnabled) { setSplashTimedOut(false); return; }
+    if (!waitingForAssets) { setSplashTimedOut(false); return; }
+    const t = setTimeout(() => setSplashTimedOut(true), splashMaxMs);
     return () => clearTimeout(t);
-  }, [splashEnabled, readyTargetsOk, splashMaxMs]);
+  }, [splashEnabled, waitingForAssets, splashMaxMs]);
 
-  const showSplash = splashEnabled && !splashDone;
+  const showSplash = splashEnabled && ((waitingForAssets && !splashTimedOut) || waitingForData);
+  const showInlineLoader = !showSplash && loading && !report;
 
   return (
     <div className="page" style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
@@ -921,6 +943,19 @@ export default function ReportViewer(props: ReportViewerProps) {
         }
         .table-scroll table {
           min-width: 560px;
+        }
+        /* Compact tables (e.g., Urinalysis/Fecalysis) don't need the wide min-width or stickies. */
+        .table-scroll[data-compact="true"] {
+          overflow-x: visible;
+        }
+        .table-scroll[data-compact="true"] table {
+          min-width: 0;
+        }
+        .table-scroll[data-compact="true"] table th:first-child,
+        .table-scroll[data-compact="true"] table td:first-child {
+          position: static;
+          background: inherit;
+          border-right: 1px solid rgba(148,163,184,0.18);
         }
         .table-scroll table th:first-child,
         .table-scroll table td:first-child {
@@ -1238,12 +1273,11 @@ export default function ReportViewer(props: ReportViewerProps) {
         .page { position: relative; }
         .page > * { position: relative; z-index: 1; }
         .wm-layer { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; pointer-events: none; z-index: 0; }
-        .wm-text { font-weight: 700; color: #000; letter-spacing: 0.1em; font-size: var(--wm-size, 10vw); white-space: nowrap; text-transform: uppercase; mix-blend-mode: multiply; opacity: var(--wm-opacity, 0.08); transform: rotate(var(--wm-angle, -30deg)); }
         .wm-img { width: var(--wm-size, 60vw); height: auto; opacity: var(--wm-opacity, 0.06); transform: rotate(var(--wm-angle, -30deg)); }
         @media print {
           .wm-layer { display: flex !important; }
           .wm-layer[data-print="off"] { display: none !important; }
-          .wm-text, .wm-img { opacity: var(--wm-opacity-print, 0.08); }
+          .wm-img { opacity: var(--wm-opacity-print, 0.08); }
         }
 
         /* Splash overlay */
@@ -1275,6 +1309,36 @@ export default function ReportViewer(props: ReportViewerProps) {
         .ps-multi { white-space:pre-wrap; line-height:1.25; }
         .ps-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid rgba(25,82,102,0.18); background:#fff; color:var(--brand); }
         .ps-sep { grid-column:1 / -1; height:1px; background:#d7e4ec; margin:6px 0; opacity:0.7; }
+
+        /* Inline loading panel (after header) */
+        .panel-loader{
+          margin: 14px 0;
+          padding: 26px;
+          border-radius: 16px;
+          border: 1px solid rgba(25,82,102,0.08);
+          background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
+          box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
+          display: grid;
+          gap: 8px;
+          place-items: center;
+          color: #2c5566;
+          text-align: center;
+        }
+        .loader-dots{
+          display:flex;
+          gap:8px;
+        }
+        .loader-dots span{
+          width:10px;
+          height:10px;
+          border-radius:999px;
+          background:#44969b;
+          opacity:0.25;
+          animation: loader-pulse 1s ease-in-out infinite;
+        }
+        .loader-dots span:nth-child(2){ animation-delay: .12s; }
+        .loader-dots span:nth-child(3){ animation-delay: .24s; }
+        @keyframes loader-pulse { 0%, 100% { transform: translateY(1px); opacity: .25; } 50% { transform: translateY(-4px); opacity: 1; } }
         
       `}</style>
 
@@ -1301,20 +1365,18 @@ export default function ReportViewer(props: ReportViewerProps) {
           }}
           aria-hidden="true"
         >
-          {wmImgUrl ? (
+          {watermarkSrc ? (
             <img
               className="wm-img"
-              src={wmImgUrl}
+              src={watermarkSrc}
               referrerPolicy="no-referrer"
               onError={(e) => {
                 const img = e.currentTarget as HTMLImageElement;
-                if (wmFallback && img.src !== wmFallback) img.src = wmFallback; else img.style.display = "none";
+                if (watermarkFallback && img.src !== watermarkFallback) img.src = watermarkFallback; else img.style.display = "none";
               }}
               alt=""
             />
-          ) : (
-            <div className="wm-text">{wmText || wmFallbackText}</div>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -1586,6 +1648,15 @@ export default function ReportViewer(props: ReportViewerProps) {
 
         {err && <div style={{ color:"#b00020", marginTop:4 }}>{err}</div>}
 
+        {showInlineLoader && (
+          <div className="panel-loader" role="status" aria-live="polite">
+            <div className="loader-dots" aria-hidden={true}>
+              <span></span><span></span><span></span>
+            </div>
+            <div>Loading patient details and results…</div>
+          </div>
+        )}
+
         {report && (
           <>
             {report.sections
@@ -1596,8 +1667,11 @@ export default function ReportViewer(props: ReportViewerProps) {
                 return (
                   <div key={section.name} className="section-block">
                     <h3>{section.name}</h3>
-                    <div className="table-scroll">
-                      <table>
+                    {(() => {
+                      const compactTable = hideRF && !compareOn; // e.g., Urinalysis/Fecalysis — fewer cols, avoid needless horizontal scroll
+                      return (
+                        <div className="table-scroll" data-compact={compactTable ? "true" : undefined}>
+                          <table>
                         <thead>
                           <tr>
                             <th style={{ textAlign: "left" }}>Parameter</th>
@@ -1623,6 +1697,7 @@ export default function ReportViewer(props: ReportViewerProps) {
                           const skipPrev = shouldExcludeFromPrev(it, cfg);
                           const prevList = compareOn && !skipPrev ? findPrevListAny(it, 3) : [];
                           const prev1Num = compareOn && !skipPrev ? findPrevNumForDelta(it) : null;
+                          const isRemarkRow = labelLc.startsWith("remark");
 
                           let deltaText = "—";
                           let deltaColor = "#666";
@@ -1632,6 +1707,23 @@ export default function ReportViewer(props: ReportViewerProps) {
                             const arrow = delta > 0 ? "▲" : delta < 0 ? "▼" : "•";
                             deltaText = `${arrow} ${delta > 0 ? "+" : ""}${fmt(delta)}${pct != null ? ` (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` : ""}`;
                             deltaColor = delta > 0 ? "#b00020" : delta < 0 ? "#1976d2" : "#666";
+                          }
+
+                          // For Remarks rows, span the description across the remaining columns
+                          if (isRemarkRow) {
+                            const totalCols =
+                              3 + // parameter + result + unit
+                              (compareOn ? 2 : 0) + // prev + delta
+                              (!hideRF ? 2 : 0); // reference + flag
+                            const span = totalCols - 1; // all columns except the "Parameter" label cell
+                            return (
+                              <tr key={it.key}>
+                                <td>{it.label}</td>
+                                <td colSpan={span} style={{ whiteSpace: "normal", textAlign: "left", lineHeight: 1.3 }}>
+                                  {String(it.value ?? "")}
+                                </td>
+                              </tr>
+                            );
                           }
 
                             return (
@@ -1672,7 +1764,9 @@ export default function ReportViewer(props: ReportViewerProps) {
                           })}
                         </tbody>
                       </table>
-                    </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}

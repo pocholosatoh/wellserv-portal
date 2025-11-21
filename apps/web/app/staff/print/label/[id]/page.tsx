@@ -1,16 +1,10 @@
 // app/staff/print/label/[id]/page.tsx
-import { createClient } from "@supabase/supabase-js";
 import Label50x30 from "@/app/staff/_components/Label50x30";
 import PrintButton from "@/app/staff/_components/PrintButton";
 import type { Metadata } from "next";
+import { getSupabase } from "@/lib/supabase";
 
-function supa() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+const supa = () => getSupabase();
 
 export const metadata: Metadata = {
   title: "Print Label",

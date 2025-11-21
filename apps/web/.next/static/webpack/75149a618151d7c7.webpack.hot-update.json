@@ -1,0 +1,10 @@
+{
+  "c": [
+    "app/layout",
+    "app/(patient)/results/page",
+    "app/(doctor)/doctor/patient/[patientId]/page",
+    "webpack"
+  ],
+  "r": [],
+  "m": []
+}

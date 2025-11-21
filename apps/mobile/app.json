@@ -52,6 +52,9 @@
       "supabaseAnonKey": "${EXPO_PUBLIC_SUPABASE_ANON_KEY}",
       "patientAccessCode": "${EXPO_PUBLIC_PATIENT_ACCESS_CODE}"
     },
+    "devServer": {
+      "port": 8081
+    },
     "experiments": {
       "typedRoutes": true
     }

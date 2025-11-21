@@ -2,7 +2,6 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "types": ["nativewind/types"],
     "paths": {
       "@wellserv/core": ["../../packages/core/src"],
       "@wellserv/core/*": ["../../packages/core/src/*"],

@@ -24,28 +24,42 @@ function escapeLikeExact(s: string) {
   return s.replace(/[%_]/g, (m) => `\\${m}`);
 }
 
-async function findPatientRecord(pid: string): Promise<PatientRow | null> {
+async function findPatientRecord(pid: string, signal?: AbortSignal): Promise<PatientRow | null> {
   const pattern = escapeLikeExact(pid);
 
-  // First, look at the canonical patients table (case-insensitive exact match).
+  // First, look at the canonical patients table (exact, index-friendly match).
   const { data: patient, error: patientError } = await supabase
+    .from("patients")
+    .select("patient_id, full_name")
+    .eq("patient_id", pid)
+    .limit(1)
+    .maybeSingle()
+    .abortSignal(signal);
+
+  if (patientError) throw patientError;
+  if (patient) return patient;
+
+  // Back-compat: rarely, patient IDs might have arrived in a different case.
+  const { data: patientCi, error: patientCiError } = await supabase
     .from("patients")
     .select("patient_id, full_name")
     .ilike("patient_id", pattern)
     .limit(1)
-    .maybeSingle();
+    .maybeSingle()
+    .abortSignal(signal);
 
-  if (patientError) throw patientError;
-  if (patient) return patient;
+  if (patientCiError) throw patientCiError;
+  if (patientCi) return patientCi;
 
   // Fallback: older records might exist only in results_wide.
   const { data: visitRow, error: visitError } = await supabase
     .from("results_wide")
     .select("patient_id")
-    .ilike("patient_id", pattern)
+    .eq("patient_id", pid)
     .order("date_of_test", { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle()
+    .abortSignal(signal);
 
   if (visitError) throw visitError;
   if (visitRow) {
@@ -55,10 +69,30 @@ async function findPatientRecord(pid: string): Promise<PatientRow | null> {
     };
   }
 
+  // Fallback #2: case-insensitive check on the legacy table as a last resort.
+  const { data: legacyVisitRow, error: legacyVisitError } = await supabase
+    .from("results_wide")
+    .select("patient_id")
+    .ilike("patient_id", pattern)
+    .order("date_of_test", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+    .abortSignal(signal);
+
+  if (legacyVisitError) throw legacyVisitError;
+  if (legacyVisitRow) {
+    return {
+      patient_id: legacyVisitRow.patient_id ?? pid,
+      full_name: null,
+    };
+  }
+
   return null;
 }
 
 export async function POST(req: Request) {
+  const controller = new AbortController();
+  let timeout: NodeJS.Timeout | null = null;
   try {
     const { patient_id: rawPid, access_code, remember } = await req.json();
 
@@ -82,8 +116,11 @@ export async function POST(req: Request) {
     // Normalize to uppercase (your DB stores uppercase pids)
     const target = normalized;
 
+    // Hard timeout so the client doesn't spin forever.
+    timeout = setTimeout(() => controller.abort(), 8000);
+
     // Look up patient record (patients table first, then results_wide as fallback)
-    const row = await findPatientRecord(target);
+    const row = await findPatientRecord(target, controller.signal);
 
     if (!row) {
       return NextResponse.json({ error: "No matching Patient ID" }, { status: 404 });
@@ -100,6 +137,12 @@ export async function POST(req: Request) {
     });
     return res;
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Login failed" }, { status: 400 });
+    const aborted = e?.name === "AbortError";
+    return NextResponse.json(
+      { error: aborted ? "Login timed out, please try again." : e?.message || "Login failed" },
+      { status: aborted ? 504 : 400 }
+    );
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 }
