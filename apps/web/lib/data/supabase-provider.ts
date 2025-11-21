@@ -449,7 +449,8 @@ export function createSupabaseProvider(): DataProvider {
 
       const seen = new Map<string, Visit>();
       for (const r of visitRows) {
-        const date = String(r.date_of_test ?? r.date ?? r.test_date ?? "").trim();
+        const rawDate = (r as any).date_of_test ?? (r as any).date ?? (r as any).test_date ?? "";
+        const date = String(rawDate).trim();
         if (!date || isPlaceholder(date)) continue;
         if (!seen.has(date)) {
           seen.set(date, {
