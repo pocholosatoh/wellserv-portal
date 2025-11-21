@@ -28,38 +28,35 @@ async function findPatientRecord(pid: string, signal?: AbortSignal): Promise<Pat
   const pattern = escapeLikeExact(pid);
 
   // First, look at the canonical patients table (exact, index-friendly match).
-  const { data: patient, error: patientError } = await supabase
+  const patientQuery = supabase
     .from("patients")
     .select("patient_id, full_name")
     .eq("patient_id", pid)
-    .limit(1)
-    .abortSignal(signal)
-    .maybeSingle();
+    .limit(1);
+  const { data: patient, error: patientError } = await (signal ? patientQuery.abortSignal(signal) : patientQuery).maybeSingle();
 
   if (patientError) throw patientError;
   if (patient) return patient;
 
   // Back-compat: rarely, patient IDs might have arrived in a different case.
-  const { data: patientCi, error: patientCiError } = await supabase
+  const patientCiQuery = supabase
     .from("patients")
     .select("patient_id, full_name")
     .ilike("patient_id", pattern)
-    .limit(1)
-    .abortSignal(signal)
-    .maybeSingle();
+    .limit(1);
+  const { data: patientCi, error: patientCiError } = await (signal ? patientCiQuery.abortSignal(signal) : patientCiQuery).maybeSingle();
 
   if (patientCiError) throw patientCiError;
   if (patientCi) return patientCi;
 
   // Fallback: older records might exist only in results_wide.
-  const { data: visitRow, error: visitError } = await supabase
+  const visitQuery = supabase
     .from("results_wide")
     .select("patient_id")
     .eq("patient_id", pid)
     .order("date_of_test", { ascending: false })
-    .limit(1)
-    .abortSignal(signal)
-    .maybeSingle();
+    .limit(1);
+  const { data: visitRow, error: visitError } = await (signal ? visitQuery.abortSignal(signal) : visitQuery).maybeSingle();
 
   if (visitError) throw visitError;
   if (visitRow) {
@@ -70,14 +67,13 @@ async function findPatientRecord(pid: string, signal?: AbortSignal): Promise<Pat
   }
 
   // Fallback #2: case-insensitive check on the legacy table as a last resort.
-  const { data: legacyVisitRow, error: legacyVisitError } = await supabase
+  const legacyVisitQuery = supabase
     .from("results_wide")
     .select("patient_id")
     .ilike("patient_id", pattern)
     .order("date_of_test", { ascending: false })
-    .limit(1)
-    .abortSignal(signal)
-    .maybeSingle();
+    .limit(1);
+  const { data: legacyVisitRow, error: legacyVisitError } = await (signal ? legacyVisitQuery.abortSignal(signal) : legacyVisitQuery).maybeSingle();
 
   if (legacyVisitError) throw legacyVisitError;
   if (legacyVisitRow) {
