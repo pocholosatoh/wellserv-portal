@@ -33,8 +33,8 @@ async function findPatientRecord(pid: string, signal?: AbortSignal): Promise<Pat
     .select("patient_id, full_name")
     .eq("patient_id", pid)
     .limit(1)
-    .maybeSingle()
-    .abortSignal(signal);
+    .abortSignal(signal)
+    .maybeSingle();
 
   if (patientError) throw patientError;
   if (patient) return patient;
@@ -45,8 +45,8 @@ async function findPatientRecord(pid: string, signal?: AbortSignal): Promise<Pat
     .select("patient_id, full_name")
     .ilike("patient_id", pattern)
     .limit(1)
-    .maybeSingle()
-    .abortSignal(signal);
+    .abortSignal(signal)
+    .maybeSingle();
 
   if (patientCiError) throw patientCiError;
   if (patientCi) return patientCi;
@@ -58,8 +58,8 @@ async function findPatientRecord(pid: string, signal?: AbortSignal): Promise<Pat
     .eq("patient_id", pid)
     .order("date_of_test", { ascending: false })
     .limit(1)
-    .maybeSingle()
-    .abortSignal(signal);
+    .abortSignal(signal)
+    .maybeSingle();
 
   if (visitError) throw visitError;
   if (visitRow) {
@@ -76,8 +76,8 @@ async function findPatientRecord(pid: string, signal?: AbortSignal): Promise<Pat
     .ilike("patient_id", pattern)
     .order("date_of_test", { ascending: false })
     .limit(1)
-    .maybeSingle()
-    .abortSignal(signal);
+    .abortSignal(signal)
+    .maybeSingle();
 
   if (legacyVisitError) throw legacyVisitError;
   if (legacyVisitRow) {
