@@ -74,6 +74,22 @@ async function buildAllReports(patient_id:string, limit?:number, specificDate?:s
   const reports:any[] = [];
   for(const d of trimmed){ const rep = await provider.getReport({ patient_id, visitDate:d }); if(rep) reports.push(adaptReportForUI(rep)); }
   const config = (await provider.getConfig?.()) ?? {};
+  if (reports.length === 0) {
+    const patient = await provider.getPatient(patient_id).catch(() => null);
+    if (patient) {
+      return {
+        reports: [
+          {
+            patient: adaptPatientForUI(patient),
+            visit: { date_of_test: specificDate || "", barcode: "", notes: "", branch: "" },
+            sections: [],
+          },
+        ],
+        config,
+        patientOnly: true,
+      };
+    }
+  }
   return { reports, config };
 }
 

@@ -9,7 +9,7 @@ type ReportSection = { name:string; items:ReportItem[] };
 type Patient = { patient_id:string; full_name:string; age:string; sex:string; birthday:string; contact:string; address:string };
 type Visit = { date_of_test:string; barcode:string; notes:string; branch?: string };
 type Report = { patient:Patient; visit:Visit; sections:ReportSection[] };
-export type ReportResponse = { count:number; reports:Report[]; config?: Record<string,string> };
+export type ReportResponse = { count:number; reports:Report[]; config?: Record<string,string>; patientOnly?: boolean };
 
 // ---------- helpers ----------
 function formatRef(ref?: RefInfo) {
@@ -292,13 +292,18 @@ export default function ReportViewer(props: ReportViewerProps) {
 
   const cfg = { ...(bootCfg || {}), ...(data?.config || {}) } as Record<string,string>;
   const reports = data?.reports ?? [];
+  const patientOnly = data?.patientOnly === true;
 
   // Dashboard footer visibility toggles
   const showFooterOnDashboard = (cfg?.footer_show_on_dashboard || "").toLowerCase() === "true";
   const showSignersOnDashboard = (cfg?.footer_show_signers_on_dashboard || "").toLowerCase() === "true";
   const hasReport = (reports?.length ?? 0) > 0;
-  const showFooter = hasReport || showFooterOnDashboard;
-  const showSigners = hasReport || showSignersOnDashboard;
+  const hasLabSections = useMemo(
+    () => reports.some((r: any) => Array.isArray(r?.sections) && r.sections.some((s: any) => (s?.items?.length ?? 0) > 0)),
+    [reports]
+  );
+  const showFooter = hasLabSections && (hasReport || showFooterOnDashboard);
+  const showSigners = hasLabSections && (hasReport || showSignersOnDashboard);
 
   // Footer + style knobs
   const footerLines = getFooterLines(cfg);
@@ -349,6 +354,7 @@ export default function ReportViewer(props: ReportViewerProps) {
       reports[0]
     );
   }, [reports, selectedDate, visitDates]);
+  const showNoLabsNotice = (patientOnly || !hasLabSections) && !!report;
 
   async function fetchReports(id: string) {
     if (!id) return;
@@ -398,6 +404,9 @@ export default function ReportViewer(props: ReportViewerProps) {
       const payload: ReportResponse = { count: reports.length, reports };
       if (json?.config && typeof json.config === "object") {
         payload.config = json.config as Record<string, string>;
+      }
+      if (typeof json?.patientOnly === "boolean") {
+        payload.patientOnly = json.patientOnly;
       }
       setData(payload);
 
@@ -462,6 +471,9 @@ export default function ReportViewer(props: ReportViewerProps) {
       const payload: ReportResponse = { count: reports.length, reports };
       if (json?.config && typeof json.config === "object") {
         payload.config = json.config as Record<string, string>;
+      }
+      if (typeof json?.patientOnly === "boolean") {
+        payload.patientOnly = json.patientOnly;
       }
       setData(payload);
 
@@ -1654,6 +1666,12 @@ export default function ReportViewer(props: ReportViewerProps) {
               <span></span><span></span><span></span>
             </div>
             <div>Loading patient details and results…</div>
+          </div>
+        )}
+
+        {showNoLabsNotice && !loading && (
+          <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: 12, background: "#f8fafc", color: "#0f172a" }}>
+            No laboratory results yet. Patient info and vitals are shown above.
           </div>
         )}
 

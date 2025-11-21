@@ -168,6 +168,7 @@ export function createSupabaseProvider(): DataProvider {
   const TABLE_RESULTS  = "results_flat";
   const TABLE_RANGES   = "ranges";
   const TABLE_VITALS   = "vitals_snapshots";
+  const TABLE_RESULTS_WIDE = "results_wide";
 
   const db = getSupabase();
 
@@ -251,6 +252,144 @@ export function createSupabaseProvider(): DataProvider {
     };
   }
 
+  async function fallbackPatientFromResults(patient_id: string): Promise<Patient | null> {
+    const pid = escapeLikeExact(String(patient_id || "").trim());
+    const { data, error } = await db
+      .from(TABLE_RESULTS_WIDE)
+      .select("*")
+      .ilike("patient_id", pid)
+      .order("date_of_test", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    const vitals = await fetchVitalsSnapshots(patient_id).catch(
+      (): VitalsBundle => ({ latest: null, history: [] })
+    );
+
+    return {
+      patient_id: data.patient_id ?? patient_id,
+      full_name:  data.full_name ?? "",
+      sex:        data.sex ?? "",
+      age:        data.age ?? "",
+      birthday:   data.birthday ?? "",
+      contact:    data.contact ?? "",
+      address:    data.address ?? "",
+      email:      data.email ?? "",
+      systolic_bp: "",
+      diastolic_bp: "",
+      height_ft: "",
+      height_inch: "",
+      weight_kg: "",
+      medications_current: "",
+      medications: "",
+      family_history: "",
+      smoking_hx: "",
+      alcohol_hx: "",
+      vitals,
+      last_updated: data.last_updated ?? "",
+    };
+  }
+
+  async function listVisitRows(patient_id: string): Promise<Visit[]> {
+    const pid = escapeLikeExact(String(patient_id || "").trim());
+
+    const { data, error } = await db
+      .from(TABLE_RESULTS)
+      .select("date_of_test, barcode, branch, notes")
+      .ilike("patient_id", pid);
+
+    if (error) throw error;
+    if (data && data.length > 0) {
+      return (data as Record<string, any>[]).map((r) => ({
+        date_of_test: String(r.date_of_test ?? "").trim(),
+        barcode: r.barcode ?? "",
+        branch: r.branch ?? "",
+        notes: r.notes ?? "",
+      }));
+    }
+
+    // Fallback to wide table for legacy rows
+    const { data: wide, error: wideError } = await db
+      .from(TABLE_RESULTS_WIDE)
+      .select("date_of_test, barcode, branch, notes")
+      .ilike("patient_id", pid);
+
+    if (wideError) throw wideError;
+
+    return (wide || []).map((r: any) => ({
+      date_of_test: String(r?.date_of_test ?? "").trim(),
+      barcode: r?.barcode ?? "",
+      branch: r?.branch ?? "",
+      notes: r?.notes ?? "",
+    }));
+  }
+
+  async function fetchResultRows(patient_id: string, visitDate?: string): Promise<Record<string, any>[]> {
+    const pid = escapeLikeExact(String(patient_id || "").trim());
+    let query = db
+      .from(TABLE_RESULTS)
+      .select("*")
+      .ilike("patient_id", pid);
+
+    if (visitDate) query = query.eq("date_of_test", visitDate);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    if (data && data.length > 0) return data as Record<string, any>[];
+
+    // Fallback to the wide table: explode wide columns into flat rows
+    let wideQuery = db
+      .from(TABLE_RESULTS_WIDE)
+      .select("*")
+      .ilike("patient_id", pid);
+
+    if (visitDate) wideQuery = wideQuery.eq("date_of_test", visitDate);
+
+    const { data: wide, error: wideError } = await wideQuery;
+    if (wideError) throw wideError;
+    if (!wide || wide.length === 0) return [];
+
+    const skipKeys = new Set([
+      "patient_id",
+      "date_of_test",
+      "barcode",
+      "notes",
+      "branch",
+      "id",
+      "created_at",
+      "updated_at",
+      "created_by",
+      "updated_by",
+      "created_by_initials",
+    ]);
+
+    const flat: Record<string, any>[] = [];
+    for (const row of wide as Record<string, any>[]) {
+      const base = {
+        patient_id: row.patient_id ?? patient_id,
+        date_of_test: row.date_of_test ?? visitDate ?? "",
+        barcode: row.barcode ?? "",
+        notes: row.notes ?? "",
+        branch: row.branch ?? "",
+      };
+      for (const [key, val] of Object.entries(row)) {
+        if (skipKeys.has(key)) continue;
+        if (val === null || val === undefined || isPlaceholder(val)) continue;
+        flat.push({
+          ...base,
+          analyte_key: key,
+          item_key: key,
+          value: val,
+        });
+      }
+    }
+
+    return flat;
+  }
+
   return {
     async getPatient(patient_id: string): Promise<Patient | null> {
       const pid = escapeLikeExact(String(patient_id || "").trim());
@@ -262,7 +401,12 @@ export function createSupabaseProvider(): DataProvider {
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) return null;
+      if (!data) {
+        // Legacy rows might exist only in results_wide
+        const fallback = await fallbackPatientFromResults(patient_id);
+        if (!fallback) return null;
+        return fallback;
+      }
 
       const medsCurrent = data.medications_current ?? "";
 
@@ -301,16 +445,10 @@ export function createSupabaseProvider(): DataProvider {
     },
 
     async getVisits(patient_id: string): Promise<Visit[]> {
-      const pid = escapeLikeExact(String(patient_id || "").trim());
-      const { data, error } = await db
-        .from(TABLE_RESULTS)
-        .select("*")
-        .ilike("patient_id", pid);
-
-      if (error) throw error;
+      const visitRows = await listVisitRows(patient_id);
 
       const seen = new Map<string, Visit>();
-      for (const r of (data || []) as Record<string, any>[]) {
+      for (const r of visitRows) {
         const date = String(r.date_of_test ?? r.date ?? r.test_date ?? "").trim();
         if (!date || isPlaceholder(date)) continue;
         if (!seen.has(date)) {
@@ -326,8 +464,13 @@ export function createSupabaseProvider(): DataProvider {
     },
 
     async getReport({ patient_id, visitDate }: { patient_id: string; visitDate?: string; }): Promise<Report | null> {
-      const patient = await this.getPatient(patient_id);
-      if (!patient) return null;
+      const patient =
+        (await this.getPatient(patient_id)) ||
+        ({
+          patient_id,
+          full_name: "",
+          vitals: { latest: null, history: [] },
+        } as Patient);
 
       let date = visitDate;
       if (!date) {
@@ -336,15 +479,7 @@ export function createSupabaseProvider(): DataProvider {
         if (!date) return null;
       }
 
-      const pid = escapeLikeExact(String(patient_id || "").trim());
-      const { data, error } = await db
-        .from(TABLE_RESULTS)
-        .select("*")
-        .ilike("patient_id", pid)
-        .eq("date_of_test", date);
-
-      if (error) throw error;
-      const rows = (data ?? []) as Record<string, any>[];
+      const rows = await fetchResultRows(patient_id, date);
       if (rows.length === 0) return null;
 
       const { map: rangesMap, rows: rangesRows } = await getRangesMap();

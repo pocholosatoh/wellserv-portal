@@ -1,12 +1,10 @@
 {
-  "/api/patient/other-labs-v2/route": "app/api/patient/other-labs-v2/route.js",
-  "/api/ecg/reports/route": "app/api/ecg/reports/route.js",
-  "/api/auth/logout/route": "app/api/auth/logout/route.js",
+  "/api/staff/patient-results/route": "app/api/staff/patient-results/route.js",
   "/api/config/route": "app/api/config/route.js",
-  "/api/patient-results/route": "app/api/patient-results/route.js",
-  "/(patient)/patient/page": "app/(patient)/patient/page.js",
-  "/(patient)/results/page": "app/(patient)/results/page.js",
-  "/prescription/[id]/print/page": "app/prescription/[id]/print/page.js",
+  "/api/staff/other-labs/route": "app/api/staff/other-labs/route.js",
+  "/(doctor)/doctor/patient/[patientId]/page": "app/(doctor)/doctor/patient/[patientId]/page.js",
   "/(patient)/login/page": "app/(patient)/login/page.js",
-  "/(doctor)/doctor/login/page": "app/(doctor)/doctor/login/page.js"
+  "/(patient)/results/page": "app/(patient)/results/page.js",
+  "/staff/(public)/login/page": "app/staff/(public)/login/page.js",
+  "/staff/(protected)/portal/page": "app/staff/(protected)/portal/page.js"
 }
