@@ -50,6 +50,33 @@ type EncounterRow = {
   consult_status: string | null;
 };
 
+type VitalsRow = {
+  id?: string;
+  measured_at?: string;
+  systolic_bp?: number | null;
+  diastolic_bp?: number | null;
+  hr?: number | null;
+  rr?: number | null;
+  temp_c?: number | null;
+  o2sat?: number | null;
+  weight_kg?: number | null;
+  height_cm?: number | null;
+  bmi?: number | null;
+};
+
+type DoctorProfileRow = {
+  doctor_id: string;
+  display_name: string | null;
+  full_name: string | null;
+  credentials: string | null;
+  specialty: string | null;
+  affiliations: string | null;
+  prc_no: string | null;
+  ptr_no: string | null;
+  s2_no: string | null;
+  signature_image_url: string | null;
+};
+
 export async function POST(req: Request) {
   try {
     const doctor = await getDoctorSession();
@@ -182,7 +209,7 @@ export async function POST(req: Request) {
     }
 
     const patient = patientRes.data;
-    const doctorProfile = doctorProfileRes.data;
+    const doctorProfile = doctorProfileRes.data as unknown as DoctorProfileRow;
 
     const vitalsRes = await db
       .from("vitals_snapshots")
@@ -206,7 +233,7 @@ export async function POST(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    const vitals = vitalsRes.data ?? null;
+    const vitals = (vitalsRes.data as unknown as VitalsRow | null) ?? null;
     const vitals_summary = summarizeVitals(vitals);
 
     const supporting_data: SupportingEntry[] = [];
@@ -231,7 +258,7 @@ export async function POST(req: Request) {
         type: "vitals",
         label: "Most recent vitals",
         summary: vitals_summary || "Vitals snapshot",
-        source_id: vitals.id,
+        source_id: vitals.id ?? null,
         payload: vitals,
       });
     }

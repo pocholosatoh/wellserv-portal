@@ -97,7 +97,7 @@ export default function StaffPrescriptionsPage() {
         />
         <button
           className="w-full rounded bg-[#44969b] px-4 py-2 text-white sm:w-auto"
-          onClick={search}
+          onClick={() => search()}
           disabled={loading}
         >
           {loading ? "Loading…" : "Search"}

@@ -9,6 +9,10 @@ import { ClipboardList, Clock4, MessageCircle, ShieldCheck, Sparkles } from 'luc
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+// Avoid static generation so build doesn’t need to hit Supabase
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 export const revalidate = 3600;
 
 export const metadata = {

@@ -1,16 +1,286 @@
 {
   "version": 3,
+  "pages404": true,
   "caseSensitive": false,
   "basePath": "",
-  "rewrites": { "beforeFiles": [], "afterFiles": [], "fallback": [] },
   "redirects": [
     {
       "source": "/:path+/",
       "destination": "/:path+",
-      "permanent": true,
       "internal": true,
-      "regex": "^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))\\/$"
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
     }
   ],
-  "headers": []
+  "headers": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/api/doctor/ecg/[externalResultId]",
+      "regex": "^/api/doctor/ecg/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPexternalResultId": "nxtPexternalResultId"
+      },
+      "namedRegex": "^/api/doctor/ecg/(?<nxtPexternalResultId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/doctor/ecg/[externalResultId]/interpretation",
+      "regex": "^/api/doctor/ecg/([^/]+?)/interpretation(?:/)?$",
+      "routeKeys": {
+        "nxtPexternalResultId": "nxtPexternalResultId"
+      },
+      "namedRegex": "^/api/doctor/ecg/(?<nxtPexternalResultId>[^/]+?)/interpretation(?:/)?$"
+    },
+    {
+      "page": "/api/doctor/medical-certificates/[id]",
+      "regex": "^/api/doctor/medical\\-certificates/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/doctor/medical\\-certificates/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/prescriptions/[id]",
+      "regex": "^/api/prescriptions/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/prescriptions/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/doctor/ecg/[externalResultId]",
+      "regex": "^/doctor/ecg/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPexternalResultId": "nxtPexternalResultId"
+      },
+      "namedRegex": "^/doctor/ecg/(?<nxtPexternalResultId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/doctor/medical-certificates/[certificateId]/print",
+      "regex": "^/doctor/medical\\-certificates/([^/]+?)/print(?:/)?$",
+      "routeKeys": {
+        "nxtPcertificateId": "nxtPcertificateId"
+      },
+      "namedRegex": "^/doctor/medical\\-certificates/(?<nxtPcertificateId>[^/]+?)/print(?:/)?$"
+    },
+    {
+      "page": "/doctor/patient/[patientId]",
+      "regex": "^/doctor/patient/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPpatientId": "nxtPpatientId"
+      },
+      "namedRegex": "^/doctor/patient/(?<nxtPpatientId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/prescription/[id]/print",
+      "regex": "^/prescription/([^/]+?)/print(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/prescription/(?<nxtPid>[^/]+?)/print(?:/)?$"
+    },
+    {
+      "page": "/staff/print/label/[id]",
+      "regex": "^/staff/print/label/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/staff/print/label/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/staff/print/request/[id]",
+      "regex": "^/staff/print/request/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/staff/print/request/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/verify/medical-certificate/[code]",
+      "regex": "^/verify/medical\\-certificate/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPcode": "nxtPcode"
+      },
+      "namedRegex": "^/verify/medical\\-certificate/(?<nxtPcode>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/apple-icon.png",
+      "regex": "^/apple\\-icon\\.png(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/apple\\-icon\\.png(?:/)?$"
+    },
+    {
+      "page": "/doctor",
+      "regex": "^/doctor(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/doctor(?:/)?$"
+    },
+    {
+      "page": "/doctor/ecg",
+      "regex": "^/doctor/ecg(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/doctor/ecg(?:/)?$"
+    },
+    {
+      "page": "/doctor/login",
+      "regex": "^/doctor/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/doctor/login(?:/)?$"
+    },
+    {
+      "page": "/icon.png",
+      "regex": "^/icon\\.png(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/icon\\.png(?:/)?$"
+    },
+    {
+      "page": "/login",
+      "regex": "^/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/login(?:/)?$"
+    },
+    {
+      "page": "/patient",
+      "regex": "^/patient(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/patient(?:/)?$"
+    },
+    {
+      "page": "/patient/medcerts",
+      "regex": "^/patient/medcerts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/patient/medcerts(?:/)?$"
+    },
+    {
+      "page": "/prescriptions",
+      "regex": "^/prescriptions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/prescriptions(?:/)?$"
+    },
+    {
+      "page": "/pricelist",
+      "regex": "^/pricelist(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/pricelist(?:/)?$"
+    },
+    {
+      "page": "/results",
+      "regex": "^/results(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/results(?:/)?$"
+    },
+    {
+      "page": "/robots.txt",
+      "regex": "^/robots\\.txt(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/robots\\.txt(?:/)?$"
+    },
+    {
+      "page": "/sitemap.xml",
+      "regex": "^/sitemap\\.xml(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/sitemap\\.xml(?:/)?$"
+    },
+    {
+      "page": "/staff",
+      "regex": "^/staff(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/staff(?:/)?$"
+    },
+    {
+      "page": "/staff/followups",
+      "regex": "^/staff/followups(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/staff/followups(?:/)?$"
+    },
+    {
+      "page": "/staff/login",
+      "regex": "^/staff/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/staff/login(?:/)?$"
+    },
+    {
+      "page": "/staff/medcerts",
+      "regex": "^/staff/medcerts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/staff/medcerts(?:/)?$"
+    },
+    {
+      "page": "/staff/other-labs",
+      "regex": "^/staff/other\\-labs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/staff/other\\-labs(?:/)?$"
+    },
+    {
+      "page": "/staff/patienthistory",
+      "regex": "^/staff/patienthistory(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/staff/patienthistory(?:/)?$"
+    },
+    {
+      "page": "/staff/portal",
+      "regex": "^/staff/portal(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/staff/portal(?:/)?$"
+    },
+    {
+      "page": "/staff/prescriptions",
+      "regex": "^/staff/prescriptions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/staff/prescriptions(?:/)?$"
+    },
+    {
+      "page": "/staff/reception",
+      "regex": "^/staff/reception(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/staff/reception(?:/)?$"
+    },
+    {
+      "page": "/staff/rmt",
+      "regex": "^/staff/rmt(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/staff/rmt(?:/)?$"
+    },
+    {
+      "page": "/staff/rmt/hemaupload",
+      "regex": "^/staff/rmt/hemaupload(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/staff/rmt/hemaupload(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSuffix": ".prefetch.rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments"
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
 }
