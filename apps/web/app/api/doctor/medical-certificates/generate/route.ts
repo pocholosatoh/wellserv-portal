@@ -118,7 +118,7 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const consultation = consultationRes.data as ConsultationRow;
+    const consultation = consultationRes.data as unknown as ConsultationRow;
     if (consultation.patient_id !== patientId) {
       return NextResponse.json(
         { error: "Consultation does not belong to patient" },
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const encounter = encounterRes.data as EncounterRow;
+    const encounter = encounterRes.data as unknown as EncounterRow;
     if (encounter.patient_id !== patientId) {
       return NextResponse.json(
         { error: "Encounter does not belong to patient" },
