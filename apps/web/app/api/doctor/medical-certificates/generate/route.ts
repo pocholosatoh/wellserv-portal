@@ -29,6 +29,27 @@ type SupportingEntry = {
   payload?: Record<string, any> | null;
 };
 
+type ConsultationRow = {
+  id: string;
+  patient_id: string;
+  encounter_id: string | null;
+  visit_at: string | null;
+  type: string | null;
+  status: string | null;
+  branch: string | null;
+  doctor_id: string | null;
+  doctor_name_at_time: string | null;
+};
+
+type EncounterRow = {
+  id: string;
+  patient_id: string;
+  branch_code: string | null;
+  visit_date_local: string | null;
+  notes_frontdesk: string | null;
+  consult_status: string | null;
+};
+
 export async function POST(req: Request) {
   try {
     const doctor = await getDoctorSession();
@@ -97,7 +118,8 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    if (consultationRes.data.patient_id !== patientId) {
+    const consultation = consultationRes.data as ConsultationRow;
+    if (consultation.patient_id !== patientId) {
       return NextResponse.json(
         { error: "Consultation does not belong to patient" },
         { status: 400 }
@@ -125,7 +147,8 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    if (encounterRes.data.patient_id !== patientId) {
+    const encounter = encounterRes.data as EncounterRow;
+    if (encounter.patient_id !== patientId) {
       return NextResponse.json(
         { error: "Encounter does not belong to patient" },
         { status: 400 }
@@ -159,8 +182,6 @@ export async function POST(req: Request) {
     }
 
     const patient = patientRes.data;
-    const consultation = consultationRes.data;
-    const encounter = encounterRes.data;
     const doctorProfile = doctorProfileRes.data;
 
     const vitalsRes = await db
