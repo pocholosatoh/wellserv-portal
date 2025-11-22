@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { fmtManila } from "@/lib/time";
 import { describeFrequency } from "@/lib/rx";
-import StaffNavi from "@/app/staff/_components/StaffNavi";
+import { TodayPatientsQuickList } from "@/app/staff/_components/TodayPatientsQuickList";
 
 type Rx = any;
 
@@ -21,12 +21,14 @@ export default function StaffPrescriptionsPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  async function search() {
+  async function search(idOverride?: string) {
     setLoading(true);
     setErr(null);
     try {
+      const target = (idOverride ?? patientId).trim();
+      if (!target) throw new Error("Please enter a patient ID.");
       const url = `/api/staff/prescriptions?patient_id=${encodeURIComponent(
-        patientId.trim()
+        target
       )}`;
       const res = await fetch(url);
       const json = await res.json();
@@ -38,6 +40,12 @@ export default function StaffPrescriptionsPage() {
       setLoading(false);
     }
   }
+
+  const handlePickPatient = (pid: string) => {
+    const normalized = pid.trim().toUpperCase();
+    setPatientId(normalized);
+    search(normalized);
+  };
 
   async function saveDiscount(rxId: string, form: HTMLFormElement) {
     const fd = new FormData(form);
@@ -73,6 +81,12 @@ export default function StaffPrescriptionsPage() {
       <p className="text-xs text-gray-600 mb-4">
         Prices and totals here are for staff use only. Patient printouts never show prices.
       </p>
+
+      <TodayPatientsQuickList
+        onSelectPatient={handlePickPatient}
+        actionLabel="Load prescriptions"
+        className="mb-4"
+      />
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <input

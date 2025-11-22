@@ -407,6 +407,12 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   handler satisfies RouteHandlerConfig<"/api/doctor/medical-certificates/form-data">
 }
 
+// Validate ../../app/api/doctor/medical-certificates/generate/route.ts
+{
+  const handler = {} as typeof import("../../app/api/doctor/medical-certificates/generate/route.js")
+  handler satisfies RouteHandlerConfig<"/api/doctor/medical-certificates/generate">
+}
+
 // Validate ../../app/api/doctor/medical-certificates/labs/search/route.ts
 {
   const handler = {} as typeof import("../../app/api/doctor/medical-certificates/labs/search/route.js")

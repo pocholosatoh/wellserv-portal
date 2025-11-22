@@ -1,6 +1,7 @@
 // app/staff/(protected)/medcerts/page.tsx
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { TodayPatientsQuickList } from "@/app/staff/_components/TodayPatientsQuickList";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,12 @@ export default async function StaffMedCertsPage({
           Look up previously issued certificates by patient ID. Results show certificates issued in the doctor workspace.
         </p>
       </header>
+
+      <TodayPatientsQuickList
+        targetPath="/staff/medcerts"
+        queryParam="patient"
+        actionLabel="Load certificates"
+      />
 
       <section className="rounded-2xl bg-white p-6 shadow-sm">
         <form className="flex flex-col gap-3 sm:flex-row sm:items-end" method="get">

@@ -485,7 +485,7 @@ export default function MedicalCertificateDrawer({
 
       const endpoint = isEditing
         ? `/api/doctor/medical-certificates/${existingCertificate?.id}`
-        : "/api/doctor/medical-certificates";
+        : "/api/doctor/medical-certificates/generate";
       const method = isEditing ? "PATCH" : "POST";
 
       const res = await fetch(endpoint, {

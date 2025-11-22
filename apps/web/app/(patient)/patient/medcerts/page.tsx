@@ -1,3 +1,4 @@
+// apps/web/app/(patient)/patient/medcerts/page.tsx
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";

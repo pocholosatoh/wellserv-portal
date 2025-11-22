@@ -12,6 +12,21 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(doctor)/doctor/page.js"
     ],
+    "/(doctor)/doctor/login/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(doctor)/doctor/login/layout.js"
+    ],
+    "/(doctor)/doctor/login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(doctor)/doctor/login/page.js"
+    ],
+    "/api/doctor/login/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/doctor/login/route.js"
+    ],
     "/(doctor)/doctor/patient/[patientId]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -62,40 +77,45 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/consultations/list/route.js"
     ],
-    "/api/consultations/details/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/consultations/details/route.js"
-    ],
     "/api/doctor-notes/upsert/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/doctor-notes/upsert/route.js"
     ],
-    "/(patient)/login/page": [
+    "/api/doctor/medical-certificates/form-data/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(patient)/login/page.js"
+      "static/chunks/app/api/doctor/medical-certificates/form-data/route.js"
     ],
-    "/api/auth/patient/login/route": [
+    "/api/doctor/medical-certificates/supporting-data/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/patient/login/route.js"
+      "static/chunks/app/api/doctor/medical-certificates/supporting-data/route.js"
     ],
-    "/(patient)/patient/page": [
+    "/api/doctor/medical-certificates/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(patient)/patient/page.js"
+      "static/chunks/app/api/doctor/medical-certificates/route.js"
     ],
-    "/(patient)/results/page": [
+    "/api/doctor/medical-certificates/generate/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(patient)/results/page.js"
+      "static/chunks/app/api/doctor/medical-certificates/generate/route.js"
     ],
-    "/api/patient/other-labs-v2/route": [
+    "/(doctor)/doctor/medical-certificates/[certificateId]/print/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/patient/other-labs-v2/route.js"
+      "static/chunks/app/(doctor)/doctor/medical-certificates/[certificateId]/print/page.js"
+    ],
+    "/api/doctor/medical-certificates/[id]/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/doctor/medical-certificates/[id]/route.js"
+    ],
+    "/api/doctor/logout/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/doctor/logout/route.js"
     ],
     "/staff/(protected)/layout": [
       "static/chunks/webpack.js",
@@ -117,40 +137,20 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/auth/staff/login/route.js"
     ],
-    "/staff/(protected)/portal/page": [
+    "/staff/(protected)/patienthistory/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/staff/(protected)/portal/page.js"
-    ],
-    "/api/staff/patient-results/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/staff/patient-results/route.js"
-    ],
-    "/api/staff/other-labs/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/staff/other-labs/route.js"
-    ],
-    "/api/ecg/reports/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/ecg/reports/route.js"
+      "static/chunks/app/staff/(protected)/patienthistory/page.js"
     ],
     "/staff/(protected)/prescriptions/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/staff/(protected)/prescriptions/page.js"
     ],
-    "/staff/(protected)/patienthistory/page": [
+    "/api/staff/prescriptions/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/staff/(protected)/patienthistory/page.js"
-    ],
-    "/api/staff/vitals/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/staff/vitals/route.js"
+      "static/chunks/app/api/staff/prescriptions/route.js"
     ]
   }
 }

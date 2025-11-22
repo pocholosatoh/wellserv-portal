@@ -1,10 +1,9 @@
 {
-  "/api/staff/patient-results/route": "app/api/staff/patient-results/route.js",
-  "/api/config/route": "app/api/config/route.js",
-  "/api/staff/other-labs/route": "app/api/staff/other-labs/route.js",
-  "/(doctor)/doctor/patient/[patientId]/page": "app/(doctor)/doctor/patient/[patientId]/page.js",
-  "/(patient)/login/page": "app/(patient)/login/page.js",
-  "/(patient)/results/page": "app/(patient)/results/page.js",
+  "/api/auth/staff/login/route": "app/api/auth/staff/login/route.js",
+  "/api/staff/prescriptions/route": "app/api/staff/prescriptions/route.js",
+  "/(doctor)/doctor/medical-certificates/[certificateId]/print/page": "app/(doctor)/doctor/medical-certificates/[certificateId]/print/page.js",
   "/staff/(public)/login/page": "app/staff/(public)/login/page.js",
-  "/staff/(protected)/portal/page": "app/staff/(protected)/portal/page.js"
+  "/staff/(protected)/page": "app/staff/(protected)/page.js",
+  "/staff/(protected)/patienthistory/page": "app/staff/(protected)/patienthistory/page.js",
+  "/staff/(protected)/prescriptions/page": "app/staff/(protected)/prescriptions/page.js"
 }
