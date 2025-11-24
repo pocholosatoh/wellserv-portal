@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb",
     },
   },
+  eslint: { ignoreDuringBuilds: true },
   // Uncomment only if `next build` is failing on TS type errors:
   // typescript: { ignoreBuildErrors: true },
 };

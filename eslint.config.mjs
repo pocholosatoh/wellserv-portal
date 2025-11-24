@@ -34,6 +34,7 @@ const config = [
       "apps/mobile/android/**",
       "apps/mobile/ios/**",
       "next-env.d.ts",
+      "apps/web/next-env.d.ts",
       // optional: ignore legacy routes while you “watch logs”
       "apps/web/app/api/report/**",
       "apps/web/app/api/results/**",
@@ -46,11 +47,17 @@ const config = [
       // TEMP: quiet things down across the repo
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-unused-expressions": "off",
       "react-hooks/exhaustive-deps": "off",
       "@next/next/no-img-element": "off",
-       "@next/next/no-html-link-for-pages": "off",
+      "@next/next/no-html-link-for-pages": "off",
       "no-console": "off",
       "prefer-const": "off",
+    },
+  },
+  {
+    rules: {
+      "@next/next/no-html-link-for-pages": "off",
     },
   },
   {

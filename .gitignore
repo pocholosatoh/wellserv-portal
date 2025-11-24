@@ -13,9 +13,14 @@
 # testing
 /coverage
 
-# next.js
-/.next/
-/out/
+# Next.js build
+.next
+**/.next/
+out
+
+# Turbo build cache
+.turbo
+**/.turbo/
 
 # production
 /build
@@ -26,15 +31,20 @@ apps/mobile/.expo-shared
 .DS_Store
 *.pem
 
-# debug
+# debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (keep secrets out of git)
 .env*
 .env
+
+# but allow example env files to be committed
+!.env.example
+!.env.*.example
+!.env.mobile.example
 
 # vercel
 .vercel
@@ -42,7 +52,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Next.js build
-**/.next/
-

@@ -18,7 +18,7 @@
     "postinstall": "pnpm run apply-patches"
   },
   "devDependencies": {
-    "eslint": "^9.16.0",
+    "eslint": "8.57.0",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.9",
     "prettier": "^3.3.3",
@@ -32,5 +32,10 @@
     "*.{json,md,css,scss}": [
       "prettier --write"
     ]
+  },
+  "pnpm": {
+    "overrides": {
+      "eslint": "8.57.0"
+    }
   }
 }

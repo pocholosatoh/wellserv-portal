@@ -35,7 +35,7 @@ export default async function PatientHome() {
       .maybeSingle(),
     db
       .from("patients")
-      .select("full_name")
+      .select("full_name, delivery_address_label, last_delivery_used_at, last_delivery_success_at")
       .eq("patient_id", s.patient_id)
       .limit(1)
       .maybeSingle(),
@@ -56,6 +56,13 @@ export default async function PatientHome() {
     medcerts && medcerts.length > 0
       ? formatShortDate(medcerts[0].issued_at as string | null | undefined) || "—"
       : "—";
+  const lastDeliveryDate =
+    formatShortDate(pat?.last_delivery_used_at as string | null | undefined) || null;
+  const deliveryBadge = pat?.last_delivery_success_at
+    ? "Delivered"
+    : lastDeliveryDate
+    ? `Requested: ${lastDeliveryDate}`
+    : "New request";
 
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
   const initials = getInitials(displayName);
@@ -173,6 +180,21 @@ export default async function PatientHome() {
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M6 3h12a1 1 0 0 1 1 1v16l-3-2-3 2-3-2-3 2V4a1 1 0 0 1 1-1Z" />
                 <path d="M9 8h6M9 12h6" />
+              </svg>
+            }
+          />
+          <ActionCard
+            href="/patient/delivery"
+            heading="Meds Delivery"
+            sub="Request delivery using your saved address"
+            badge={deliveryBadge}
+            accent={accent}
+            icon={
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M3 12h16l2 4H5l-2-4Z" />
+                <path d="m7 12 2-5h8l-2 5" />
+                <circle cx="7.5" cy="18" r="1.5" />
+                <circle cx="17.5" cy="18" r="1.5" />
               </svg>
             }
           />
