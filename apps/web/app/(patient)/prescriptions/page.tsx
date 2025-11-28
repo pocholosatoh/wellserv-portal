@@ -31,7 +31,10 @@ export default function PatientPrescriptionsPage() {
         const res = await fetch(`/api/patient/prescriptions`);
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error || "Failed");
-        setList(json.prescriptions || []);
+        const activeOnly = (json.prescriptions || []).filter(
+          (rx: any) => rx?.is_superseded === false || rx?.is_superseded == null
+        );
+        setList(activeOnly);
       } catch (e: any) {
         setErr(e.message || "Network error");
       } finally {
@@ -40,19 +43,28 @@ export default function PatientPrescriptionsPage() {
     })();
   }, []);
 
-    return (
+  return (
     <main className="min-h-dvh">
       {/* Sticky header (page-level, not per Rx) */}
       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b">
         <div className="mx-auto max-w-5xl flex items-center justify-between p-3">
           <a href="/patient" className="rounded-lg border px-3 py-2">← Back to Home</a>
-          <a
-            href="/results"
-            className="rounded-lg px-3 py-2 text-white"
-            style={{ backgroundColor: (process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b") }}
-          >
-            View Results
-          </a>
+          <div className="flex items-center gap-2">
+            <a
+              href="/patient"
+              className="rounded-lg px-3 py-2 text-white"
+              style={{ backgroundColor: (process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b") }}
+            >
+              Home
+            </a>
+            <a
+              href="/results"
+              className="rounded-lg px-3 py-2 text-white"
+              style={{ backgroundColor: (process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b") }}
+            >
+              Results
+            </a>
+          </div>
         </div>
       </div>
 
@@ -79,6 +91,14 @@ export default function PatientPrescriptionsPage() {
           <div className="space-y-6">
             {list.map((r) => {
               const rows = r.items || [];
+              const itemCount = rows.length;
+              const doctorName = r.doctors?.display_name || r.consultations?.signing_doctor_name;
+              const doctorCredentials = r.doctors?.credentials;
+              const doctorLabel = doctorName
+                ? doctorCredentials
+                  ? `${doctorName}, ${doctorCredentials}`
+                  : doctorName
+                : null;
 
               // Compute totals from saved unit_price — ONLY if patient toggles on
               const subtotal = rows.reduce((sum: number, it: any) => {
@@ -113,6 +133,7 @@ export default function PatientPrescriptionsPage() {
                       <div className="text-xs text-gray-500">
                         Created {fmtManila(r.created_at)}
                         {r.updated_at ? ` • Updated ${fmtManila(r.updated_at)}` : ""}
+                        {doctorLabel ? ` • Doctor: ${doctorLabel}` : ""}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -122,7 +143,7 @@ export default function PatientPrescriptionsPage() {
                         </span>
                       ) : null}
                       <span className="text-xs rounded-full px-3 py-1 bg-gray-100">
-                        {(rows.length ?? 0)} item{rows.length === 1 ? "" : "s"}
+                        {itemCount} item{itemCount === 1 ? "" : "s"}
                       </span>
                     </div>
                   </div>
@@ -137,13 +158,6 @@ export default function PatientPrescriptionsPage() {
                     </div>
                   )}
 
-                  {/* Notes for patient */}
-                  {r.notes_for_patient && (
-                    <div className="mt-3 text-sm">
-                      <span className="font-medium">Instructions:</span> {r.notes_for_patient}
-                    </div>
-                  )}
-
                   {/* Items */}
                   <div className="mt-4">
                     <div className="text-sm font-medium mb-1">Items</div>
@@ -151,9 +165,20 @@ export default function PatientPrescriptionsPage() {
                       {rows.map((ln: any) => (
                         <li key={ln.id}>
                           <span className="font-medium">{ln.generic_name}</span>{" "}
-                          — {ln.strength} {ln.form} · {ln.route || "PO"} · {ln.dose_amount} {ln.dose_unit}{" "}
-                          {describeFrequency(ln.frequency_code)} · {ln.duration_days} days · Qty {ln.quantity}
-                          {ln.instructions ? ` — ${ln.instructions}` : ""}
+                          {[
+                            ln.strength,
+                            ln.form,
+                            ln.route || "PO",
+                            ln.dose_amount && ln.dose_unit
+                              ? `${ln.dose_amount} ${ln.dose_unit}`
+                              : null,
+                            describeFrequency(ln.frequency_code),
+                            ln.duration_days != null ? `${ln.duration_days} days` : null,
+                            ln.quantity != null ? `Qty ${ln.quantity}` : null,
+                            ln.instructions || null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                           {showPrices && ln.unit_price != null && ln.quantity != null ? (
                             <> — ₱{(ln.unit_price * ln.quantity).toFixed(2)}</>
                           ) : null}
@@ -161,6 +186,13 @@ export default function PatientPrescriptionsPage() {
                       ))}
                     </ul>
                   </div>
+
+                  {/* Notes for patient under items */}
+                  {r.notes_for_patient && (
+                    <div className="mt-3 text-sm">
+                      <span className="font-medium">Instructions:</span> {r.notes_for_patient}
+                    </div>
+                  )}
 
                   {/* Prices / totals (optional) */}
                   {showPrices && (

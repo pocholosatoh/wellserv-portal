@@ -2,6 +2,7 @@ import { PropsWithChildren, createContext, useCallback, useContext, useEffect, u
 import { Alert } from "react-native";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
+import { useRouter } from "expo-router";
 import { createSupabaseClient, createSecureStoreAdapter } from "@wellserv/data";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, PATIENT_ACCESS_CODE } from "../lib/env";
@@ -71,6 +72,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<SessionValue | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pushToken, setPushToken] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     storage
@@ -133,9 +135,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
   );
 
   const signOut = useCallback(async () => {
+    console.log("SIGN OUT: clearing session");
     await storage.removeItem(STORAGE_KEY);
     setSession(null);
-  }, [storage]);
+    router.replace("/login");
+  }, [storage, router]);
 
   useEffect(() => {
     if (!PATIENT_ACCESS_CODE) {

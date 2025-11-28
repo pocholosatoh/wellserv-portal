@@ -18,7 +18,8 @@
     "postinstall": "pnpm run apply-patches"
   },
   "devDependencies": {
-    "eslint": "8.57.0",
+    "@types/react": "~19.1.10",
+    "eslint": "9.37.0",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.9",
     "prettier": "^3.3.3",
@@ -34,8 +35,9 @@
     ]
   },
   "pnpm": {
-    "overrides": {
-      "eslint": "8.57.0"
-    }
+    "overrides": {}
+  },
+  "dependencies": {
+    "expo": "^54.0.25"
   }
 }

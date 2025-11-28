@@ -1,3 +1,8 @@
+ENV['LANG'] ||= 'en_US.UTF-8'
+ENV['LC_ALL'] ||= 'en_US.UTF-8'
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
+# Force UTF-8 so CocoaPods doesn't choke on paths when LANG is unset.
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
@@ -62,5 +67,20 @@ target 'WellservMobile' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Some vendored RCT-Folly headers omit coroutine support files; force-disable
+    # coroutine detection to keep Xcode 16 builds from looking for them.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS].each do |key|
+          flags = config.build_settings[key]
+          flags = ['$(inherited)'] if flags.nil?
+          flags = [flags] unless flags.is_a?(Array)
+          next if flags.any? { |flag| flag.include?('FOLLY_CFG_NO_COROUTINES') }
+
+          config.build_settings[key] = flags + ['-DFOLLY_CFG_NO_COROUTINES=1']
+        end
+      end
+    end
   end
 end

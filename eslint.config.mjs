@@ -1,4 +1,4 @@
-import { dirname } from "path";
+import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
 
@@ -6,7 +6,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Use Next's presets but then turn off the noisy rules globally (temporary)
-const compat = new FlatCompat({ baseDirectory: __dirname });
+// Resolve Next's ESLint config from the web app package where it is installed
+const compat = new FlatCompat({
+  baseDirectory: join(__dirname, "apps/web"),
+});
 const nextConfigs = compat
   .extends("next/core-web-vitals", "next/typescript")
   .map((cfg) => ({

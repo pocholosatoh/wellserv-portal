@@ -10,7 +10,7 @@ export function usePatientProfile(client: SupabaseClient | null, patientId?: str
       if (!client || !patientId) throw new Error("Missing patient");
       const { data, error } = await client
         .from("patients")
-        .select("patient_id, full_name, birth_date, last_consultation_at")
+        .select("patient_id, full_name, birthday, last_updated")
         .eq("patient_id", patientId)
         .maybeSingle();
       if (error) throw error;
@@ -18,8 +18,8 @@ export function usePatientProfile(client: SupabaseClient | null, patientId?: str
       return patientSchema.parse({
         id: data.patient_id,
         fullName: data.full_name,
-        birthDate: data.birth_date,
-        lastVisit: data.last_consultation_at,
+        birthDate: data.birthday,
+        lastVisit: data.last_updated,
       });
     },
   });

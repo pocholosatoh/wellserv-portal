@@ -3,6 +3,7 @@
     "name": "Wellserv Mobile",
     "slug": "wellserv-mobile",
     "version": "0.1.0",
+    "entryPoint": "./App.tsx",
     "orientation": "portrait",
     "scheme": "wellserv",
     "userInterfaceStyle": "light",

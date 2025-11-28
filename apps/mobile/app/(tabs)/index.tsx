@@ -1,25 +1,77 @@
+import { useEffect } from "react";
 import { Stack, Link } from "expo-router";
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Image } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useSession } from "../../src/providers/SessionProvider";
-import { usePatientProfile, useLabResults, usePrescriptions } from "@wellserv/data";
+import { usePatientProfile } from "@wellserv/data";
+import { usePatientPrescriptions } from "../../src/hooks/usePatientPrescriptions";
+import { usePatientResults } from "../../src/hooks/usePatientResults";
+import { formatShortDate } from "@wellserv/core";
 import { colors, spacing } from "@wellserv/theme";
+import icon from "../../assets/icon.png";
 
 export default function HomeScreen() {
   const { session, client, signOut } = useSession();
   const patientId = session?.patientId;
   const profileQuery = usePatientProfile(client, patientId);
-  const resultsQuery = useLabResults(client, patientId);
-  const rxQuery = usePrescriptions(client, patientId);
+  const patientResults = usePatientResults({ limit: 1 });
+  const rxQuery = usePatientPrescriptions();
+  const greetingName = (() => {
+    const toTitle = (s: string) => {
+      if (!s) return s;
+      return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    };
+
+    const full = profileQuery.data?.fullName?.trim();
+    if (full) {
+      // If stored as "LAST, FIRST ..." prefer the portion after the comma.
+      if (full.includes(",")) {
+        const afterComma = full.split(",")[1]?.trim();
+        if (afterComma) return toTitle(afterComma.split(/\s+/)[0] || afterComma);
+      }
+      return toTitle(full.split(/\s+/)[0] || full);
+    }
+    return patientId || "Guest";
+  })();
+
+  useEffect(() => {
+    console.log("HOME session:", session);
+  }, [session]);
+
+  const latestReport = patientResults.reports?.[0];
+  const latestResultDate = patientResults.isLoading
+    ? "Loading..."
+    : formatShortDate(latestReport?.visit?.date_of_test) || "—";
+  const resultsReady =
+    !!latestReport &&
+    latestReport.sections.some((section) => section.items && section.items.length > 0);
+  const resultsReadyMark = resultsReady ? "✓" : "";
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }} edges={["top", "left", "right"]}>
       <Stack.Screen options={{ title: "Home" }} />
       <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
-        <Text style={{ fontSize: 22, fontWeight: "600", marginBottom: spacing.sm }}>
-          Hello, {profileQuery.data?.fullName ?? patientId}
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: spacing.sm,
+          }}
+        >
+          <Text style={{ fontSize: 22, fontWeight: "600", flex: 1 }} numberOfLines={1}>
+            Hello, {greetingName} 👋
+          </Text>
+          {/* eslint-disable-next-line jsx-a11y/alt-text -- React Native Image uses accessibilityLabel instead of alt */}
+          <Image
+            source={icon}
+            style={{ width: 40, height: 40, marginLeft: spacing.md }}
+            resizeMode="contain"
+            accessibilityLabel="Wellserv logo"
+          />
+        </View>
         <Text style={{ color: colors.gray[500], marginBottom: spacing.md }}>
-          Last visit: {profileQuery.data?.lastVisit ?? "—"}
+          Patient ID: {patientId ?? "—"}
         </Text>
 
         <View style={{ flexDirection: "row", columnGap: 12, marginBottom: spacing.lg }}>
@@ -33,7 +85,12 @@ export default function HomeScreen() {
               }}
             >
               <Text style={{ fontWeight: "600", marginBottom: 8 }}>Results</Text>
-              <Text>{resultsQuery.data?.[0]?.name ?? "—"}</Text>
+              <Text style={{ color: colors.gray[700], marginBottom: 4 }}>
+                Latest: {latestResultDate}
+              </Text>
+              <Text style={{ color: colors.gray[800] }}>
+                Results ready: {resultsReadyMark}
+              </Text>
             </TouchableOpacity>
           </Link>
           <Link href="/(tabs)/prescriptions" asChild>
@@ -64,6 +121,6 @@ export default function HomeScreen() {
           <Text style={{ color: colors.gray[600], fontWeight: "500" }}>Sign out</Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
