@@ -4,7 +4,6 @@
 import { NextResponse } from "next/server";
 import { buildAllReports } from "@/lib/api/patient-results-core";
 import { requireActor } from "@/lib/api-actor";
-export { buildAllReports, adaptReportForUI } from "@/lib/api/patient-results-core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
