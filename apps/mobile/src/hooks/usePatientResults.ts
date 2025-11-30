@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "../providers/SessionProvider";
 import { getApiBaseUrl } from "../lib/api";
-import { PATIENT_ACCESS_CODE } from "../lib/env";
 import type { PatientResultsResponse, Report } from "../../../shared/types/patient-results";
 
 type UsePatientResultsOptions = {
@@ -31,10 +30,10 @@ export function usePatientResults(options: UsePatientResultsOptions = {}) {
         res = await fetch(url, {
           method: "POST",
           headers: { "content-type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             patientId,
             limit: options.limit,
-            accessCode: PATIENT_ACCESS_CODE || undefined,
           }),
         });
       } catch (error) {

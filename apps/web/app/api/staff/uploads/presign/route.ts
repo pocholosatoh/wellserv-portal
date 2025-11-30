@@ -52,14 +52,15 @@ async function requireStaffIdentity() {
   const roleCookie = c.get("role")?.value || "";
   const staffRole = session?.staff_role || c.get("staff_role")?.value || "";
   const staffInitials = session?.staff_initials || c.get("staff_initials")?.value || "";
-  const staffId = c.get("staff_id")?.value || "";
+  const staffId = session?.staff_id || c.get("staff_id")?.value || "";
+  const staffCode = session?.staff_login_code || c.get("staff_login_code")?.value || "";
 
   const isStaff =
-    (session?.role || roleCookie) === "staff" || !!staffRole || !!staffId;
+    (session?.role || roleCookie) === "staff" || !!staffRole || !!staffId || !!staffCode;
 
   if (!isStaff) return null;
 
-  const identifier = staffId || staffInitials || staffRole;
+  const identifier = staffId || staffCode || staffInitials || staffRole;
   if (!identifier) return null;
 
   return {

@@ -5,11 +5,14 @@ import { usePathname } from "next/navigation";
 
 export default function StaffNavi({
     initials,
+    rolePrefix,
   }: {
     initials?: string | null;
+    rolePrefix?: string | null;
   }) {
   const pathname = usePathname();
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
+  const canRegister = (rolePrefix || "").toUpperCase() === "ADM";
 
   const items = [
     { href: "/staff", label: "Home" },                 // hub
@@ -21,10 +24,11 @@ export default function StaffNavi({
     { href: "/staff/med-orders", label: "Med Orders" },
     { href: "/staff/medcerts", label: "Medical Certs" },
     { href: "/staff/rmt/hemaupload", label: "RMT Hema Upload" },
+    ...(canRegister ? [{ href: "/staff/staff/register", label: "Register Staff" }] : []),
   ];
 
   return (
-    <nav className="sticky top-0 z-30 border-b bg-white/80 backdrop-blur print:hidden">
+    <nav className="sticky top-0 z-30 border-b border-gray-200 bg-white/80 backdrop-blur shadow-sm print:hidden">
       <div className="mx-auto max-w-7xl px-4 py-2 text-sm md:px-6">
         <div className="-mx-1 flex gap-2 overflow-x-auto pb-2 px-1 sm:mx-0 sm:flex-wrap sm:pb-0 sm:px-0">
           {items.map((it) => {
@@ -34,7 +38,8 @@ export default function StaffNavi({
                 key={it.href}
                 href={it.href}
                 className={[
-                  "group relative shrink-0 rounded-lg border px-3 py-1.5 transition",
+                  "group relative shrink-0 rounded-md border border-gray-200 bg-white/70 px-3 py-1.5 text-gray-800 shadow-sm transition",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white",
                   active ? "text-white" : "hover:bg-gray-50",
                 ].join(" ")}
                 style={{
@@ -56,7 +61,7 @@ export default function StaffNavi({
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <span>Logged in as</span>
             <span
-              className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border bg-gray-100 px-2 font-semibold text-gray-800"
+              className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-gray-200 bg-gray-50 px-2 font-semibold text-gray-800"
               data-staff-initials={initials || ""}
               title="Staff initials"
             >
@@ -65,7 +70,7 @@ export default function StaffNavi({
           </div>
 
           <form action="/api/auth/logout?who=staff" method="post" className="w-full sm:w-auto">
-            <button className="w-full rounded-lg border px-3 py-1.5 hover:bg-gray-50">
+            <button className="w-full rounded-md border border-gray-300 px-3 py-1.5 shadow-sm transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white">
               Logout
             </button>
           </form>

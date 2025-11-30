@@ -1,6 +1,7 @@
 // lib/session.ts
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { staffRoleFromPrefix } from "@/lib/auth/staffCode";
 
 type SessionData = {
   // Who is logged in
@@ -9,6 +10,10 @@ type SessionData = {
   patient_id?: string;
 
   // Staff session (we already use these cookies elsewhere)
+  staff_id?: string;         // UUID from public.staff
+  staff_no?: string;         // auto-generated staff number (0001 etc.)
+  staff_login_code?: string; // e.g., ADM-CHL
+  staff_role_prefix?: string; // ADM | REC | RMT
   staff_role?: string;     // 'admin' | 'reception' | 'rmt'
   staff_branch?: string;   // 'SI' | 'SL' | 'ALL'
   staff_initials?: string; // 'CHL' etc.
@@ -36,13 +41,36 @@ function commonCookieOpts(persist?: boolean) {
  */
 export async function getSession() {
   const c = await cookies();
-  const role = c.get("role")?.value || c.get("staff_role")?.value ? "staff" : (c.get("role")?.value || "");
+  const roleCookie = c.get("role")?.value || "";
+  const staffRoleCookie = c.get("staff_role")?.value || "";
+  const staffLoginCode = c.get("staff_login_code")?.value || "";
+  const staffRolePrefixCookie = c.get("staff_role_prefix")?.value || "";
+  const staffIdCookie = c.get("staff_id")?.value || "";
+
+  const codePrefix =
+    (staffLoginCode.includes("-") ? staffLoginCode.split("-")[0] : "").toUpperCase() || "";
+  const staff_role_prefix = (staffRolePrefixCookie || codePrefix).toUpperCase();
+  const derivedRole = staffRoleFromPrefix(staff_role_prefix);
+
+  const hasStaffHints = !!(staffRoleCookie || staffLoginCode || staffIdCookie);
+  const role = hasStaffHints ? "staff" : roleCookie;
+  const staff_initials =
+    c.get("staff_initials")?.value ||
+    (staffLoginCode.includes("-") ? staffLoginCode.split("-").slice(1).join("-") : "") ||
+    "";
+
+  const staff_role = (staffRoleCookie || "").toLowerCase() || derivedRole;
+
   return {
-    role: c.get("role")?.value || "",
+    role,
     patient_id: c.get("patient_id")?.value || "",
-    staff_role: c.get("staff_role")?.value || "",
+    staff_id: staffIdCookie || "",
+    staff_no: c.get("staff_no")?.value || "",
+    staff_login_code: staffLoginCode || "",
+    staff_role_prefix,
+    staff_role,
     staff_branch: c.get("staff_branch")?.value || "",
-    staff_initials: c.get("staff_initials")?.value || "",
+    staff_initials,
   };
 }
 
@@ -63,6 +91,10 @@ export function setSession(res: NextResponse, data: SessionData) {
   if (data.patient_id) res.cookies.set("patient_id", data.patient_id, opts);
 
   // Staff session (used across staff UIs)
+  if (data.staff_id)          res.cookies.set("staff_id", data.staff_id, opts);
+  if (data.staff_no)          res.cookies.set("staff_no", data.staff_no, opts);
+  if (data.staff_login_code)  res.cookies.set("staff_login_code", data.staff_login_code, opts);
+  if (data.staff_role_prefix) res.cookies.set("staff_role_prefix", data.staff_role_prefix, opts);
   if (data.staff_role)     res.cookies.set("staff_role", data.staff_role, opts);
   if (data.staff_branch)   res.cookies.set("staff_branch", data.staff_branch, opts);
   if (data.staff_initials) res.cookies.set("staff_initials", data.staff_initials, opts);
@@ -80,7 +112,17 @@ export function setSession(res: NextResponse, data: SessionData) {
 export function clearSession(res: NextResponse) {
   const base = { path: "/", httpOnly: false, sameSite: "lax" as const, secure: isProd, maxAge: 0 };
 
-  ["role", "patient_id", "staff_role", "staff_branch", "staff_initials"].forEach((k) => {
+  [
+    "role",
+    "patient_id",
+    "staff_id",
+    "staff_no",
+    "staff_login_code",
+    "staff_role_prefix",
+    "staff_role",
+    "staff_branch",
+    "staff_initials",
+  ].forEach((k) => {
     res.cookies.set(k, "", base);
   });
 

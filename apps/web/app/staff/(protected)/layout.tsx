@@ -23,6 +23,7 @@ export default async function StaffProtectedLayout({
   const staffRole = c.get("staff_role")?.value || s.staff_role || "";
   const staffBranch = c.get("staff_branch")?.value || s.staff_branch || "";
   const staffInitials = c.get("staff_initials")?.value || s.staff_initials || "";
+  const staffRolePrefix = c.get("staff_role_prefix")?.value || s.staff_role_prefix || "";
 
   const initials = staffInitials || null;
   const branchLabel =
@@ -32,9 +33,9 @@ export default async function StaffProtectedLayout({
   const canSeeRmt = staffRole === "rmt" || staffRole === "admin";
 
   return (
-    <div className="min-h-dvh bg-[#f8fafb]">
-      <StaffNav initials={initials} />
-      <div className="border-b bg-white/80 backdrop-blur">
+    <div className="staff-shell min-h-dvh bg-[#f8fafb]">
+      <StaffNav initials={initials} rolePrefix={staffRolePrefix || null} />
+      <div className="border-b border-gray-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-2 text-sm md:flex-row md:flex-wrap md:items-center md:gap-3 md:px-6">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded pill-accent px-2 py-1">
@@ -50,12 +51,18 @@ export default async function StaffProtectedLayout({
           <div className="flex flex-wrap items-center gap-2 md:ml-auto">
             <BranchPicker />
             {canSeeReception && (
-              <a href="/staff/reception" className="rounded border px-3 py-1.5 hover:bg-gray-50">
+              <a
+                href="/staff/reception"
+                className="rounded-md border border-gray-300 px-3 py-1.5 shadow-sm transition hover:bg-gray-50"
+              >
                 Reception
               </a>
             )}
             {canSeeRmt && (
-              <a href="/staff/rmt" className="rounded border px-3 py-1.5 hover:bg-gray-50">
+              <a
+                href="/staff/rmt"
+                className="rounded-md border border-gray-300 px-3 py-1.5 shadow-sm transition hover:bg-gray-50"
+              >
                 RMT Workboard
               </a>
             )}

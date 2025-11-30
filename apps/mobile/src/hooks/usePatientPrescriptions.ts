@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Prescription } from "@wellserv/core";
 import { getApiBaseUrl } from "../lib/api";
-import { PATIENT_ACCESS_CODE } from "../lib/env";
 import { useSession } from "../providers/SessionProvider";
 
 type ApiPrescriptionItem = {
@@ -97,9 +96,9 @@ export function usePatientPrescriptions() {
         res = await fetch(url, {
           method: "POST",
           headers: { "content-type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             patientId,
-            accessCode: PATIENT_ACCESS_CODE || undefined,
           }),
         });
       } catch (error) {

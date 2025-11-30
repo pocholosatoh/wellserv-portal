@@ -1,52 +1,103 @@
 // app/api/auth/staff/login/route.ts
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
-import { parseStaffCode } from "@/lib/auth/parseStaffCode";
+import { getSupabase } from "@/lib/supabase";
+import { parseStaffLoginCode, staffRoleFromPrefix } from "@/lib/auth/staffCode";
+import { verifyPin } from "@/lib/auth/pinHash";
 import { setSession } from "@/lib/session";
+
+const isProd = process.env.NODE_ENV === "production";
+
+function normalizeBranch(raw?: string) {
+  const b = String(raw || "").trim().toUpperCase();
+  if (b === "SL" || b === "ALL") return b;
+  return "SI";
+}
+
+function setCookie(
+  res: NextResponse,
+  name: string,
+  value: string,
+  opts: Partial<{
+    httpOnly: boolean;
+    secure: boolean;
+    sameSite: "lax" | "strict" | "none";
+    path: string;
+    maxAge: number;
+  }> = {}
+) {
+  res.cookies.set({
+    name,
+    value,
+    httpOnly: opts.httpOnly ?? false,
+    secure: opts.secure ?? isProd,
+    sameSite: opts.sameSite ?? "lax",
+    path: opts.path ?? "/",
+    maxAge: opts.maxAge,
+  });
+}
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { code, tag, remember, portalCode } = body || {};
+    const rawCode = String(body?.login_code ?? body?.code ?? "").trim();
+    const rawPin = String(body?.pin ?? "").trim();
+    const remember = !!body?.remember;
+    const branch = normalizeBranch(body?.branch);
 
-    if (!code || !tag) {
-      return NextResponse.json({ error: "Missing access code or initials." }, { status: 400 });
+    if (!rawCode || !rawPin) {
+      return NextResponse.json({ error: "Login code and PIN are required." }, { status: 400 });
     }
 
-    // Optional extra gate
-    const REQUIRED = (process.env.STAFF_PORTAL_ACCESS_CODE || "").trim();
-    if (REQUIRED && (typeof portalCode !== "string" || portalCode.trim() !== REQUIRED)) {
-      return NextResponse.json({ error: "Invalid portal access code." }, { status: 401 });
+    const { code, prefix, initials } = parseStaffLoginCode(rawCode);
+    const supa = getSupabase();
+
+    const { data: staff, error } = await supa
+      .from("staff")
+      .select("id, staff_no, login_code, pin_hash, active")
+      .eq("active", true)
+      .ilike("login_code", code)
+      .maybeSingle();
+
+    if (error || !staff) {
+      return NextResponse.json(
+        { error: "Invalid access code. Please check your login code or contact admin." },
+        { status: 401 }
+      );
     }
 
-    // Parse "ROLE-BRANCH-INITIALS"
-    const parsed = parseStaffCode(code, tag); // { role, branch_code, staff_initials }
+    if (!staff.pin_hash) {
+      return NextResponse.json(
+        { error: "Please set up your PIN first.", needsPinSetup: true },
+        { status: 403 }
+      );
+    }
 
-    // Build response & set session cookies via helper
-    const res = NextResponse.json({
-      ok: true,
-      role: parsed.role,
-      branch_code: parsed.branch_code,
-      initials: parsed.staff_initials,
-    });
+    const ok = await verifyPin(rawPin.replace(/\s+/g, ""), String(staff.pin_hash || ""));
+    if (!ok) {
+      return NextResponse.json({ error: "Invalid PIN. Please try again." }, { status: 401 });
+    }
+
+    const res = NextResponse.json({ ok: true, staff_no: staff.staff_no, branch });
 
     setSession(res, {
       role: "staff",
-      staff_role: parsed.role,          // 'admin' | 'reception' | 'rmt'
-      staff_branch: parsed.branch_code, // 'SI' | 'SL' | 'ALL'
-      staff_initials: parsed.staff_initials,
-      persist: !!remember,
+      staff_id: staff.id,
+      staff_no: String(staff.staff_no || ""),
+      staff_login_code: staff.login_code || code,
+      staff_role_prefix: prefix,
+      staff_role: staffRoleFromPrefix(prefix),
+      staff_branch: branch,
+      staff_initials: initials,
+      persist: remember,
     });
 
-    // optional flag that extra portal code check passed
-    if (REQUIRED) {
-      res.cookies.set("staff_portal_ok", "1", {
-        path: "/",
-        httpOnly: false,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        maxAge: remember ? 60 * 60 * 24 * 30 : undefined,
-      });
-    }
+    // Maintain legacy portal_ok cookie for compatibility if needed.
+    setCookie(res, "staff_portal_ok", "1", {
+      maxAge: remember ? 60 * 60 * 24 * 30 : undefined,
+    });
 
     return res;
   } catch (err: any) {

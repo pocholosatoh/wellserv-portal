@@ -142,3 +142,59 @@ body {
   filter: blur(10px);
   z-index: -1;
 }
+
+/* Staff portal scoped styles */
+.staff-shell {
+  --staff-border: #d1d5db;
+  --staff-surface: #ffffff;
+  --staff-focus: #14b8a6;
+  --staff-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.staff-shell input[type="text"],
+.staff-shell input[type="password"],
+.staff-shell input[type="email"],
+.staff-shell input[type="search"],
+.staff-shell input[type="tel"],
+.staff-shell input[type="date"],
+.staff-shell input[type="number"],
+.staff-shell select,
+.staff-shell textarea {
+  border: 1px solid var(--staff-border);
+  border-radius: 0.65rem;
+  background: var(--staff-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+}
+
+.staff-shell button {
+  border-radius: 0.65rem;
+}
+
+.staff-shell input:focus,
+.staff-shell select:focus,
+.staff-shell textarea:focus {
+  outline: none;
+  border-color: transparent;
+  box-shadow:
+    0 0 0 2px rgba(20, 184, 166, 0.35),
+    var(--staff-shadow);
+}
+
+.staff-shell button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(20, 184, 166, 0.35),
+    var(--staff-shadow);
+}
+
+.staff-shell .staff-card,
+.staff-shell .staff-panel {
+  background: var(--staff-surface);
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  box-shadow: var(--staff-shadow);
+}

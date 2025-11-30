@@ -1,37 +1,48 @@
 // app/staff/(public)/login/LoginFormClient.tsx
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { parseStaffLoginCode } from "@/lib/auth/staffCode";
+
+const BRANCHES: Array<{ key: "SI" | "SL" | "ALL"; label: string }> = [
+  { key: "SI", label: "San Isidro" },
+  { key: "SL", label: "San Leonardo" },
+  { key: "ALL", label: "All Branches" },
+];
 
 export default function LoginFormClient() {
   const router = useRouter();
   const search = useSearchParams();
   const nextPath = search.get("next") || "/staff";
 
-  // --- FORM STATE (all fields you need) ---
-  const [code, setCode] = useState("");           // e.g. "REC-SI-CHL"
-  const [tag, setTag] = useState("");             // e.g. "CHL"
-  const [portalCode, setPortalCode] = useState(""); // shared secret from env on server
-  const [remember, setRemember] = useState(true); // keep me signed in
+  const [loginCode, setLoginCode] = useState("");
+  const [pin, setPin] = useState("");
+  const [branch, setBranch] = useState<"SI" | "SL" | "ALL">("SI");
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsPin, setNeedsPin] = useState(false);
+  const fieldClass =
+    "mt-1 w-full rounded-lg border border-gray-300 bg-white p-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent";
+  const buttonClass =
+    "rounded-lg border border-gray-300 bg-white px-3 py-2 text-center shadow-sm transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white";
 
-  // --- OPTIONAL: quick client-side format check for nicer UX ---
   function validateLocally() {
-    const CODE = code.trim().toUpperCase();
-    const TAG = tag.trim().toUpperCase();
-    const okShape = /^(RMT|REC|ADM)-(SI|SL|ALL)-[A-Z]{2,5}$/.test(CODE);
-    if (!okShape) return "Access Code must look like REC-SI-CHL";
-    const suffix = CODE.split("-").pop();
-    if (TAG !== suffix) return "Your initials must match the code suffix.";
-    if (!portalCode.trim()) return "Portal Access Code is required.";
+    try {
+      parseStaffLoginCode(loginCode);
+    } catch (e: any) {
+      return e?.message || "Invalid login code.";
+    }
+    if (!/^[0-9]{4}$/.test(pin.trim())) return "PIN must be 4 digits.";
     return null;
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setNeedsPin(false);
     const localErr = validateLocally();
     if (localErr) {
       setError(localErr);
@@ -44,17 +55,21 @@ export default function LoginFormClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          code: code.trim().toUpperCase(),
-          tag: tag.trim().toUpperCase(),
+          login_code: loginCode.trim().toUpperCase(),
+          pin: pin.trim(),
+          branch,
           remember,
-          portalCode: portalCode.trim(), // server checks vs STAFF_PORTAL_ACCESS_CODE
         }),
       });
+
       const j = await res.json().catch(() => ({}));
       if (!res.ok || !j?.ok) {
+        if (j?.needsPinSetup) {
+          setNeedsPin(true);
+        }
         throw new Error(j?.error || "Login failed");
       }
-      // success → go to next (or /staff)
+
       router.replace(nextPath);
       router.refresh();
     } catch (err: any) {
@@ -77,48 +92,58 @@ export default function LoginFormClient() {
         />
         <h1 className="text-2xl font-semibold text-center">Staff Login</h1>
         <p className="text-sm text-gray-600 text-center">
-          Enter the staff access code, your initials, and the portal access code.
+          Use your staff login code and 4-digit PIN. Branch applies to this session only.
         </p>
 
-        {/* ACCESS CODE */}
+        {/* LOGIN CODE */}
         <label className="block">
-          <span className="text-sm text-gray-700">Access Code</span>
+          <span className="text-sm text-gray-700">Login Code</span>
           <input
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            className="mt-1 w-full rounded-lg border p-3 uppercase"
-            placeholder="REC-SI-CHL (ROLE-BRANCH-INITIALS)"
+            value={loginCode}
+            onChange={(e) => setLoginCode(e.target.value.toUpperCase())}
+            className={`${fieldClass} uppercase`}
+            placeholder="ADM-CHL / REC-ANN / RMT-JDS"
             autoComplete="off"
             required
           />
         </label>
 
-        {/* INITIALS */}
+        {/* PIN */}
         <label className="block">
-          <span className="text-sm text-gray-700">Your Initials</span>
-          <input
-            value={tag}
-            onChange={(e) => setTag(e.target.value.toUpperCase())}
-            className="mt-1 w-full rounded-lg border p-3 uppercase"
-            placeholder="CHL"
-            autoComplete="off"
-            required
-          />
-        </label>
-
-        {/* PORTAL ACCESS CODE */}
-        <label className="block">
-          <span className="text-sm text-gray-700">Portal Access Code</span>
+          <span className="text-sm text-gray-700">PIN</span>
           <input
             type="password"
-            value={portalCode}
-            onChange={(e) => setPortalCode(e.target.value)}
-            className="mt-1 w-full rounded-lg border p-3"
-            placeholder="Enter the shared portal code"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            className={fieldClass}
+            placeholder="4-digit PIN"
             autoComplete="off"
             required
           />
         </label>
+
+        {/* BRANCH */}
+        <div className="space-y-2">
+          <span className="text-sm text-gray-700">Branch</span>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            {BRANCHES.map((b) => (
+              <button
+                key={b.key}
+                type="button"
+                onClick={() => setBranch(b.key)}
+                className={[
+                  buttonClass,
+                  branch === b.key ? "bg-accent text-white border-accent hover:bg-accent" : "",
+                ].join(" ")}
+                aria-pressed={branch === b.key}
+              >
+                {b.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* REMEMBER ME */}
         <label className="flex items-center gap-2 text-sm">
@@ -126,6 +151,7 @@ export default function LoginFormClient() {
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 focus:ring-offset-white"
           />
           Keep me signed in
         </label>
@@ -133,12 +159,25 @@ export default function LoginFormClient() {
         <button
           type="submit"
           disabled={loading}
-          className="mt-2 w-full rounded-lg bg-accent p-3 text-white disabled:opacity-60"
+          className="mt-2 w-full rounded-lg border border-transparent bg-accent p-3 text-white shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:opacity-60"
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
+        <div className="text-xs text-gray-600 space-y-1">
+          <div className="flex items-center justify-between">
+            <span>First time?</span>
+            <Link href="/staff/set-pin" className="text-accent font-semibold hover:underline">
+              Set your PIN
+            </Link>
+          </div>
+          {needsPin && (
+            <div className="rounded-md bg-orange-50 px-3 py-2 text-[13px] text-orange-700">
+              Please set up your PIN first via the Set PIN page.
+            </div>
+          )}
+        </div>
       </form>
     </div>
   );

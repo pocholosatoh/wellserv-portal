@@ -11,5 +11,12 @@
       "@wellserv/theme/*": ["../../packages/theme/src/*"]
     }
   },
-  "include": ["app/**/*", "src/**/*", "tailwind.config.js", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "include": [
+    "app/**/*",
+    "src/**/*",
+    "types/**/*.d.ts",
+    "tailwind.config.js",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
 }

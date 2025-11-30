@@ -44,16 +44,18 @@ export async function requireActor(): Promise<Actor | null> {
   const roleCookie = c.get("role")?.value || "";
   const staffRole = session?.staff_role || c.get("staff_role")?.value || "";
   const staffInitials = session?.staff_initials || c.get("staff_initials")?.value || "";
-  const staffId = c.get("staff_id")?.value || "";
+  const staffId = session?.staff_id || c.get("staff_id")?.value || "";
+  const staffCode = session?.staff_login_code || c.get("staff_login_code")?.value || "";
 
   const isStaff =
     session?.role === "staff" ||
     roleCookie === "staff" ||
     !!staffRole ||
+    !!staffCode ||
     !!staffId;
 
   if (isStaff) {
-    const identifier = staffId || staffInitials || staffRole || roleCookie;
+    const identifier = staffId || staffCode || staffInitials || staffRole || roleCookie;
     if (identifier) {
       return { kind: "staff", id: identifier };
     }

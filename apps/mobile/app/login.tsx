@@ -1,15 +1,23 @@
-import { Redirect, Stack } from "expo-router";
-import { useState } from "react";
+import { Redirect, Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useSession } from "../src/providers/SessionProvider";
 import { colors, radii, spacing } from "@wellserv/theme";
 
 export default function LoginScreen() {
   const { session, signIn, isLoading } = useSession();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ patient_id?: string }>();
   const [patientId, setPatientId] = useState("");
-  const [accessCode, setAccessCode] = useState("");
+  const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (params?.patient_id) {
+      setPatientId(String(params.patient_id).toUpperCase());
+    }
+  }, [params?.patient_id]);
 
   if (!isLoading && session) {
     return <Redirect href="/(tabs)" />;
@@ -19,8 +27,16 @@ export default function LoginScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      await signIn(patientId, accessCode);
+      await signIn(patientId, pin);
     } catch (e: any) {
+      if (e?.code === "PIN_REQUIRED") {
+        router.push({
+          pathname: "/set-pin" as any,
+          params: { patient_id: patientId.trim().toUpperCase() },
+        });
+        setSubmitting(false);
+        return;
+      }
       setError(e?.message ?? "Login failed");
     } finally {
       setSubmitting(false);
@@ -48,10 +64,12 @@ export default function LoginScreen() {
           }}
         />
         <TextInput
-          placeholder="Access code"
-          value={accessCode}
-          onChangeText={setAccessCode}
+          placeholder="4-digit PIN"
+          value={pin}
+          onChangeText={setPin}
           secureTextEntry
+          keyboardType="number-pad"
+          maxLength={4}
           style={{
             borderWidth: 1,
             borderColor: colors.gray[300],
@@ -76,6 +94,19 @@ export default function LoginScreen() {
           }}
         >
           {submitting ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "600" }}>Sign In</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() =>
+            router.push({
+              pathname: "/set-pin" as any,
+              params: { patient_id: patientId.trim().toUpperCase() },
+            })
+          }
+          style={{ marginTop: spacing.md, alignSelf: "flex-start" }}
+        >
+          <Text style={{ color: colors.primary, fontWeight: "600" }}>
+            No PIN yet? Set up your PIN
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

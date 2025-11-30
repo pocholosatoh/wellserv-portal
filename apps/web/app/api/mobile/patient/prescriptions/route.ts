@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPatientPrescriptions } from "@/lib/api/patient-prescriptions-core";
+import { requireActor } from "@/lib/api-actor";
+import { getSupabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,22 +14,52 @@ function isAccessAllowed(code: string | undefined | null) {
   return code === expected;
 }
 
+function escapeLikeExact(s: string) {
+  return s.replace(/[%_]/g, (m) => `\\${m}`);
+}
+
 // Minimal mobile-friendly endpoint that reuses the same data access as the patient portal.
+// It prefers an authenticated patient session but still supports the legacy access code
+// for older clients.
 export async function POST(req: Request) {
   try {
+    const actor = await requireActor().catch(() => null);
     const body = await req.json().catch(() => ({}));
-    const patientId = body?.patientId || body?.patient_id;
-    const accessCode = body?.accessCode || body?.access_code;
+
+    let patientId: string | null = actor?.kind === "patient" ? actor.patient_id : null;
 
     if (!patientId) {
-      return NextResponse.json({ error: "patientId required" }, { status: 400 });
-    }
-
-    if (!isAccessAllowed(accessCode)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      patientId = body?.patientId || body?.patient_id || null;
+      if (!patientId) {
+        return NextResponse.json({ error: "patientId required" }, { status: 400 });
+      }
     }
 
     const pid = String(patientId).trim();
+
+    if (!actor) {
+      const accessCode = body?.accessCode || body?.access_code;
+      if (!isAccessAllowed(accessCode)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      const supa = getSupabase();
+      const pattern = escapeLikeExact(pid);
+      const { data: patientRow, error } = await supa
+        .from("patients")
+        .select("pin_hash")
+        .ilike("patient_id", pattern)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (patientRow?.pin_hash) {
+        return NextResponse.json(
+          { error: "Please log in with your PIN.", code: "PIN_REQUIRED" },
+          { status: 403 }
+        );
+      }
+    }
+
     const json = await getPatientPrescriptions(pid);
     return NextResponse.json(json, { status: 200 });
   } catch (e: any) {

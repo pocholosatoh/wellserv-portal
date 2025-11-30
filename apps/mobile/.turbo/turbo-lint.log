@@ -1,4 +1,4 @@
 
 > mobile@0.1.0 lint /Users/pocholo/Projects/wellserv-portal/apps/mobile
-> eslint . --max-warnings=0 "apps/web/app/(patient)/patient/delivery/page.tsx"
+> eslint . --max-warnings=0
 

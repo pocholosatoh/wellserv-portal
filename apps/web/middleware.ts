@@ -4,20 +4,28 @@ import type { NextRequest } from "next/server";
 export function middleware(req: NextRequest) {
   const url = req.nextUrl;
   const { pathname, search } = url;
+  const isStaffPublic =
+    pathname.startsWith("/staff/login") || pathname.startsWith("/staff/set-pin");
 
   /* ---------- STAFF GUARD ---------- */
-  // Protect everything under /staff except the public login page.
-  if (pathname.startsWith("/staff/") && !pathname.startsWith("/staff/login")) {
+  // Protect everything under /staff except the public login + first-time PIN pages.
+  if (pathname.startsWith("/staff/") && !isStaffPublic) {
     // Legacy session (if you still use it)
     const legacySession = req.cookies.get("session")?.value;
 
     // New staff cookies (set via /api/auth/staff/login)
     const staffRole = req.cookies.get("staff_role")?.value || "";
     const staffInitials = req.cookies.get("staff_initials")?.value || "";
+    const staffId = req.cookies.get("staff_id")?.value || "";
+    const staffCode = req.cookies.get("staff_login_code")?.value || "";
     // Optional extra gate:
     // const portalOK = req.cookies.get("staff_portal_ok")?.value === "1";
 
-    const isLoggedIn = !!legacySession || (!!staffRole && !!staffInitials); // && portalOK
+    const isLoggedIn =
+      !!legacySession ||
+      !!staffId ||
+      (!!staffRole && !!staffInitials) ||
+      !!staffCode; // && portalOK
 
     if (!isLoggedIn) {
       const loginUrl = new URL("/staff/login", url);
