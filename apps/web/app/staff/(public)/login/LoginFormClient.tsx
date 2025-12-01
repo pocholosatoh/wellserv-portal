@@ -135,7 +135,9 @@ export default function LoginFormClient() {
                 onClick={() => setBranch(b.key)}
                 className={[
                   buttonClass,
-                  branch === b.key ? "bg-accent text-white border-accent hover:bg-accent" : "",
+                  branch === b.key
+                    ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                    : "",
                 ].join(" ")}
                 aria-pressed={branch === b.key}
               >
