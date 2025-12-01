@@ -8,6 +8,15 @@ import { requireActor } from "@/lib/api-actor";
 import { getDoctorSession } from "@/lib/doctorSession";
 import { computeValidUntil, DEFAULT_RX_VALID_DAYS, parseValidDays } from "@/lib/rx";
 
+function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 function isUuid(v?: string | null) {
   return !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
@@ -216,37 +225,64 @@ export async function POST(req: NextRequest) {
         updated_at: nowIso,
       })
       .eq("id", consultationId)
-      .select("encounter_id")
+      .select("encounter_id, patient_id, branch")
       .maybeSingle();
 
     if (updCon.error) return NextResponse.json({ error: updCon.error.message }, { status: 500 });
 
-    const encounterId = updCon.data?.encounter_id || null;
+    const encounterIdFromConsult = updCon.data?.encounter_id || null;
+    const encounterPatientId = updCon.data?.patient_id || null;
+    const encounterBranch = updCon.data?.branch || null;
 
-    // 8) Encounter guard (don’t force intake -> done)
-    if (encounterId) {
-      const cur = await db.from("encounters").select("status").eq("id", encounterId).maybeSingle();
-      const currentStatus = cur.data?.status as string | undefined;
+    // 8) Ensure the consult queue row is marked done.
+    //    We prefer the linked encounter_id; also cover legacy rows via current_consultation_id and today's queued entries.
+    const candidateIds = new Set<string>();
+    if (encounterIdFromConsult) candidateIds.add(encounterIdFromConsult);
+
+    const linked = await db
+      .from("encounters")
+      .select("id")
+      .eq("current_consultation_id", consultationId);
+    (linked.data || []).forEach((r: any) => r?.id && candidateIds.add(r.id as string));
+
+    if (encounterPatientId && encounterBranch) {
+      const today = todayYMD();
+      const fallback = await db
+        .from("encounters")
+        .select("id")
+        .eq("patient_id", encounterPatientId)
+        .eq("branch_code", encounterBranch)
+        .eq("visit_date_local", today)
+        .in("consult_status", ["queued_for_consult", "in_consult", "in-progress"])
+        .order("created_at", { ascending: true });
+
+      (fallback.data || []).forEach((r: any) => {
+        if (r?.id) candidateIds.add(r.id as string);
+      });
+    }
+
+    if (candidateIds.size) {
+      const ids = Array.from(candidateIds);
+      const { data: encs } = await db
+        .from("encounters")
+        .select("id, status")
+        .in("id", ids);
+
       const allowedToFinish = new Set(["for-processing", "for-extract", "done"]);
 
-      if (currentStatus && allowedToFinish.has(currentStatus)) {
-        await db
-          .from("encounters")
-          .update({
-            consult_status: "done",
-            status: "done",
-            updated_at: nowIso,
-          })
-          .eq("id", encounterId);
-      } else {
-        await db
-          .from("encounters")
-          .update({
+      // Update each row with appropriate main status, always marking consult_status done
+      await Promise.all(
+        (encs || []).map((enc) => {
+          const payload: any = {
             consult_status: "done",
             updated_at: nowIso,
-          })
-          .eq("id", encounterId);
-      }
+          };
+          if (enc?.status && allowedToFinish.has(enc.status as string)) {
+            payload.status = "done";
+          }
+          return db.from("encounters").update(payload).eq("id", enc.id);
+        })
+      );
     }
 
     // 9) Response for panel & claims preview

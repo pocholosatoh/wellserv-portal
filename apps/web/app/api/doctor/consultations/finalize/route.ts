@@ -6,6 +6,15 @@ import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getDoctorSession } from "@/lib/doctorSession";
 
+function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 export async function POST(req: Request) {
   const db = getSupabase();
   try {
@@ -46,24 +55,63 @@ export async function POST(req: Request) {
     const up1 = await db
       .from("consultations")
       .update({ status: "done", updated_at: new Date().toISOString() })
-      .eq("id", consultation_id);
+      .eq("id", consultation_id)
+      .select("encounter_id, patient_id, branch")
+      .maybeSingle();
 
-    if (up1.error) {
-      return NextResponse.json({ error: up1.error.message }, { status: 400 });
+    if (up1.error || !up1.data) {
+      return NextResponse.json({ error: up1.error?.message || "Finalize failed" }, { status: 400 });
     }
 
     // 3) Update encounter consult_status only (do NOT change main lab status here)
-    const up2 = await db
-      .from("encounters")
-      .update({
-        // consult_status: "done",
-        current_consultation_id: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", encounter_id);
+    const candidateIds = new Set<string>();
+    if (encounter_id) candidateIds.add(encounter_id);
+    if (up1.data.encounter_id) candidateIds.add(up1.data.encounter_id);
 
-    if (up2.error) {
-      return NextResponse.json({ error: up2.error.message }, { status: 400 });
+    // Also grab encounters directly linked via current_consultation_id (covers legacy rows)
+    const linked = await db
+      .from("encounters")
+      .select("id")
+      .eq("current_consultation_id", consultation_id);
+    (linked.data || []).forEach((r: any) => r?.id && candidateIds.add(r.id as string));
+
+    // Fallback: today's queued/in-consult for same patient/branch
+    if (up1.data.patient_id && up1.data.branch) {
+      const today = todayYMD();
+      const todays = await db
+        .from("encounters")
+        .select("id")
+        .eq("patient_id", up1.data.patient_id)
+        .eq("branch_code", up1.data.branch)
+        .eq("visit_date_local", today)
+        .in("consult_status", ["queued_for_consult", "in_consult", "in-progress"]);
+      (todays.data || []).forEach((r: any) => r?.id && candidateIds.add(r.id as string));
+    }
+
+    if (candidateIds.size) {
+      const ids = Array.from(candidateIds);
+      const { data: encs, error: encErr } = await db
+        .from("encounters")
+        .select("id, status")
+        .in("id", ids);
+      if (encErr) return NextResponse.json({ error: encErr.message }, { status: 400 });
+
+      const allowedToFinish = new Set(["for-processing", "for-extract", "done"]);
+      const nowIso = new Date().toISOString();
+
+      await Promise.all(
+        (encs || []).map((enc) => {
+          const payload: any = {
+            consult_status: "done",
+            current_consultation_id: null,
+            updated_at: nowIso,
+          };
+          if (enc?.status && allowedToFinish.has(enc.status as string)) {
+            payload.status = "done";
+          }
+          return db.from("encounters").update(payload).eq("id", enc.id);
+        })
+      );
     }
 
     return NextResponse.json({ ok: true });

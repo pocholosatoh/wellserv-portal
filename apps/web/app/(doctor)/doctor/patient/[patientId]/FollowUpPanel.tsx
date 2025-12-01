@@ -32,7 +32,7 @@ export default function FollowUpPanel({
   const [active, setActive] = useState<Followup | null>(null);
   const [history, setHistory] = useState<Followup[]>([]);
   const [attachChecked, setAttachChecked] = useState(false);
-  const [showNew, setShowNew] = useState(false);
+  const [formMode, setFormMode] = useState<"new" | "edit" | null>(null);
 
   // new follow-up fields
   const [due, setDue] = useState("");
@@ -41,7 +41,10 @@ export default function FollowUpPanel({
   const [tests, setTests] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const canSave = consultationId && (attachChecked || due);
+  const isEditing = formMode === "edit";
+  const isCreating = formMode === "new";
+  const formOpen = formMode !== null;
+  const canSave = consultationId && (attachChecked || (isCreating && due) || (isEditing && due));
   const activeExpectedTokens = useMemo(
     () => parseExpectedTokens(active?.expected_tests),
     [active?.expected_tests]
@@ -67,11 +70,60 @@ export default function FollowUpPanel({
   }
 
   useEffect(() => { load(); }, [patientId]);
+  useEffect(() => {
+    resetForm();
+    setAttachChecked(false);
+  }, [patientId, defaultBranch]);
+
+  function resetForm() {
+    setFormMode(null);
+    setDue("");
+    setIntended("");
+    setTests("");
+    setBranch(defaultBranch ?? "");
+  }
+
+  function startNew() {
+    setFormMode((prev) => {
+      if (prev === "new") return null;
+      setDue("");
+      setIntended("");
+      setTests("");
+      setBranch(defaultBranch ?? "");
+      return "new";
+    });
+  }
+
+  function startEdit() {
+    if (!active) return;
+    setFormMode("edit");
+    setDue(active.due_date || "");
+    setBranch(active.return_branch ?? "");
+    setIntended(active.intended_outcome ?? "");
+    setTests(active.expected_tests ?? "");
+  }
 
   async function onSave() {
     if (!consultationId) return;
     setBusy(true); setErr(null);
     try {
+      if (isEditing && active?.id) {
+        const r = await fetch("/api/followups/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            followup_id: active.id,
+            patient_id: patientId,
+            due_date: due,
+            return_branch: branch || null,
+            intended_outcome: intended,
+            expected_tests: tests,
+          }),
+        });
+        const j = await r.json();
+        if (j.error) throw new Error(j.error);
+      }
+
       // complete current if checkbox ticked
       if (attachChecked && active?.id) {
         const r = await fetch("/api/followups/attach", {
@@ -87,7 +139,7 @@ export default function FollowUpPanel({
       }
 
       // new follow-up
-      if (due) {
+      if (isCreating && due) {
         const r = await fetch("/api/followups/upsert", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -106,7 +158,7 @@ export default function FollowUpPanel({
       }
 
       setAttachChecked(false);
-      setShowNew(false);
+      resetForm();
       await load();
     } catch (e: any) {
       setErr(e?.message || "Save failed");
@@ -129,9 +181,19 @@ export default function FollowUpPanel({
       )}
       {active && (
         <div className="mb-4 space-y-1 text-sm">
-          <div>
-            <span className="font-medium">Scheduled:</span> {active.due_date}
-            {active.return_branch ? <> · {active.return_branch}</> : null}
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <span className="font-medium">Scheduled:</span> {active.due_date}
+              {active.return_branch ? <> · {active.return_branch}</> : null}
+            </div>
+            <button
+              type="button"
+              className="rounded border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-700 hover:bg-gray-50"
+              onClick={startEdit}
+              disabled={busy}
+            >
+              {isEditing ? "Editing…" : "Edit"}
+            </button>
           </div>
           {active.intended_outcome && (
             <div><span className="font-medium">Intended:</span> {active.intended_outcome}</div>
@@ -169,26 +231,30 @@ export default function FollowUpPanel({
       {/* Collapsible new follow-up */}
       <button
         type="button"
-        onClick={() => setShowNew((prev) => !prev)}
+        onClick={startNew}
         className="group mb-3 inline-flex items-center gap-2 rounded-full border border-[#44969b]/60 bg-[#44969b]/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#2e6468] select-none"
-        aria-expanded={showNew}
+        aria-expanded={isCreating}
         aria-controls="doctor-followup-form"
+        disabled={isEditing}
       >
         <span
           className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#2e6468] shadow-sm transition-transform duration-200"
-          style={{ transform: showNew ? "rotate(90deg)" : "rotate(0deg)" }}
+          style={{ transform: isCreating ? "rotate(90deg)" : "rotate(0deg)" }}
           aria-hidden
         >
           ▸
         </span>
-        {showNew ? "Hide follow-up form" : "Make new follow-up"}
+        {isCreating ? "Hide follow-up form" : "Make new follow-up"}
       </button>
 
-      {showNew && (
+      {formOpen && (
         <div
           id="doctor-followup-form"
           className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2 pl-4 border-l border-gray-200"
         >
+          <div className="md:col-span-2 text-xs text-gray-500 -mb-1">
+            {isEditing ? "Editing current scheduled follow-up" : "Create a new scheduled follow-up"}
+          </div>
           <div>
             <label className="block text-xs text-gray-600 mb-1">Return date</label>
             <input
@@ -235,8 +301,18 @@ export default function FollowUpPanel({
           disabled={!canSave || busy}
           className="rounded bg-[#44969b] text-white px-3 py-2 text-sm disabled:opacity-50"
         >
-          {busy ? "Saving…" : "Save Follow-Up Changes"}
+          {busy ? "Saving…" : isEditing ? "Save Edits" : "Save Follow-Up Changes"}
         </button>
+        {formOpen && (
+          <button
+            type="button"
+            onClick={resetForm}
+            disabled={busy}
+            className="text-sm text-gray-600 underline"
+          >
+            Cancel
+          </button>
+        )}
         {err && <div className="text-sm text-red-600">{err}</div>}
       </div>
 

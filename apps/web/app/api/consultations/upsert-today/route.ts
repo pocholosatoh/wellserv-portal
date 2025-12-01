@@ -112,7 +112,7 @@ export async function POST(req: Request) {
 
       if (encounterId) {
         await db.from("encounters")
-          .update({ consult_status: "in-progress" })
+          .update({ consult_status: "in_consult" })
           .eq("id", encounterId);
       }
 
@@ -162,7 +162,7 @@ export async function POST(req: Request) {
 
     if (encounterId) {
       await db.from("encounters")
-        .update({ consult_status: "in-progress" })
+        .update({ consult_status: "in_consult" })
         .eq("id", encounterId);
     }
 

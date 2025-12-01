@@ -53,8 +53,9 @@ export async function readTodayEncounters({
 
   if (consultOnly) {
     const states = includeDone
-      ? ["queued_for_consult", "in_consult", "done"]
-      : ["queued_for_consult", "in_consult"];
+      // include legacy "in-progress" in case older rows still use it
+      ? ["queued_for_consult", "in_consult", "in-progress", "done"]
+      : ["queued_for_consult", "in_consult", "in-progress"];
     query = query
       .in("consult_status", states)
       .order("queue_number", { ascending: true, nullsFirst: false });
