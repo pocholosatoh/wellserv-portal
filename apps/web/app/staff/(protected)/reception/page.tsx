@@ -74,6 +74,7 @@ export default function Reception() {
   const [editCsv, setEditCsv] = useState("");
   const [editManual, setEditManual] = useState<number>(0);
   const [editSaving, setEditSaving] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   // Konsulta / Claim toggles (Edit modal)
   const [editPhilhealth, setEditPhilhealth] = useState<boolean>(false);
@@ -117,6 +118,31 @@ export default function Reception() {
       alert(e?.message || "Failed to save");
     } finally {
       setEditSaving(false);
+    }
+  }
+
+  async function deleteEncounter() {
+    if (!editRow?.id || deleteBusy) return;
+    const ok = confirm("Delete this intake from today’s list? This removes it from the database.");
+    if (!ok) return;
+    setDeleteBusy(true);
+    try {
+      const resp = await fetch("/api/staff/encounters/delete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: editRow.id }),
+      });
+      const j = await resp.json();
+      if (!resp.ok || !j?.ok) throw new Error(j?.error || "Delete failed");
+      setEditOpen(false);
+      setEditRow(null);
+      if (branch === "SI" || branch === "SL") {
+        await Promise.all([loadTodayList(branch), loadConsultQueue(branch)]);
+      }
+    } catch (e: any) {
+      alert(e?.message || "Failed to delete");
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -756,9 +782,16 @@ export default function Reception() {
               <button
                 onClick={saveEdit}
                 className="rounded px-4 py-2 bg-accent text-white disabled:opacity-60"
-                disabled={editSaving}
+                disabled={editSaving || deleteBusy}
               >
                 {editSaving ? "Saving…" : "Save changes"}
+              </button>
+              <button
+                onClick={deleteEncounter}
+                className="rounded px-4 py-2 border border-rose-500 text-rose-600 disabled:opacity-60"
+                disabled={editSaving || deleteBusy}
+              >
+                {deleteBusy ? "Deleting…" : "Delete intake"}
               </button>
             </div>
           </div>
