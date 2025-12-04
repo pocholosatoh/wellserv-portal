@@ -16,6 +16,17 @@ packages/
 
 Use `pnpm dev:web`, `pnpm dev:mobile`, or `pnpm dev` (Turborepo) for both. Shared packages build with `pnpm --filter @wellserv/core build` etc.
 
+## CI / sanity checks
+
+Run these from a clean checkout to mirror CI:
+
+```bash
+pnpm install
+pnpm lint
+pnpm build
+pnpm test   # currently placeholder
+```
+
 ## Deploying to Vercel
 
 - The Vercel project’s root dir must be `apps/web`. Set the build command to `pnpm --filter web build` (matches `vercel.json`).

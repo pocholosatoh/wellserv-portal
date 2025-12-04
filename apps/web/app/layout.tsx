@@ -1,7 +1,6 @@
 // app/layout.tsx
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 
 const SITE = "https://www.wellserv.co"; // primary domain (www)
 
