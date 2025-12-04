@@ -8,6 +8,7 @@ import type { VitalsSnapshot } from "@/lib/data/data-provider";
 // NEW (safe)
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 import StaffNavi from "@/app/staff/_components/StaffNavi";
+import { resolveScopedBranch } from "@/lib/staffBranchClient";
 
 const BTN =
   "rounded-xl bg-[#44969b] text-white px-4 py-2 font-medium shadow-card transition-all " +
@@ -169,7 +170,7 @@ export default function PatientHistoryPage() {
   const [newFirstname, setNewFirstname] = React.useState("");
   const [newBirthday, setNewBirthday] = React.useState(""); // "YYYY-MM-DD"
 
-  const [branchFilter, setBranchFilter] = React.useState<Branch>("SI");
+  const [branchFilter, setBranchFilter] = React.useState<Branch>(() => resolveScopedBranch());
   const [todayPatients, setTodayPatients] = React.useState<Array<{
     encounter_id: string;
     patient_id: string;

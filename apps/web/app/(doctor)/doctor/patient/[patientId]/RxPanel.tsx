@@ -184,7 +184,6 @@ export default function RxPanel({
     );
     if (exists) { alert("This medication is already in the list."); return; }
     setItems(prev => [
-      ...prev,
       {
         med_id: m.id,
         generic_name: m.generic_name ?? "",
@@ -199,7 +198,8 @@ export default function RxPanel({
         quantity: 14,
         instructions: "",
         unit_price: m.price ?? null,
-      }
+      },
+      ...prev,
     ]);
     setSearch("");
     setResults([])
@@ -221,7 +221,6 @@ export default function RxPanel({
     );
     if (exists) { alert("This medication is already in the list."); return; }
     setItems(prev => [
-      ...prev,
       {
         med_id: null,
         generic_name: generic,
@@ -236,7 +235,8 @@ export default function RxPanel({
         quantity: 14,
         instructions: "",
         unit_price: null,
-      }
+      },
+      ...prev,
     ]);
     setSearch("");
     setResults([]);
@@ -551,7 +551,7 @@ export default function RxPanel({
       </div>
 
       {/* Lines */}
-      <div className="space-y-5">
+      <div className="space-y-5 mt-3">
         {items.map((ln, i) => (
           <div key={i} className="border rounded-xl p-3">
             {/* Header */}

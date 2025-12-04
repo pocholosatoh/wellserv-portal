@@ -191,7 +191,7 @@ export default async function MedicalCertificatePrintPage({
             {data.signedSignature ? (
               <img src={data.signedSignature} alt="Doctor Signature" className="signature-img" />
             ) : (
-              <div className="signature-placeholder">-- Signature on file --</div>
+              <div className="signature-placeholder">Not valid without Dr&apos;s signature:</div>
             )}
             <div className="sig-line" />
             <div className="sig-text">

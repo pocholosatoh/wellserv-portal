@@ -128,7 +128,7 @@ export default async function PrintRxPage({ params }: PageContext) {
           {data.doctor?.signature_url ? (
             <img src={data.doctor.signature_url} alt="Signature" style={{ height: 42 }} />
           ) : (
-            <div className="text-[11px] text-gray-500 italic">No signature on file</div>
+            <div className="text-[11px] text-gray-500 italic">Not valid without Dr&apos;s signature:</div>
           )}
           <div className="border-t border-gray-800 mt-1 w-56" />
 

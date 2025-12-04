@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { BRANCHES } from "@/lib/hubs";
 import { phTodayYMD, addDaysYMD, isDueTodayYMD, isOverdueYMD, isPastGraceYMD } from "@/lib/time";
+import { getLoginBranch } from "@/lib/staffBranchClient";
 
 type Followup = {
   id: string;
@@ -45,7 +46,10 @@ export default function StaffFollowupsPage() {
   const today = phTodayYMD();
   const [start, setStart] = useState<string>(addDaysYMD(today, -7));
   const [end, setEnd] = useState<string>(addDaysYMD(today, +7));
-  const [hub, setHub] = useState<string>("");
+  const [hub, setHub] = useState<string>(() => {
+    const b = getLoginBranch();
+    return b === "SI" || b === "SL" ? b : "";
+  });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [onlyDueToday, setOnlyDueToday] = useState(false);
   const [onlyOverdue, setOnlyOverdue] = useState(false);

@@ -3,6 +3,7 @@
 import React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import { resolveScopedBranch } from "@/lib/staffBranchClient";
 
 type Branch = "SI" | "SL";
 
@@ -45,7 +46,7 @@ export function TodayPatientsQuickList({
   const searchParams = useSearchParams();
   const supabase = React.useMemo(() => getSupabaseBrowser(), []);
 
-  const [branch, setBranch] = React.useState<Branch>("SI");
+  const [branch, setBranch] = React.useState<Branch>(() => resolveScopedBranch());
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [patients, setPatients] = React.useState<TodayPatient[]>([]);
