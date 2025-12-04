@@ -8,6 +8,9 @@ export default function DoctorLoginPage() {
   const search = useSearchParams();
   const next = search.get("next") || "/doctor";
 
+  // shared branch picker (used for both regular and reliever logins)
+  const [branch, setBranch] = useState<"SI" | "SL">("SI");
+
   // ----- Regular login -----
   const [code, setCode] = useState("");
   const [pin, setPin] = useState("");
@@ -22,7 +25,7 @@ export default function DoctorLoginPage() {
       const res = await fetch("/api/doctor/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, pin }),
+        body: JSON.stringify({ code, pin, branch }),
       });
       const j = await res.json();
       if (!res.ok) {
@@ -42,7 +45,6 @@ export default function DoctorLoginPage() {
   const [reliefCreds, setReliefCreds] = useState("");
   const [reliefLicense, setReliefLicense] = useState("");
   const [reliefPhic, setReliefPhic] = useState("");     // NEW
-  const [reliefBranch, setReliefBranch] = useState("SI"); // NEW
   const [reliefPass, setReliefPass] = useState("");
   const [reliefLoading, setReliefLoading] = useState(false);
   const [reliefErr, setReliefErr] = useState<string | null>(null);
@@ -61,7 +63,7 @@ export default function DoctorLoginPage() {
           passcode: reliefPass,
           license_no: reliefLicense || undefined,
           philhealth_md_id: reliefPhic || undefined,
-          branch: reliefBranch || "SI",
+          branch: branch || "SI",
         }),
       });
       const j = await res.json();
@@ -97,8 +99,8 @@ export default function DoctorLoginPage() {
               <label className="text-xs text-gray-700">Branch</label>
               <select
                 className="rounded-md border border-gray-300 px-2 py-1 text-sm"
-                value={reliefBranch}
-                onChange={(e) => setReliefBranch(e.target.value)}
+                value={branch}
+                onChange={(e) => setBranch(e.target.value as "SI" | "SL")}
               >
                 <option value="SI">SI</option>
                 <option value="SL">SL</option>
@@ -148,7 +150,7 @@ export default function DoctorLoginPage() {
               disabled={loading}
               type="submit"
             >
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? "Signing in…" : "Sign in - Choose the correct branch above"}
             </button>
           </form>
 
@@ -206,11 +208,11 @@ export default function DoctorLoginPage() {
             {reliefErr && <p className="text-xs text-red-600">{reliefErr}</p>}
 
             <button
-              className="w-full rounded-md border border-gray-300 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              className="w-full rounded-md border border-gray-600 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
               disabled={reliefLoading}
               type="submit"
             >
-              {reliefLoading ? "Continuing…" : "Continue as Reliever"}
+              {reliefLoading ? "Continuing…" : "Continue as Reliever - Choose the correct branch above"}
             </button>
           </form>
         </div>

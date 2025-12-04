@@ -19,7 +19,7 @@ export default function StaffNavi({
     { href: "/staff/portal", label: "Portal" },
     { href: "/staff/followups", label: "Follow-ups" },
     { href: "/staff/other-labs", label: "Other Labs" },
-    { href: "/staff/patienthistory", label: "Patient History" },
+    { href: "/staff/patienthistory", label: "Patient Vitals and Hx" },
     { href: "/staff/prescriptions", label: "Prescriptions" },
     { href: "/staff/med-orders", label: "Med Orders" },
     { href: "/staff/medcerts", label: "Medical Certs" },

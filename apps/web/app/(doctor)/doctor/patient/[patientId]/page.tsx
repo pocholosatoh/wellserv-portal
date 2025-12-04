@@ -4,8 +4,10 @@ export const fetchCache = "force-no-store";
 export const revalidate = 0;
 
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getDoctorSession } from "@/lib/doctorSession";
 import { getSupabase } from "@/lib/supabase";
+import { readTodayEncounters } from "@/lib/todayEncounters";
 
 import ClientReportViewer from "./ClientReportViewer";
 import PastConsultations from "./PastConsultations";
@@ -15,6 +17,7 @@ import OtherLabsCard from "./OtherLabsCard";
 import ConsultationSection from "./ConsultationSection";
 import DiagnosisPanel from "./DiagnosisPanel";
 import ConsentBus from "./ConsentBus";
+import ConsultQueueModal from "./ConsultQueueModal";
 
 
 type Props = {
@@ -31,6 +34,7 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
     redirect(`/doctor/login?next=${encodeURIComponent(nextUrl)}`);
   }
 
+  const branch = session.branch as "SI" | "SL";
   const sp = (await searchParams) || {};
   const requestedConsultationId =
     (Array.isArray(sp.c) ? sp.c[0] : sp.c) || null;
@@ -85,20 +89,40 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
   const docName =
     session!.display_name ||
     (session!.credentials ? `${session!.name}, ${session!.credentials}` : session!.name);
+  const branchName = branch === "SL" ? "San Leonardo" : "San Isidro";
+  const consultQueue = await readTodayEncounters({
+    branch,
+    consultOnly: true,
+    includeDone: true,
+  });
 
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6 space-y-6">
       <ConsentBus patientId={patientId} />
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-[28px] font-semibold tracking-tight">
-            Patient Workspace <span className="text-xs align-middle text-[#44969b]">v1</span>
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Patient ID: <b>{patientId.toUpperCase()}</b>
-          </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-3">
+          <Link
+            href="/doctor"
+            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800"
+          >
+            <span className="text-lg leading-none">←</span>
+            Back to Home
+          </Link>
+          <div>
+            <h1 className="text-[28px] font-semibold tracking-tight">
+              Patient Workspace <span className="text-xs align-middle text-[#44969b]">v1</span>
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Patient ID: <b>{patientId.toUpperCase()}</b>
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          <ConsultQueueModal
+            queue={consultQueue}
+            branch={branch}
+            currentPatientId={patientId}
+          />
           {/* <QuickPatientJump accent="#44969b" />*/}
           <span className="text-sm text-gray-700">
             Signed in as <b>{docName}</b>
@@ -139,6 +163,7 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
             <ConsultationSection
               patientId={patientId}
               initialConsultationId={initialConsultationId} // can be null; your StartConsultBar handles it
+              defaultBranch={branchName}
             />
 
             {/* Diagnoses Panel (auto-picks up today's consultation or via Refresh) */}

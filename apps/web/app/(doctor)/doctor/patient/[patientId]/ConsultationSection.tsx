@@ -13,9 +13,11 @@ import MedicalCertificateDrawer from "./MedicalCertificateDrawer";
 export default function ConsultationSection({
   patientId,
   initialConsultationId = null,
+  defaultBranch = null,
 }: {
   patientId: string;
   initialConsultationId?: string | null;
+  defaultBranch?: string | null;
 }) {
   const [consultationId, setConsultationId] = useState<string | null>(initialConsultationId);
 
@@ -23,6 +25,7 @@ export default function ConsultationSection({
   const [consultType, setConsultType] = useState<"FPE" | "FollowUp" | string | undefined>(undefined);
   const [encounterId, setEncounterId] = useState<string | null>(null);
   const [metaLoading, setMetaLoading] = useState(false);
+  const [consultBranch, setConsultBranch] = useState<string>(defaultBranch ?? "");
 
   // consent modal state
   const [showConsent, setShowConsent] = useState(false);
@@ -46,8 +49,10 @@ export default function ConsultationSection({
         if (!aborted && r.ok) {
           const t = j?.consultation?.type as string | undefined;
           const encId = j?.encounter?.id as string | undefined;
+          const br = j?.consultation?.branch as string | undefined;
           setConsultType(t);
           setEncounterId(encId ?? null);
+          if (br) setConsultBranch(br);
         }
       } catch {
         /* ignore */
@@ -58,6 +63,11 @@ export default function ConsultationSection({
     loadMeta();
     return () => { aborted = true; };
   }, [consultationId]);
+
+  // Keep branch in sync with initial defaults (from login/session) and fetched consultation meta
+  useEffect(() => {
+    if (!consultBranch && defaultBranch) setConsultBranch(defaultBranch);
+  }, [defaultBranch, consultBranch]);
 
   const isFPE = String(consultType || "").toUpperCase() === "FPE";
   const badgeText = consultType ? (isFPE ? "FPE" : "Follow-up") : null;
@@ -89,7 +99,12 @@ export default function ConsultationSection({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
           <h2 className="text-sm font-semibold text-gray-700">Consultation Workspace</h2>
           <div className="flex items-center gap-2">
-            <BranchPicker consultationId={consultationId} initialBranch={null} />
+            <BranchPicker
+              consultationId={consultationId}
+              initialBranch={consultBranch}
+              fallbackBranch={defaultBranch}
+              onChange={(val) => setConsultBranch(val)}
+            />
             <button
               type="button"
               onClick={() => setShowMedCert(true)}
@@ -109,7 +124,11 @@ export default function ConsultationSection({
         <div className="divide-y">
           <div className="p-4">
             <h3 className="font-medium text-gray-800 mb-2"></h3>
-            <FollowUpPanel patientId={patientId} consultationId={consultationId} defaultBranch={undefined} />
+            <FollowUpPanel
+              patientId={patientId}
+              consultationId={consultationId}
+              defaultBranch={consultBranch || defaultBranch}
+            />
           </div>
 
           <div className="p-4">

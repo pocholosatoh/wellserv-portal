@@ -40,6 +40,15 @@ function ts(d: string | null | undefined): number {
   return 0;
 }
 
+// Hematocrit comes in as a fraction (e.g., 0.30) but should display as a whole-number percent (30)
+function scaleHematocrit(v: any): number | null {
+  const n = toNum(v);
+  if (n === null) return null;
+  // Only scale obvious fractions (0–1.x). Leave already-percent values untouched.
+  if (n >= 0 && n <= 1.2) return Math.round(n * 10000) / 100; // keep 2 decimals after scaling
+  return n;
+}
+
 /* ---------- adapters to UI shape ---------- */
 function adaptVitalsSnapshot(v: any) {
   if (!v) return null;
@@ -128,17 +137,53 @@ function adaptReportForUI(report: any) {
       return {
         name,
         items: (sec?.items || []).map((it: any) => {
+          const key = asStr(it?.key);
+          const label = asStr(it?.label);
           const lowNum  = toNum(it?.ref_low);
           const highNum = toNum(it?.ref_high);
+          const isHct = key.toLowerCase() === "hema_hct" || label.toLowerCase() === "hematocrit";
+
+          let valueStr = asStr(it?.value);
+          let unitStr  = asStr(it?.unit);
+          let lowVal  = lowNum === null ? undefined : lowNum;
+          let highVal = highNum === null ? undefined : highNum;
+          let scaledValNum: number | null = null;
+
+          if (isHct) {
+            const scaled = scaleHematocrit(valueStr);
+            if (scaled !== null) valueStr = String(scaled);
+            scaledValNum = scaled;
+
+            const scaledLow = scaleHematocrit(lowVal);
+            if (scaledLow !== null) lowVal = scaledLow;
+
+            const scaledHigh = scaleHematocrit(highVal);
+            if (scaledHigh !== null) highVal = scaledHigh;
+
+            if (!unitStr) unitStr = "%";
+          }
+
+          let flag = hideRF ? "" : coerceFlag(it?.flag);
+          if (isHct && !hideRF) {
+            const vNum = scaledValNum ?? toNum(valueStr);
+            const lo = typeof lowVal === "number" ? lowVal : null;
+            const hi = typeof highVal === "number" ? highVal : null;
+            if (vNum != null) {
+              if (lo != null && vNum < lo) flag = "L";
+              else if (hi != null && vNum > hi) flag = "H";
+              else if (flag === "L" || flag === "H") flag = "";
+            }
+          }
+
           return {
-            key:   asStr(it?.key),
-            label: asStr(it?.label),
-            value: asStr(it?.value),
-            unit:  asStr(it?.unit),
-            flag:  hideRF ? "" : coerceFlag(it?.flag),
+            key,
+            label,
+            value: valueStr,
+            unit:  unitStr,
+            flag,
             ref: hideRF ? undefined : {
-              low:  lowNum === null ? undefined : lowNum,
-              high: highNum === null ? undefined : highNum,
+              low:  lowVal,
+              high: highVal,
             },
           };
         }).filter((it: any) => it.value && it.value.trim() !== ""),
