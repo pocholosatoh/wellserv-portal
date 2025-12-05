@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import StaffNav from "../_components/StaffNavi";
 import { getSession } from "@/lib/session";
 import BranchPicker from "../_components/BranchPicker";
+import SectionAssignmentReminder from "../_components/SectionAssignmentReminder";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ export default async function StaffProtectedLayout({
   return (
     <div className="staff-shell min-h-dvh bg-[#f8fafb]">
       <StaffNav initials={initials} rolePrefix={staffRolePrefix || null} />
+      <SectionAssignmentReminder rolePrefix={staffRolePrefix || null} />
       <div className="border-b border-gray-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-2 text-sm md:flex-row md:flex-wrap md:items-center md:gap-3 md:px-6">
           <div className="flex flex-wrap items-center gap-2">

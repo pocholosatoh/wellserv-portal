@@ -6,16 +6,21 @@ const CARDS: {
   label: string;
   badge: string;
   icon: React.ReactNode;
+  description?: string;
 }[] = [
   {
     href: "/staff/followups",
     label: "Follow-ups",
-    badge: "Open",
+    badge: "Queue",
     icon: (
       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M5 7h14M5 12h14M5 17h9" />
+        <path d="M5 6h14" />
+        <path d="M5 10h10" />
+        <path d="M5 14h7" />
+        <path d="m15 18 2 2 4-4" />
       </svg>
     ),
+    description: "Manage post-consult follow-ups.",
   },
   {
     href: "/staff/other-labs",
@@ -23,21 +28,27 @@ const CARDS: {
     badge: "Uploads",
     icon: (
       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M4 4h16v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4Z" />
-        <path d="M8 4v3a4 4 0 0 0 8 0V4" />
+        <path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+        <path d="M9 13h6" />
+        <path d="M9 17h6" />
       </svg>
     ),
+    description: "Upload and send-out lab results.",
   },
   {
     href: "/staff/patienthistory",
-    label: "Patient History",
-    badge: "Records",
+    label: "Patient Vitals + Hx",
+    badge: "Vitals",
     icon: (
       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M6 4h9l3 3v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
-        <path d="M9 12h6M9 16h6M9 8h3" />
+        <path d="M5 5h9l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+        <path d="M9 12h6" />
+        <path d="M9 16h4" />
+        <path d="M9 8h3" />
+        <path d="m16 14 2 2 3-3" />
       </svg>
     ),
+    description: "Check recent vitals and history.",
   },
   {
     href: "/staff/portal",
@@ -49,6 +60,7 @@ const CARDS: {
         <path d="M3 12h18M12 3a15 15 0 0 0 0 18M12 3a15 15 0 0 1 0 18" />
       </svg>
     ),
+    description: "Results viewer by patient ID.",
   },
   {
     href: "/staff/prescriptions",
@@ -56,10 +68,41 @@ const CARDS: {
     badge: "Rx",
     icon: (
       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M7 7h7m-7 4h7M7 15h4" />
+        <path d="M7 7h7" />
+        <path d="M7 11h6" />
+        <path d="M7 15h4" />
         <path d="M17 3h-9a2 2 0 0 0-2 2v14l4-2 4 2 4-2 4 2V5a2 2 0 0 0-2-2h-3Z" />
       </svg>
     ),
+    description: "View and print prescriptions.",
+  },
+  {
+    href: "/staff/med-orders",
+    label: "Med Orders",
+    badge: "Orders",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M8 4h8a2 2 0 0 1 2 2v13l-4-2-4 2-4-2V6a2 2 0 0 1 2-2Z" />
+        <path d="M9 9h6" />
+        <path d="M9 13h4" />
+        <path d="m12 9 2 3-2 3-2-3Z" />
+      </svg>
+    ),
+    description: "Track medication orders and status.",
+  },
+  {
+    href: "/staff/medcerts",
+    label: "Medical Certs",
+    badge: "Certs",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M6 4h10a2 2 0 0 1 2 2v12l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2Z" />
+        <path d="M9 9h6" />
+        <path d="M9 12h5" />
+        <path d="m10 15 2 2 3-3" />
+      </svg>
+    ),
+    description: "Issue and review medical certificates.",
   },
   {
     href: "/staff/rmt/hemaupload",
@@ -72,6 +115,7 @@ const CARDS: {
         <rect x="3" y="17" width="18" height="4" rx="1" />
       </svg>
     ),
+    description: "Upload Hema results for encoding.",
   },
 ];
 
@@ -86,8 +130,64 @@ export default async function StaffHome() {
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
   const staffInitials = s.staff_initials || "";
   const staffRole = (s.staff_role || "").toUpperCase();
+  const staffRolePrefix = (s.staff_role_prefix || "").toUpperCase();
   const staffBranch =
     s.staff_branch === "ALL" ? "ALL BRANCHES" : (s.staff_branch || "").toUpperCase();
+  const canRegister = staffRolePrefix === "ADM";
+  const canManageAssignments = staffRolePrefix === "ADM" || staffRolePrefix === "RMT";
+
+  const cards = [
+    ...CARDS,
+    ...(canManageAssignments
+      ? [
+          {
+            href: "/staff/section-assignments",
+            label: "Section Assignments",
+            badge: "Assign",
+            icon: (
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <circle cx="6" cy="6" r="2" />
+                <circle cx="18" cy="6" r="2" />
+                <circle cx="12" cy="18" r="2" />
+                <path d="M7.5 7.5 11 16" />
+                <path d="m16.5 7.5-3.5 8.5" />
+              </svg>
+            ),
+            description: "Assign staff per lab section.",
+          },
+        ]
+      : []),
+    ...(canRegister
+      ? [
+          {
+            href: "/staff/staff/register",
+            label: "Register Staff",
+            badge: "Admin",
+            icon: (
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <circle cx="9" cy="8" r="3" />
+                <path d="M4 20a5 5 0 0 1 10 0" />
+                <path d="M17 9v6" />
+                <path d="M14 12h6" />
+              </svg>
+            ),
+            description: "Create new staff login codes.",
+          },
+        ]
+      : []),
+  ];
 
   return (
     <main className="min-h-dvh bg-[rgb(248,250,251)]">
@@ -139,7 +239,7 @@ export default async function StaffHome() {
       {/* Cards */}
       <section className="mx-auto max-w-5xl px-6 pb-10">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {CARDS.map((c) => (
+          {cards.map((c) => (
             <ActionCard
               key={c.href}
               href={c.href}
@@ -147,6 +247,7 @@ export default async function StaffHome() {
               badge={c.badge}
               accent={accent}
               icon={c.icon}
+              description={c.description}
             />
           ))}
         </div>
@@ -171,12 +272,14 @@ function ActionCard({
   badge,
   accent,
   icon,
+  description,
 }: {
   href: string;
   heading: string;
   badge: string;
   accent: string;
   icon: React.ReactNode;
+  description?: string;
 }) {
   return (
     <Link
@@ -203,7 +306,7 @@ function ActionCard({
         </div>
 
         <div className="mt-4 text-sm text-gray-600 opacity-90 group-hover:opacity-100">
-          Open
+          {description || "Open"}
         </div>
       </div>
     </Link>

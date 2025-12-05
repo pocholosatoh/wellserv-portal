@@ -122,6 +122,7 @@ export function clearSession(res: NextResponse) {
     "staff_role",
     "staff_branch",
     "staff_initials",
+    "section_assignment_reminder",
   ].forEach((k) => {
     res.cookies.set(k, "", base);
   });

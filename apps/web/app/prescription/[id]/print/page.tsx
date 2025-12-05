@@ -3,6 +3,7 @@ import Image from "next/image";
 import { headers } from "next/headers";
 import { describeFrequency } from "@/lib/rx";
 import "./print.css";
+import { FitToA5 } from "./FitToA5";
 
 // Next 15+: headers() is async
 async function getBaseUrl(): Promise<string> {
@@ -60,7 +61,7 @@ export default async function PrintRxPage({ params }: PageContext) {
   })();
 
   return (
-    <div className="rx a5 mx-auto bg-white text-gray-900">
+    <FitToA5 className="rx a5 mx-auto bg-white text-gray-900">
       {/* Header: logo + date under it; add a bit more bottom padding */}
       <div className="pt-2 pb-4 border-b">
         <div className="flex items-center justify-center">
@@ -177,6 +178,6 @@ export default async function PrintRxPage({ params }: PageContext) {
           <text x="2" y="125">℞</text>
         </svg>
       </div>
-    </div>
+    </FitToA5>
   );
 }

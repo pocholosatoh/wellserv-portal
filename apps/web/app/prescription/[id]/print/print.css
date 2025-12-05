@@ -1,32 +1,69 @@
-/* A5 page box (keep your existing A5 rules) */
+:root {
+  --rx-page-width: 148mm; /* A5 width; change to 203.2mm for 8in if needed */
+  --rx-page-height: 210mm; /* A5 height; change to 139.7mm for 5.5in if needed */
+  --rx-pad-top: 10mm;
+  --rx-pad-right: 8mm;
+  --rx-pad-bottom: 8mm;
+  --rx-pad-left: 8mm;
+  --rx-scale: 1;
+}
+
 @page {
-  size: A5;
-  margin: 10mm;
+  size: var(--rx-page-width) var(--rx-page-height);
+  margin: 0;
 }
+
 .a5 {
-  width: 148mm;
-  min-height: 210mm;
-  padding: 10mm 8mm 8mm;
+  width: var(--rx-page-width);
+  min-height: var(--rx-page-height);
+  padding: var(--rx-pad-top) var(--rx-pad-right) var(--rx-pad-bottom) var(--rx-pad-left);
 }
+
 @media screen {
   .rx {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
     margin: 12px;
   }
 }
+
 @media print {
   html,
   body {
+    width: var(--rx-page-width);
+    min-height: var(--rx-page-height);
+    margin: 0;
+    padding: 0;
     background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
+
   .rx {
     box-shadow: none !important;
+    width: var(--rx-page-width);
+    min-height: var(--rx-page-height);
+    padding-top: var(--rx-pad-top);
+    padding-right: var(--rx-pad-right);
+    padding-bottom: var(--rx-pad-bottom);
+    padding-left: var(--rx-pad-left);
+    transform: scale(var(--rx-scale, 1));
+    transform-origin: top left;
+    overflow: hidden;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+
+  .rx li,
+  .rx ol,
+  .rx .mt-3,
+  .rx .mt-8 {
+    break-inside: avoid;
   }
 }
 
-/* Container already covers the page box */
 .rx {
   position: relative;
+  margin: 0 auto;
 }
 .rx > * {
   position: relative;
@@ -45,7 +82,7 @@
   height: 95%;
 }
 
-/* ℞ anchored at bottom-left, with a small 10mm inset and a slight rotation */
+/* ℞ anchored at bottom-left, with a small 10mm inset */
 .rx-watermark-svg text {
   font-family:
     ui-sans-serif,
@@ -67,5 +104,5 @@
 
   /* Nudge inward from the edges & rotate slightly */
   transform-origin: 0% 100%; /* bottom-left corner */
-  transform: translate() rotate(deg);
+  transform: translate(2mm, -2mm);
 }

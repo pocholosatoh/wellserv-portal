@@ -94,6 +94,14 @@ export async function POST(req: Request) {
       persist: remember,
     });
 
+    if (prefix === "RMT") {
+      setCookie(res, "section_assignment_reminder", "pending", {
+        maxAge: remember ? 60 * 60 * 24 * 30 : undefined,
+      });
+    } else {
+      setCookie(res, "section_assignment_reminder", "", { maxAge: 0 });
+    }
+
     // Maintain legacy portal_ok cookie for compatibility if needed.
     setCookie(res, "staff_portal_ok", "1", {
       maxAge: remember ? 60 * 60 * 24 * 30 : undefined,

@@ -12,7 +12,9 @@ export default function StaffNavi({
   }) {
   const pathname = usePathname();
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
-  const canRegister = (rolePrefix || "").toUpperCase() === "ADM";
+  const prefix = (rolePrefix || "").toUpperCase();
+  const canRegister = prefix === "ADM";
+  const canManageAssignments = prefix === "ADM" || prefix === "RMT";
 
   const items = [
     { href: "/staff", label: "Home" },                 // hub
@@ -24,6 +26,9 @@ export default function StaffNavi({
     { href: "/staff/med-orders", label: "Med Orders" },
     { href: "/staff/medcerts", label: "Medical Certs" },
     { href: "/staff/rmt/hemaupload", label: "RMT Hema Upload" },
+    ...(canManageAssignments
+      ? [{ href: "/staff/section-assignments", label: "Section Assignments" }]
+      : []),
     ...(canRegister ? [{ href: "/staff/staff/register", label: "Register Staff" }] : []),
   ];
 

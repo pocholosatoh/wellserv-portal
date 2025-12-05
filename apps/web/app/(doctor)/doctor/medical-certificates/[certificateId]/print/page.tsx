@@ -3,6 +3,7 @@ import Image from "next/image";
 import { headers } from "next/headers";
 import { getSupabase } from "@/lib/supabase";
 import { signDoctorSignature } from "@/lib/medicalCertificates";
+import { FitToPage } from "./FitToPage";
 
 type SupportingSourceItem = {
   id?: string | number | null;
@@ -118,7 +119,7 @@ export default async function MedicalCertificatePrintPage({
 
   return (
     <div className="print-wrapper">
-      <div className="page front">
+      <FitToPage widthMm={203.2} heightMm={330.2} className="page front">
         <div className="page-watermark" aria-hidden />
         <header className="hero">
           <div className="hero-logo">
@@ -208,9 +209,9 @@ export default async function MedicalCertificatePrintPage({
             </div>
           </div>
         </section>
-      </div>
+      </FitToPage>
 
-      <div className="page back">
+      <FitToPage widthMm={203.2} heightMm={330.2} className="page back">
         <div className="page-watermark" aria-hidden />
         <section className="section">
           <h2>Review of Systems</h2>
@@ -261,13 +262,35 @@ export default async function MedicalCertificatePrintPage({
           WELLSERV MEDICAL CORPORATION · San Isidro, Nueva Ecija · Tel: 0993-985-4927 · San Leonardo, Nueva Ecija · Tel: 0994-276-0253
         </div>
         </footer>
-      </div>
+      </FitToPage>
 
       <style>{`
-        :root { --accent: #2e6468; }
+        :root {
+          --accent: #2e6468;
+          --mc-width: 203.2mm;
+          --mc-height: 330.2mm;
+          --mc-pad-top: 12mm;
+          --mc-pad-right: 14mm;
+          --mc-pad-bottom: 12mm;
+          --mc-pad-left: 14mm;
+          --mc-scale: 1;
+        }
         body { background: #f1f5f9; }
-        .print-wrapper { margin: 0 auto; width: 210mm; color: #0f172a; font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial; }
-        .page { background: #fff; margin: 0 auto 8mm; padding: 12mm 14mm; box-shadow: 0 15px 30px rgba(15, 23, 42, 0.08); min-height: 280mm; position: relative; overflow: hidden; }
+        .print-wrapper { margin: 0 auto; width: var(--mc-width); color: #0f172a; font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial; }
+        .page {
+          background: #fff;
+          margin: 0 auto 8mm;
+          padding: var(--mc-pad-top) var(--mc-pad-right) var(--mc-pad-bottom) var(--mc-pad-left);
+          box-shadow: 0 15px 30px rgba(15, 23, 42, 0.08);
+          width: var(--mc-width);
+          min-height: var(--mc-height);
+          position: relative;
+          overflow: hidden;
+          transform: scale(var(--mc-scale, 1));
+          transform-origin: top left;
+          page-break-after: always;
+        }
+        .page:last-of-type { page-break-after: auto; }
         .page-watermark {
           position: absolute;
           inset: 25mm 20mm 25mm 20mm;
@@ -352,9 +375,25 @@ export default async function MedicalCertificatePrintPage({
         }
         .back-footer .corp { font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; width: 100%; }
         @media print {
-          @page { size: A4; margin: 10mm; }
-          body { background: #fff; }
-          .page { box-shadow: none !important; margin-bottom: 0; padding: 10mm; min-height: auto; }
+          @page { size: var(--mc-width) var(--mc-height); margin: 0; }
+          html, body { background: #fff; margin: 0; padding: 0; width: var(--mc-width); min-height: var(--mc-height); }
+          .print-wrapper { width: var(--mc-width); }
+          .page {
+            box-shadow: none !important;
+            margin: 0 auto;
+            width: var(--mc-width);
+            min-height: var(--mc-height);
+            padding: var(--mc-pad-top) var(--mc-pad-right) var(--mc-pad-bottom) var(--mc-pad-left);
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .doctor-signature,
+          .qr-block,
+          .diagnosis-section,
+          .attestation,
+          .patient-signature {
+            break-inside: avoid;
+          }
           .back-footer { position: relative; bottom: auto; left: auto; right: auto; margin-top: 12mm; }
         }
       `}</style>
