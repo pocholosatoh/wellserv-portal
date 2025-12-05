@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import NoteTemplatesModal from "./NoteTemplatesModal";
 
 export default function NotesPanel({
-  patientId,
+  patientId: _patientId,
   consultationId,
-  modeDefault = "markdown",
+  modeDefault = "soap",
   autosave = false,
 }: {
   patientId: string;
@@ -19,6 +20,8 @@ export default function NotesPanel({
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [templateType, setTemplateType] = useState<"SOAP" | "MARKDOWN">("SOAP");
 
   // timer to auto-hide "Saved"
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -40,6 +43,10 @@ export default function NotesPanel({
   useEffect(() => {
     setMode(modeDefault as any);
   }, [modeDefault]);
+
+  useEffect(() => {
+    setTemplateType(mode === "soap" ? "SOAP" : "MARKDOWN");
+  }, [mode]);
 
   // Prefill editor when consultationId becomes available (or changes)
   useEffect(() => {
@@ -134,20 +141,39 @@ export default function NotesPanel({
   // Cleanup timer on unmount
   useEffect(() => clearSavedTimer, []);
 
+  const openTemplates = (type: "SOAP" | "MARKDOWN") => {
+    setTemplateType(type);
+    setTemplateOpen(true);
+  };
+
+  const handleInsertSoap = (tpl: { S?: string; O?: string; A?: string; P?: string }) => {
+    if (saving === "saved") {
+      clearSavedTimer();
+      setSaving("idle");
+    }
+    setSoap({
+      S: tpl.S ?? "",
+      O: tpl.O ?? "",
+      A: tpl.A ?? "",
+      P: tpl.P ?? "",
+    });
+  };
+
+  const handleInsertMarkdown = (content: string) => {
+    if (saving === "saved") {
+      clearSavedTimer();
+      setSaving("idle");
+    }
+    setMd(content || "");
+  };
+
   return (
     <div className="space-y-2">
       {err && <div className="text-sm text-red-600">{err}</div>}
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="text-sm">Notes mode:</div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setMode("markdown")}
-            className={`px-2 py-1 rounded border text-sm ${mode === "markdown" ? "bg-black text-white" : ""}`}
-          >
-            Markdown
-          </button>
           <button
             type="button"
             onClick={() => setMode("soap")}
@@ -155,17 +181,45 @@ export default function NotesPanel({
           >
             SOAP
           </button>
+          <button
+            type="button"
+            onClick={() => setMode("markdown")}
+            className={`px-2 py-1 rounded border text-sm ${mode === "markdown" ? "bg-black text-white" : ""}`}
+          >
+            Markdown/Free Text
+          </button>
         </div>
 
-        <span className="ml-auto text-xs text-gray-500">
-          {loading ? "Loading…" : saving === "saving" ? "Saving…" : saving === "saved" ? "Saved" : ""}
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {mode === "soap" ? (
+            <button
+              type="button"
+              onClick={() => openTemplates("SOAP")}
+              disabled={!consultationId}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468] disabled:opacity-60"
+            >
+              SOAP Templates
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openTemplates("MARKDOWN")}
+              disabled={!consultationId}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468] disabled:opacity-60"
+            >
+              Markdown Templates
+            </button>
+          )}
+          <span className="text-xs text-gray-500">
+            {loading ? "Loading…" : saving === "saving" ? "Saving…" : saving === "saved" ? "Saved" : ""}
+          </span>
+        </div>
       </div>
 
       {mode === "markdown" ? (
         <textarea
           className="w-full border rounded p-2 h-48 text-sm"
-          placeholder="Type doctor notes… (Markdown allowed: bullets, headings)"
+          placeholder="Type doctor notes… (Markdown/Free Text)"
           value={md}
           onChange={(e) => onMdChange(e.target.value)}
           disabled={!consultationId}
@@ -196,6 +250,16 @@ export default function NotesPanel({
           Save Notes
         </button>
       </div>
+
+      <NoteTemplatesModal
+        open={templateOpen}
+        type={templateType}
+        onClose={() => setTemplateOpen(false)}
+        onInsertSoap={handleInsertSoap}
+        onInsertMarkdown={handleInsertMarkdown}
+        currentSoap={soap}
+        currentMarkdown={md}
+      />
     </div>
   );
 }

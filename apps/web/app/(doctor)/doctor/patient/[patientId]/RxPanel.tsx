@@ -244,7 +244,9 @@ export default function RxPanel({
   }
 
   function updateLine(i: number, patch: Partial<Line>) {
-    setItems(prev => prev.map((ln, idx) => (idx === i ? { ...ln, ...patch } : ln)));
+    setItems(prev =>
+      prev.map((ln, idx) => (idx === i ? mergeLineWithAutoQty(ln, patch) : ln))
+    );
     setIsDirty(true);
   }
   function removeLine(i: number) {
@@ -267,6 +269,22 @@ export default function RxPanel({
     if (!isFinite(perDose) || !isFinite(perDay) || !isFinite(days)) return null;
     if (perDose <= 0 || perDay <= 0 || days <= 0) return null;
     return Math.max(0, Math.round(perDose * perDay * days));
+  }
+
+  function mergeLineWithAutoQty(line: Line, patch: Partial<Line>): Line {
+    const touchesDoseOrDuration =
+      "dose_amount" in patch || "frequency_code" in patch || "duration_days" in patch;
+    if (!touchesDoseOrDuration) return { ...line, ...patch };
+
+    const suggestedBefore = calcSuggestedQty(line);
+    const wasAuto = line.quantity == null || line.quantity === suggestedBefore;
+
+    const next = { ...line, ...patch };
+    if (!wasAuto) return next; // respect manual overrides
+
+    const suggestedAfter = calcSuggestedQty(next);
+    if (suggestedAfter != null) next.quantity = suggestedAfter;
+    return next;
   }
 
   function updateValidDaysInput(next: number) {
