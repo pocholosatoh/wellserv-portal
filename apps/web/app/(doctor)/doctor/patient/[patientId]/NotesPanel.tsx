@@ -169,6 +169,29 @@ export default function NotesPanel({
 
   return (
     <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-medium text-gray-800">Doctor Notes</h3>
+        <div className="ml-auto">
+          {mode === "soap" ? (
+            <button
+              type="button"
+              onClick={() => openTemplates("SOAP")}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468]"
+            >
+              SOAP Templates
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openTemplates("MARKDOWN")}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468]"
+            >
+              Markdown Templates
+            </button>
+          )}
+        </div>
+      </div>
+
       {err && <div className="text-sm text-red-600">{err}</div>}
 
       <div className="flex flex-wrap items-center gap-2">
@@ -191,25 +214,6 @@ export default function NotesPanel({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          {mode === "soap" ? (
-            <button
-              type="button"
-              onClick={() => openTemplates("SOAP")}
-              disabled={!consultationId}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468] disabled:opacity-60"
-            >
-              SOAP Templates
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => openTemplates("MARKDOWN")}
-              disabled={!consultationId}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468] disabled:opacity-60"
-            >
-              Markdown Templates
-            </button>
-          )}
           <span className="text-xs text-gray-500">
             {loading ? "Loading…" : saving === "saving" ? "Saving…" : saving === "saved" ? "Saved" : ""}
           </span>

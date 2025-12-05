@@ -132,7 +132,6 @@ export default function ConsultationSection({
           </div>
 
           <div className="p-4">
-            <h3 className="font-medium text-gray-800 mb-2">Doctor Notes</h3>
             <NotesPanel patientId={patientId} consultationId={consultationId} modeDefault="soap" autosave />
           </div>
 
