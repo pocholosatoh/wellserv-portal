@@ -173,21 +173,35 @@ export default function NotesPanel({
         <h3 className="text-sm font-medium text-gray-800">Doctor Notes</h3>
         <div className="ml-auto">
           {mode === "soap" ? (
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => openTemplates("SOAP")}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468]"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openTemplates("SOAP");
+                }
+              }}
+              className="inline-block rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468] cursor-pointer"
             >
               SOAP Templates
-            </button>
+            </div>
           ) : (
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => openTemplates("MARKDOWN")}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468]"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openTemplates("MARKDOWN");
+                }
+              }}
+              className="inline-block rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468] cursor-pointer"
             >
               Markdown Templates
-            </button>
+            </div>
           )}
         </div>
       </div>

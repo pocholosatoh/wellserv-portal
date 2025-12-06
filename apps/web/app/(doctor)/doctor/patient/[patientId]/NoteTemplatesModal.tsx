@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 type TemplateType = "SOAP" | "MARKDOWN";
 type SoapTemplate = { S?: string; O?: string; A?: string; P?: string };
@@ -51,6 +52,7 @@ export default function NoteTemplatesModal({
   currentSoap,
   currentMarkdown,
 }: Props) {
+  const [mounted, setMounted] = useState(false);
   const [templates, setTemplates] = useState<NoteTemplate[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -69,6 +71,10 @@ export default function NoteTemplatesModal({
     () => templates.find((t) => t.id === selectedId) || templates[0] || null,
     [selectedId, templates]
   );
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -192,14 +198,11 @@ export default function NoteTemplatesModal({
   };
 
   if (!open) return null;
+  if (!mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-3 py-6 sm:items-center">
-      <div
-        className="absolute inset-0"
-        aria-hidden="true"
-        onClick={onClose}
-      />
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/40 px-3 py-6 sm:items-center">
+      <div className="absolute inset-0" aria-hidden="true" onClick={onClose} />
       <div className="relative z-10 mx-auto w-full max-w-5xl rounded-2xl border border-gray-200 bg-white shadow-2xl">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
           <div>
@@ -387,6 +390,7 @@ export default function NoteTemplatesModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
