@@ -36,11 +36,12 @@ export default async function PatientMedCertsPage() {
   const db = supa();
   const { data, error } = await db
     .from("medical_certificates")
-    .select("id, certificate_no, issued_at, valid_until, diagnosis_text, status")
+    .select("id, certificate_no, issued_at, valid_until, diagnosis_text, status, verification_code")
     .eq("patient_id", session.patient_id)
     .order("issued_at", { ascending: false });
 
   const certs = error ? [] : data || [];
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "").replace(/\/$/, "");
 
   return (
     <main className="min-h-dvh bg-[#f8fafb] px-4 py-6 sm:px-6">
@@ -72,6 +73,9 @@ export default async function PatientMedCertsPage() {
         </header>
 
         <section className="rounded-3xl border border-white/80 bg-white/95 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
+          <div className="mb-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            Need a printed copy? You can request and pick it up at any Wellserv hub—just present a valid ID.
+          </div>
           {error && (
             <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
               Failed to load certificates. Please try again later.
@@ -84,31 +88,57 @@ export default async function PatientMedCertsPage() {
 
           {!error && certs.length > 0 && (
             <ul className="space-y-4">
-              {certs.map((cert) => (
-                <li
-                  key={cert.id}
-                  className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm ring-1 ring-black/0 transition hover:-translate-y-0.5 hover:shadow-md"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-900">
-                        Certificate No. {cert.certificate_no || cert.id}
+              {certs.map((cert) => {
+                const verifyPath = cert.verification_code
+                  ? `/verify/medical-certificate/${cert.verification_code}`
+                  : null;
+                const qrTarget = verifyPath ? `${baseUrl}${verifyPath}` : "";
+                return (
+                  <li
+                    key={cert.id}
+                    className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm ring-1 ring-black/0 transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">
+                          Certificate No. {cert.certificate_no || cert.id}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          Issued: {formatDate(cert.issued_at)} • Valid until {formatDate(cert.valid_until)}
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-500">
-                        Issued: {formatDate(cert.issued_at)} • Valid until {formatDate(cert.valid_until)}
-                      </div>
+                      <span className="rounded-full border px-3 py-1 text-[11px] uppercase tracking-wide text-slate-600">
+                        {cert.status || "issued"}
+                      </span>
                     </div>
-                    <span className="rounded-full border px-3 py-1 text-[11px] uppercase tracking-wide text-slate-600">
-                      {cert.status || "issued"}
-                    </span>
-                  </div>
-                  {cert.diagnosis_text && (
-                    <p className="mt-2 text-sm text-slate-700">
-                      <span className="font-medium text-slate-900">Diagnosis:</span> {cert.diagnosis_text}
-                    </p>
-                  )}
-                </li>
-              ))}
+                    {cert.diagnosis_text && (
+                      <p className="mt-2 text-sm text-slate-700">
+                        <span className="font-medium text-slate-900">Diagnosis:</span> {cert.diagnosis_text}
+                      </p>
+                    )}
+                    {verifyPath ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 rounded-full bg-[#2e6468]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#1f4346]">
+                          QR Verification
+                        </div>
+                        <img
+                          src={`https://quickchart.io/qr?size=140&text=${encodeURIComponent(qrTarget)}`}
+                          alt="Verification QR"
+                          className="h-16 w-16 rounded border border-slate-200 bg-white p-1 shadow-sm"
+                        />
+                        <Link
+                          href={verifyPath}
+                          className="text-xs font-semibold text-[#2e6468] underline underline-offset-4"
+                        >
+                          Open verification page
+                        </Link>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-xs text-slate-500">Verification code is unavailable for this certificate.</p>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { buildAllReports } from "@/lib/api/patient-results-core";
 import { requireActor } from "@/lib/api-actor";
 import { getSupabase } from "@/lib/supabase";
+import { getPatientFollowup } from "@/lib/api/patient-followups-core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,23 +18,10 @@ function escapeLikeExact(s: string) {
   return s.replace(/[%_]/g, (m) => `\\${m}`);
 }
 
-// Minimal mobile-friendly endpoint that reuses buildAllReports and returns the same shape
-// as /api/patient-results. It now prefers an authenticated patient session but will still
-// accept the legacy portal access code for older clients.
 export async function POST(req: Request) {
   try {
-    const headers = Object.fromEntries(req.headers);
-    console.log("[mobile] patient-results request", {
-      method: req.method,
-      url: req.url,
-      hasCookie: !!req.headers.get("cookie"),
-      headers,
-    });
     const actor = await requireActor().catch(() => null);
     const body = await req.json().catch(() => ({}));
-    const limit = body?.limit != null ? Number(body.limit) : undefined;
-    const visitDateRaw = body?.visitDate || body?.visit_date || body?.date;
-    const visitDate = visitDateRaw ? String(visitDateRaw) : undefined;
 
     let patientId: string | null = actor?.kind === "patient" ? actor.patient_id : null;
 
@@ -70,8 +57,8 @@ export async function POST(req: Request) {
       }
     }
 
-    const json = await buildAllReports(pid, limit, visitDate);
-    return NextResponse.json(json, { status: 200 });
+    const followup = await getPatientFollowup(pid);
+    return NextResponse.json({ followup }, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }

@@ -1,12 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Stack, Link } from "expo-router";
-import { View, Text, TouchableOpacity, ScrollView, Image } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Image, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { FontAwesome, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSession } from "../../src/providers/SessionProvider";
 import { usePatientProfile } from "@wellserv/data";
 import { usePatientPrescriptions } from "../../src/hooks/usePatientPrescriptions";
 import { usePatientResults } from "../../src/hooks/usePatientResults";
-import { formatShortDate } from "@wellserv/core";
+import { usePatientFollowups } from "../../src/hooks/usePatientFollowups";
+import { useHubs } from "../../src/hooks/useHubs";
 import { colors, spacing } from "@wellserv/theme";
 import icon from "../../assets/icon.png";
 
@@ -16,6 +18,9 @@ export default function HomeScreen() {
   const profileQuery = usePatientProfile(client, patientId);
   const patientResults = usePatientResults({ limit: 1 });
   const rxQuery = usePatientPrescriptions();
+  const followupQuery = usePatientFollowups();
+  const hubsQuery = useHubs();
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
   const greetingName = (() => {
     const toTitle = (s: string) => {
       if (!s) return s;
@@ -38,18 +43,66 @@ export default function HomeScreen() {
     console.log("HOME session:", session);
   }, [session]);
 
+  const formatLongDate = (iso?: string | null) => {
+    if (!iso) return "—";
+    const dt = new Date(iso);
+    if (Number.isNaN(+dt)) return iso;
+    return dt.toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
   const latestReport = patientResults.reports?.[0];
   const latestResultDate = patientResults.isLoading
     ? "Loading..."
-    : formatShortDate(latestReport?.visit?.date_of_test) || "—";
+    : formatLongDate(latestReport?.visit?.date_of_test) || "—";
   const resultsReady =
     !!latestReport &&
     latestReport.sections.some((section) => section.items && section.items.length > 0);
   const resultsReadyMark = resultsReady ? "✓" : "";
 
+  const latestPrescription = useMemo(() => rxQuery.data?.[0], [rxQuery.data]);
+  const formatShortNumeric = (iso?: string | null) => {
+    if (!iso) return "—";
+    const dt = new Date(iso);
+    if (Number.isNaN(+dt)) return iso;
+    return dt.toLocaleDateString("en-US");
+  };
+
+  const latestPrescriptionDate = rxQuery.isLoading
+    ? "Loading..."
+    : formatShortNumeric(latestPrescription?.issuedAt);
+
+  const doctorDisplay = useMemo(() => {
+    const raw = latestPrescription?.doctorName || latestPrescription?.doctorNamePlain || "";
+    return raw.trim();
+  }, [latestPrescription]);
+
+  const followup = followupQuery.followup;
+  const hasFollowup = !!followup;
+  const followupDateLabel = hasFollowup ? formatLongDate(followup.dueDate) : "";
+  const followupBranchLabel =
+    followup?.returnBranchLabel?.trim() || followup?.returnBranch?.trim() || "";
+  const hubs = hubsQuery.data ?? [];
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }} edges={["top", "left", "right"]}>
-      <Stack.Screen options={{ title: "Home" }} />
+      <Stack.Screen
+        options={{
+          title: "Home",
+          headerRight: () => (
+            // eslint-disable-next-line jsx-a11y/alt-text -- React Native Image uses accessibilityLabel instead of alt
+            <Image
+              source={icon}
+              style={{ width: 28, height: 28, marginRight: spacing.sm }}
+              resizeMode="contain"
+              accessibilityLabel="Wellserv logo"
+            />
+          ),
+        }}
+      />
       <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
         <View
           style={{
@@ -75,38 +128,105 @@ export default function HomeScreen() {
         </Text>
 
         <View style={{ flexDirection: "row", columnGap: 12, marginBottom: spacing.lg }}>
-          <Link href="/(tabs)/results" asChild>
+          <Link href="/results" asChild>
             <TouchableOpacity
               style={{
                 flex: 1,
-                backgroundColor: colors.primaryLight,
+                backgroundColor: colors.primary,
                 borderRadius: 18,
                 padding: 16,
               }}
             >
-              <Text style={{ fontWeight: "600", marginBottom: 8 }}>Results</Text>
-              <Text style={{ color: colors.gray[700], marginBottom: 4 }}>
+              <Text style={{ fontWeight: "600", marginBottom: 8, color: "#fff" }}>Results</Text>
+              <Text style={{ color: "#fff", marginBottom: 4 }}>
                 Latest: {latestResultDate}
               </Text>
-              <Text style={{ color: colors.gray[800] }}>
-                Results ready: {resultsReadyMark}
-              </Text>
+              <Text style={{ color: "#fff" }}>Results ready: {resultsReadyMark}</Text>
             </TouchableOpacity>
           </Link>
-          <Link href="/(tabs)/prescriptions" asChild>
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                backgroundColor: "#f3f4f6",
+        <Link href="/prescriptions" asChild>
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              backgroundColor: "#f3f4f6",
                 borderRadius: 18,
                 padding: 16,
               }}
             >
               <Text style={{ fontWeight: "600", marginBottom: 8 }}>Prescriptions</Text>
-              <Text>{rxQuery.data?.[0]?.issuedAt?.slice(0, 10) ?? "—"}</Text>
+              <Text style={{ color: colors.gray[700], marginBottom: 4 }}>
+                Latest: {latestPrescriptionDate}
+              </Text>
+              {!!doctorDisplay && (
+                <Text style={{ color: colors.gray[800] }}>
+                  From your Doctor:{"\n"}
+                  {doctorDisplay}
+                </Text>
+              )}
             </TouchableOpacity>
           </Link>
         </View>
+
+        <Link href="/delivery" asChild>
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#e0f2f1",
+              borderRadius: 18,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: colors.gray[100],
+              marginBottom: spacing.lg,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.md,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "700", marginBottom: 6, color: colors.gray[900] }}>
+                Online Pharmacy
+              </Text>
+              <Text style={{ color: colors.gray[700], lineHeight: 18 }}>
+                Register your delivery address and request doorstep delivery for your prescriptions.
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="truck-delivery" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </Link>
+
+        <Link href="/followups" asChild>
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#f3f4f6",
+              borderRadius: 18,
+              padding: 16,
+              marginBottom: spacing.lg,
+              borderWidth: 1,
+              borderColor: colors.gray[100],
+              opacity: followupQuery.followup ? 1 : 0.9,
+            }}
+          >
+            <Text style={{ fontWeight: "700", marginBottom: 8 }}>Follow-ups</Text>
+            {followupQuery.isLoading && (
+              <Text style={{ color: colors.gray[700] }}>Loading follow-up...</Text>
+            )}
+            {hasFollowup && (
+              <>
+                <Text style={{ color: colors.gray[700], marginBottom: 4 }}>
+                  Scheduled: {followupDateLabel}
+                </Text>
+                {!!followupBranchLabel && (
+                  <Text style={{ color: colors.gray[700] }}>Branch: {followupBranchLabel}</Text>
+                )}
+              </>
+            )}
+            {!followupQuery.isLoading && !hasFollowup && (
+              <Text style={{ color: colors.gray[600], marginTop: 6 }}>
+                No follow-up scheduled yet.
+              </Text>
+            )}
+          </TouchableOpacity>
+        </Link>
 
         <TouchableOpacity
           onPress={signOut}
@@ -120,6 +240,115 @@ export default function HomeScreen() {
         >
           <Text style={{ color: colors.gray[600], fontWeight: "500" }}>Sign out</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={{
+            marginTop: spacing.xl,
+            paddingVertical: spacing.sm,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderBottomWidth: 1,
+            borderBottomColor: colors.gray[200],
+          }}
+          onPress={() => setIsSupportOpen((prev) => !prev)}
+        >
+          <Text style={{ fontWeight: "700", color: colors.gray[800] }}>
+            Help & Support
+          </Text>
+          <Feather
+            name={isSupportOpen ? "chevron-up" : "chevron-down"}
+            size={18}
+            color={colors.gray[600]}
+          />
+        </TouchableOpacity>
+
+        {isSupportOpen && (
+          <View style={{ marginTop: spacing.md }}>
+            <Text style={{ marginBottom: spacing.md, color: colors.gray[800] }}>
+              Do you have a concern? Contact us via our health hubs or social channels below:
+            </Text>
+
+            {hubsQuery.isLoading ? (
+              <Text style={{ marginTop: spacing.md, color: colors.gray[500] }}>
+                Loading hubs...
+              </Text>
+            ) : hubs.length ? (
+              hubs.map((hub) => (
+                <View
+                  key={hub.code}
+                  style={{
+                    marginTop: spacing.md,
+                    padding: spacing.md,
+                    borderRadius: 12,
+                    backgroundColor: colors.gray[50],
+                    borderWidth: 1,
+                    borderColor: colors.gray[100],
+                  }}
+                >
+                  <Text style={{ fontWeight: "700", color: colors.gray[900] }}>{hub.name}</Text>
+
+                  {hub.address && (
+                    <Text style={{ marginTop: 4, color: colors.gray[700] }}>
+                      {hub.address}
+                    </Text>
+                  )}
+
+                  {hub.contact && (
+                    <Text style={{ marginTop: 2, color: colors.gray[700] }}>
+                      Contact: {hub.contact}
+                    </Text>
+                  )}
+                </View>
+              ))
+            ) : (
+              <Text style={{ marginTop: spacing.md, color: colors.gray[500] }}>
+                No active health hubs available.
+              </Text>
+            )}
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.lg,
+                marginTop: spacing.lg,
+              }}
+            >
+              <TouchableOpacity onPress={() => Linking.openURL("https://m.me/100882935339577")}>
+                <MaterialCommunityIcons
+                  name="facebook-messenger"
+                  size={28}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() =>
+                  Linking.openURL("https://www.facebook.com/wellservmedicalcorporation")
+                }
+              >
+                <FontAwesome name="facebook-square" size={28} color={colors.primary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => Linking.openURL("https://www.wellserv.co")}>
+                <Feather name="globe" size={28} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        <Text
+          style={{
+            marginTop: spacing.xl,
+            marginBottom: spacing.lg,
+            textAlign: "center",
+            fontSize: 12,
+            color: colors.gray[400],
+          }}
+        >
+          © {new Date().getFullYear()} WELLSERV Mobile
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );

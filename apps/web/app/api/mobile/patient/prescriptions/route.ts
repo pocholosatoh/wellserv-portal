@@ -23,6 +23,13 @@ function escapeLikeExact(s: string) {
 // for older clients.
 export async function POST(req: Request) {
   try {
+    const headers = Object.fromEntries(req.headers);
+    console.log("[mobile] prescriptions request", {
+      method: req.method,
+      url: req.url,
+      hasCookie: !!req.headers.get("cookie"),
+      headers,
+    });
     const actor = await requireActor().catch(() => null);
     const body = await req.json().catch(() => ({}));
 

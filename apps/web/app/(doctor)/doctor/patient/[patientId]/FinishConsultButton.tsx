@@ -9,11 +9,13 @@ export default function FinishConsultButton({
   encounterId,          // kept so parent can finalize after consent
   onFinished,           // kept (parent can still reload after full flow)
   onNeedConsent,        // 👈 NEW: parent opens ConsentModal
+  encounterLoading = false,
 }: {
   consultationId: string;
   encounterId?: string;
   onFinished?: () => void;
   onNeedConsent: () => void;   // required for consent-first flow
+  encounterLoading?: boolean;
 }) {
   const [rxState, setRxState] = useState<RxState>("none");
   const [loading, setLoading] = useState(false);
@@ -100,9 +102,20 @@ export default function FinishConsultButton({
         </button>
       </div>
       {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
-      {!encounterId && (
+      {encounterId ? (
+        <div className="mt-2 text-xs text-emerald-700">
+          Linked to encounter{" "}
+          <span className="font-semibold">
+            {encounterId.length > 10 ? `…${encounterId.slice(-6)}` : encounterId}
+          </span>. Consent will apply to this encounter.
+        </div>
+      ) : encounterLoading ? (
         <div className="mt-2 text-xs text-gray-500">
           (Loading encounter… please wait a moment)
+        </div>
+      ) : (
+        <div className="mt-2 text-xs text-red-600">
+          Link this consultation to a same-day encounter above to enable finishing.
         </div>
       )}
     </div>

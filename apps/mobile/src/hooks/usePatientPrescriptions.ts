@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Prescription } from "@wellserv/core";
 import { getApiBaseUrl } from "../lib/api";
 import { useSession } from "../providers/SessionProvider";
 
@@ -27,6 +26,7 @@ type ApiPrescription = {
   doctors?: { display_name?: string | null; credentials?: string | null } | null;
   consultations?: { signing_doctor_name?: string | null } | null;
   created_at: string;
+  notes_for_patient?: string | null;
   items?: ApiPrescriptionItem[];
 };
 
@@ -35,7 +35,39 @@ type ApiResponse = {
   error?: string;
 };
 
-type MobilePrescription = Prescription & { doctorName?: string };
+export type MobilePrescriptionItem = {
+  drug: string;
+  sig: string;
+  instructions?: string | null;
+};
+
+export type MobilePrescription = {
+  id: string;
+  patientId: string;
+  issuedAt: string;
+  doctorName?: string;
+  doctorNamePlain?: string;
+  notesForPatient?: string | null;
+  items: MobilePrescriptionItem[];
+};
+
+const FREQ_DICT: Record<string, string> = {
+  OD: "once daily",
+  QD: "once daily",
+  QAM: "every morning",
+  QPM: "every evening",
+  BID: "twice daily",
+  TID: "three times daily",
+  QID: "four times daily",
+  HS: "at bedtime",
+  PRN: "as needed",
+};
+
+function describeFrequency(code?: string | null) {
+  if (!code) return "";
+  const k = String(code).toUpperCase().trim();
+  return FREQ_DICT[k] ? `${FREQ_DICT[k]} (${k})` : k;
+}
 
 function mapPrescription(row: ApiPrescription): MobilePrescription {
   const items = row.items || [];
@@ -49,6 +81,7 @@ function mapPrescription(row: ApiPrescription): MobilePrescription {
     patientId: row.patient_id,
     issuedAt: row.created_at,
     doctorName,
+    doctorNamePlain: baseDoctor,
     items: items.map((it, idx) => {
       const drug =
         it?.generic_name ||
@@ -56,12 +89,14 @@ function mapPrescription(row: ApiPrescription): MobilePrescription {
         it?.med_id ||
         `Medication ${idx + 1}`;
 
+      const friendlyFreq = describeFrequency(it?.frequency_code);
+
       const parts = [
         it?.strength,
         it?.form,
         it?.route || "PO",
         it?.dose_amount && it?.dose_unit ? `${it.dose_amount} ${it.dose_unit}` : null,
-        it?.frequency_code,
+        friendlyFreq,
         it?.duration_days != null ? `${it.duration_days} days` : null,
         it?.quantity != null ? `Qty ${it.quantity}` : null,
       ].filter(Boolean);
@@ -71,18 +106,20 @@ function mapPrescription(row: ApiPrescription): MobilePrescription {
       return {
         drug,
         sig,
+        instructions: it?.instructions || null,
       };
     }),
+    notesForPatient: row.notes_for_patient ?? null,
   };
 }
 
 export function usePatientPrescriptions() {
-  const { session } = useSession();
+  const { session, isLoading } = useSession();
   const patientId = session?.patientId;
 
-  return useQuery<Prescription[]>({
+  return useQuery<MobilePrescription[]>({
     queryKey: ["prescriptions", patientId],
-    enabled: Boolean(patientId),
+    enabled: Boolean(patientId) && !isLoading,
     queryFn: async () => {
       if (!patientId) return [];
       const baseUrl = getApiBaseUrl();
@@ -93,9 +130,14 @@ export function usePatientPrescriptions() {
       console.warn("PRESCRIPTIONS REQUEST URL:", url);
       let res: Response;
       try {
+        const cookieHeader = `role=patient; patient_id=${encodeURIComponent(patientId)}`;
         res = await fetch(url, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            // RN fetch does not always persist the cookie jar; send an explicit session cookie.
+            cookie: cookieHeader,
+          },
           credentials: "include",
           body: JSON.stringify({
             patientId,

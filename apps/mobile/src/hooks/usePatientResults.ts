@@ -9,12 +9,12 @@ type UsePatientResultsOptions = {
 
 export function usePatientResults(options: UsePatientResultsOptions = {}) {
   // Patient identity comes from SessionProvider after login.
-  const { session } = useSession();
+  const { session, isLoading } = useSession();
   const patientId = session?.patientId;
 
   const query = useQuery<PatientResultsResponse>({
     queryKey: ["patient-results", patientId, options.limit],
-    enabled: Boolean(patientId),
+    enabled: Boolean(patientId) && !isLoading,
     queryFn: async () => {
       if (!patientId) throw new Error("Missing patient");
       const baseUrl = getApiBaseUrl();
@@ -27,9 +27,14 @@ export function usePatientResults(options: UsePatientResultsOptions = {}) {
       // Call the web app API (mobile variant) so we reuse buildAllReports/adaptReportForUI.
       let res: Response;
       try {
+        const cookieHeader = `role=patient; patient_id=${encodeURIComponent(patientId)}`;
         res = await fetch(url, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            // RN fetch does not always persist the cookie jar; send an explicit session cookie.
+            cookie: cookieHeader,
+          },
           credentials: "include",
           body: JSON.stringify({
             patientId,

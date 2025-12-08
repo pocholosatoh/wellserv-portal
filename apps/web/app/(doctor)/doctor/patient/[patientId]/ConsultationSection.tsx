@@ -9,6 +9,7 @@ import FollowUpPanel from "./FollowUpPanel";
 import FinishConsultButton from "./FinishConsultButton";
 import ConsentModal from "./ConsentModal"; // ← ensure this file exists
 import MedicalCertificateDrawer from "./MedicalCertificateDrawer";
+import EncounterLinker from "./EncounterLinker";
 
 export default function ConsultationSection({
   patientId,
@@ -30,10 +31,17 @@ export default function ConsultationSection({
   // consent modal state
   const [showConsent, setShowConsent] = useState(false);
   const [showMedCert, setShowMedCert] = useState(false);
+  const [medCertToast, setMedCertToast] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialConsultationId) setConsultationId(initialConsultationId);
   }, [initialConsultationId]);
+
+  useEffect(() => {
+    if (!medCertToast) return;
+    const t = setTimeout(() => setMedCertToast(null), 4500);
+    return () => clearTimeout(t);
+  }, [medCertToast]);
 
   useEffect(() => {
     let aborted = false;
@@ -92,6 +100,12 @@ export default function ConsultationSection({
         </div>
       )}
 
+      {medCertToast && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          {medCertToast}
+        </div>
+      )}
+
       <fieldset
         disabled={!consultationId}
         className={`rounded-xl border bg-white shadow-sm transition ${!consultationId ? "opacity-60" : ""}`}
@@ -122,6 +136,15 @@ export default function ConsultationSection({
         </div>
 
         <div className="divide-y">
+          {consultationId && (
+            <EncounterLinker
+              patientId={patientId}
+              consultationId={consultationId}
+              encounterId={encounterId}
+              onLinked={(id) => setEncounterId(id)}
+            />
+          )}
+
           <div className="p-4">
             <h3 className="font-medium text-gray-800 mb-2"></h3>
             <FollowUpPanel
@@ -172,6 +195,7 @@ export default function ConsultationSection({
           onFinished={() => window.location.reload()}
           // 👇 when finishing without Rx, open consent first
           onNeedConsent={() => setShowConsent(true)}
+          encounterLoading={metaLoading}
         />
       )}
 
@@ -198,14 +222,15 @@ export default function ConsultationSection({
         />
       )}
 
-      {showMedCert && consultationId && encounterId && (
+      {consultationId && encounterId && (
         <MedicalCertificateDrawer
           open={showMedCert}
           onClose={() => setShowMedCert(false)}
           patientId={patientId}
           consultationId={consultationId}
           encounterId={encounterId}
-          onIssued={() => {
+          onIssued={(_certificate, meta) => {
+            setMedCertToast(meta?.isEdit ? "Medical certificate updated." : "Medical certificate generated.");
             setShowMedCert(false);
           }}
         />

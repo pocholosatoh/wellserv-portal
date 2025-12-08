@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   createDefaultPhysicalExam,
   PHYSICAL_EXAM_SECTIONS,
@@ -15,7 +15,7 @@ type DrawerProps = {
   patientId: string;
   consultationId: string;
   encounterId: string;
-  onIssued?: (certificate: any) => void;
+  onIssued?: (certificate: any, info?: { isEdit: boolean }) => void;
 };
 
 type FormDataPayload = {
@@ -28,6 +28,7 @@ type FormDataPayload = {
   diagnoses?: Array<Record<string, any>>;
   notes?: Record<string, any> | null;
   physical_exam?: PhysicalExamPayload;
+  findings_summary?: string | null;
   defaults?: {
     diagnosis_text?: string | null;
     remarks?: string | null;
@@ -61,6 +62,27 @@ type CustomSupportingEntry = {
   type?: string;
   source_id?: string | null;
   meta?: Record<string, any>;
+};
+
+type DraftPayload = {
+  updatedAt: string;
+  physicalExam: PhysicalExamPayload;
+  diagnosisText: string;
+  remarks: string;
+  advice: string;
+  findingsSummary: string;
+  suggestions: SupportingSuggestion[];
+  customSupporting: CustomSupportingEntry[];
+};
+
+type MedCertFormState = {
+  physicalExam: PhysicalExamPayload;
+  diagnosisText: string;
+  remarks: string;
+  advice: string;
+  findingsSummary: string;
+  suggestions: SupportingSuggestion[];
+  customSupporting: CustomSupportingEntry[];
 };
 
 const formatter = new Intl.DateTimeFormat("en-PH", {
@@ -107,6 +129,85 @@ function generateClientId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function getMedCertDraftKey({
+  doctorId,
+  patientId,
+  encounterId,
+  date,
+}: {
+  doctorId: string;
+  patientId: string;
+  encounterId: string;
+  date: string;
+}) {
+  return `med-cert-draft:v1:${doctorId}:${patientId}:${encounterId}:${date}`;
+}
+
+function isSameDay(iso?: string | null, dayKey?: string) {
+  if (!iso || !dayKey) return false;
+  const dt = new Date(iso);
+  if (Number.isNaN(+dt)) return false;
+  return dt.toLocaleDateString("en-CA") === dayKey;
+}
+
+function createEmptyFormState(): MedCertFormState {
+  return {
+    physicalExam: createDefaultPhysicalExam(),
+    diagnosisText: "",
+    remarks: "",
+    advice: "",
+    findingsSummary: "",
+    suggestions: [],
+    customSupporting: [],
+  };
+}
+
+function mapSuggestions(data: any[]): SupportingSuggestion[] {
+  return data.map((item: any, idx: number) => ({
+    key: `suggestion-${item.source_id || idx}`,
+    type: item.type || "note",
+    label: item.label || "Supporting data",
+    summary: item.summary || "",
+    source_id: item.source_id || null,
+    checked: true,
+  }));
+}
+
+function certificateToFormState(cert: any): MedCertFormState {
+  const mappedSupporting = Array.isArray(cert?.supporting_data)
+    ? cert.supporting_data.map((entry: any) => ({
+        id: generateClientId(),
+        label: entry.label || "",
+        summary: entry.summary || "",
+        type: entry.type || "custom",
+        source_id: entry.source_id || null,
+      }))
+    : [];
+
+  return {
+    physicalExam: cert?.physical_exam || createDefaultPhysicalExam(),
+    diagnosisText: cert?.diagnosis_text || "",
+    remarks: cert?.remarks || "",
+    advice: cert?.advice || "",
+    findingsSummary: cert?.findings_summary || "",
+    suggestions: [],
+    customSupporting: mappedSupporting,
+  };
+}
+
+function defaultsToFormState(data: FormDataPayload | null): MedCertFormState {
+  if (!data) return createEmptyFormState();
+  return {
+    physicalExam: data.physical_exam || createDefaultPhysicalExam(),
+    diagnosisText: data.defaults?.diagnosis_text || "",
+    remarks: data.defaults?.remarks || "",
+    advice: data.defaults?.advice || "",
+    findingsSummary: data.findings_summary || "",
+    suggestions: [],
+    customSupporting: [],
+  };
+}
+
 export default function MedicalCertificateDrawer({
   open,
   onClose,
@@ -119,15 +220,9 @@ export default function MedicalCertificateDrawer({
   const [supportingLoading, setSupportingLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormDataPayload | null>(null);
-  const [physicalExam, setPhysicalExam] = useState<PhysicalExamPayload>(createDefaultPhysicalExam);
-  const [diagnosisText, setDiagnosisText] = useState("");
-  const [remarks, setRemarks] = useState("");
-  const [advice, setAdvice] = useState("");
-  const [findingsSummary, setFindingsSummary] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [suggestions, setSuggestions] = useState<SupportingSuggestion[]>([]);
-  const [customSupporting, setCustomSupporting] = useState<CustomSupportingEntry[]>([]);
+  const [formState, setFormState] = useState<MedCertFormState>(() => createEmptyFormState());
   const [history, setHistory] = useState<Array<any>>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [existingCertificate, setExistingCertificate] = useState<any | null>(null);
@@ -136,6 +231,86 @@ export default function MedicalCertificateDrawer({
   const [labResults, setLabResults] = useState<LabSearchResult[]>([]);
   const [labSearchLoading, setLabSearchLoading] = useState(false);
   const [labSearchError, setLabSearchError] = useState<string | null>(null);
+  const issueDateKey = useMemo(() => new Date().toLocaleDateString("en-CA"), [open]);
+  const draftRef = useRef<DraftPayload | null>(null);
+  const hasInitializedRef = useRef(false);
+  const doctorKey = formData?.doctor?.doctor_id || "reliever-doctor";
+  const draftKey = useMemo(
+    () => getMedCertDraftKey({ doctorId: doctorKey, patientId, encounterId, date: issueDateKey }),
+    [doctorKey, patientId, encounterId, issueDateKey]
+  );
+
+  function loadDraftFromStorage(): DraftPayload | null {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as DraftPayload;
+      if (!parsed?.updatedAt) return null;
+      return parsed;
+    } catch (err) {
+      console.warn("medcert draft read failed", err);
+      return null;
+    }
+  }
+
+  function persistDraftToStorage(next: MedCertFormState) {
+    if (typeof window === "undefined") return;
+    try {
+      const payload: DraftPayload = { updatedAt: new Date().toISOString(), ...next };
+      localStorage.setItem(draftKey, JSON.stringify(payload));
+      draftRef.current = payload;
+    } catch (err) {
+      console.warn("medcert draft save failed", err);
+    }
+  }
+
+  function hydrateFromDraft(draft: DraftPayload) {
+    setFormState({
+      physicalExam: draft.physicalExam || createDefaultPhysicalExam(),
+      diagnosisText: draft.diagnosisText || "",
+      remarks: draft.remarks || "",
+      advice: draft.advice || "",
+      findingsSummary: draft.findingsSummary || "",
+      suggestions: draft.suggestions || [],
+      customSupporting: draft.customSupporting || [],
+    });
+  }
+
+  function clearDraft(key?: string) {
+    const targetKey = key || draftKey;
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(targetKey);
+      } catch (err) {
+        console.warn("medcert draft clear failed", err);
+      }
+    }
+    draftRef.current = null;
+  }
+
+  useEffect(() => {
+    // reset when switching to a new context
+    setFormData(null);
+    setExistingCertificate(null);
+    setHistory([]);
+    setError(null);
+    setSuccessMessage(null);
+    setFormState(createEmptyFormState());
+    hasInitializedRef.current = false;
+    clearDraft();
+    setLabResults([]);
+    setLabSearch("");
+    setLabSearchError(null);
+    setHistoryLoading(false);
+    setExistingLoading(false);
+    setSupportingLoading(false);
+  }, [patientId, consultationId, encounterId, issueDateKey]);
+
+  useEffect(() => {
+    if (!hasInitializedRef.current) return;
+    persistDraftToStorage(formState);
+  }, [formState, draftKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -160,12 +335,6 @@ export default function MedicalCertificateDrawer({
         if (!res.ok) throw new Error(data?.error || `Failed (${res.status})`);
         if (ignore) return;
         setFormData(data);
-        const exam = data.physical_exam || createDefaultPhysicalExam();
-        setPhysicalExam(exam);
-        setDiagnosisText(data.defaults?.diagnosis_text || "");
-        setRemarks(data.defaults?.remarks || "");
-        setAdvice(data.defaults?.advice || "");
-        setFindingsSummary(data.findings_summary || "");
       } catch (err: any) {
         if (ignore) return;
         setError(err?.message || "Failed to load data.");
@@ -197,17 +366,14 @@ export default function MedicalCertificateDrawer({
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || `Failed (${res.status})`);
         if (ignore) return;
-        const mapped: SupportingSuggestion[] = (data.suggestions || []).map(
-          (item: any, idx: number) => ({
-            key: `suggestion-${item.source_id || idx}`,
-            type: item.type || "note",
-            label: item.label || "Supporting data",
-            summary: item.summary || "",
-            source_id: item.source_id || null,
-            checked: true,
-          })
-        );
-        setSuggestions(mapped);
+        const mapped = mapSuggestions(data.suggestions || []);
+        setFormState((prev) => {
+          if (prev.suggestions.length > 0) return prev;
+          if (draftRef.current?.suggestions?.length) {
+            return { ...prev, suggestions: draftRef.current.suggestions };
+          }
+          return { ...prev, suggestions: mapped };
+        });
       } catch (err: any) {
         if (!ignore) {
           console.warn("supporting data load error", err);
@@ -282,7 +448,6 @@ export default function MedicalCertificateDrawer({
         if (ignore) return;
         if (detail?.certificate) {
           setExistingCertificate(detail.certificate);
-          hydrateFromCertificate(detail.certificate);
         }
       } catch (err) {
         if (!ignore) console.warn("existing cert load failed", err);
@@ -297,84 +462,103 @@ export default function MedicalCertificateDrawer({
   }, [open, patientId, consultationId]);
 
   useEffect(() => {
-    if (existingCertificate) {
-      setSuggestions((prev) => prev.map((item) => ({ ...item, checked: false })));
+    if (!open) return;
+    if (hasInitializedRef.current) return;
+    if (!formData) return;
+    if (existingLoading) return;
+    const existingSuggestions = formState.suggestions || [];
+
+    const draft = loadDraftFromStorage();
+    if (draft) {
+      hydrateFromDraft(draft);
+      draftRef.current = draft;
+      hasInitializedRef.current = true;
+      return;
     }
-  }, [existingCertificate]);
 
-  function hydrateFromCertificate(cert: any) {
-    if (!cert) return;
-    setPhysicalExam(cert.physical_exam || createDefaultPhysicalExam());
-    setDiagnosisText(cert.diagnosis_text || "");
-    setRemarks(cert.remarks || "");
-    setAdvice(cert.advice || "");
-    setFindingsSummary(cert.findings_summary || "");
-    const mapped = Array.isArray(cert.supporting_data)
-      ? cert.supporting_data.map((entry: any) => ({
-          id: generateClientId(),
-          label: entry.label || "",
-          summary: entry.summary || "",
-          type: entry.type || "custom",
-          source_id: entry.source_id || null,
-        }))
-      : [];
-    setCustomSupporting(mapped);
-  }
+    const todaysCert = existingCertificate && isSameDay(existingCertificate?.issued_at, issueDateKey)
+      ? existingCertificate
+      : null;
+    if (todaysCert) {
+      const next = certificateToFormState(todaysCert);
+      setFormState({
+        ...next,
+        suggestions: existingSuggestions.length ? existingSuggestions : next.suggestions,
+      });
+      draftRef.current = null;
+      hasInitializedRef.current = true;
+      return;
+    }
 
-  function resetState() {
-    setFormData(null);
-    setPhysicalExam(createDefaultPhysicalExam());
-    setDiagnosisText("");
-    setRemarks("");
-    setAdvice("");
-    setFindingsSummary("");
-    setSuggestions([]);
-    setCustomSupporting([]);
-    setSuccessMessage(null);
-    setError(null);
-    setHistory([]);
-    setHistoryLoading(false);
-    setExistingCertificate(null);
-    setExistingLoading(false);
-    setLabResults([]);
-    setLabSearch("");
-    setLabSearchError(null);
-  }
+    const defaults = defaultsToFormState(formData);
+    setFormState({
+      ...defaults,
+      suggestions: existingSuggestions.length ? existingSuggestions : defaults.suggestions,
+    });
+    draftRef.current = null;
+    hasInitializedRef.current = true;
+  }, [open, formData, existingCertificate, existingLoading, issueDateKey, draftKey]);
 
   function closeDrawer() {
-    resetState();
     onClose();
   }
 
   function updateExam(key: PhysicalExamKey, values: Partial<{ status: "normal" | "abnormal"; remarks: string }>) {
-    setPhysicalExam((prev) => ({
+    setFormState((prev) => ({
       ...prev,
-      [key]: {
-        status: values.status ?? prev[key]?.status ?? "normal",
-        remarks: values.remarks ?? prev[key]?.remarks ?? "",
+      physicalExam: {
+        ...prev.physicalExam,
+        [key]: {
+          status: values.status ?? prev.physicalExam[key]?.status ?? "normal",
+          remarks: values.remarks ?? prev.physicalExam[key]?.remarks ?? "",
+        },
       },
     }));
   }
 
   function toggleSuggestion(idx: number, checked: boolean) {
-    setSuggestions((prev) =>
-      prev.map((item, i) => (i === idx ? { ...item, checked } : item))
-    );
+    setFormState((prev) => ({
+      ...prev,
+      suggestions: prev.suggestions.map((item, i) => (i === idx ? { ...item, checked } : item)),
+    }));
   }
 
   function addCustomSupporting() {
     const id = generateClientId();
-    setCustomSupporting((prev) => [...prev, { id, label: "", summary: "", type: "custom" }]);
+    setFormState((prev) => ({
+      ...prev,
+      customSupporting: [...prev.customSupporting, { id, label: "", summary: "", type: "custom" }],
+    }));
   }
 
   function updateCustom(id: string, patch: Partial<{ label: string; summary: string }>) {
-    setCustomSupporting((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...patch } : item))
-    );
+    setFormState((prev) => ({
+      ...prev,
+      customSupporting: prev.customSupporting.map((item) =>
+        item.id === id ? { ...item, ...patch } : item
+      ),
+    }));
   }
 
   function removeCustom(id: string) {
-    setCustomSupporting((prev) => prev.filter((item) => item.id !== id));
+    setFormState((prev) => ({
+      ...prev,
+      customSupporting: prev.customSupporting.filter((item) => item.id !== id),
+    }));
+  }
+
+  function handleDiscardDraft() {
+    const todaysCert =
+      existingCertificate && isSameDay(existingCertificate?.issued_at, issueDateKey)
+        ? existingCertificate
+        : null;
+    clearDraft(draftKey);
+    const baseState = todaysCert ? certificateToFormState(todaysCert) : defaultsToFormState(formData);
+    const nextState = { ...baseState, suggestions: formState.suggestions };
+    hasInitializedRef.current = true;
+    setFormState(nextState);
+    setSuccessMessage(null);
+    setError(null);
   }
 
   async function executeLabSearch(e?: FormEvent) {
@@ -411,14 +595,16 @@ export default function MedicalCertificateDrawer({
   function addLabResult(result: LabSearchResult) {
     const dateKey = result.date_iso ? result.date_iso.slice(0, 10) : "recent";
     const label = `Lab tests done (${result.display_date})`;
-    setCustomSupporting((prev) => {
-      const next = [...prev];
+    setFormState((prev) => {
+      const next = [...prev.customSupporting];
       const idx = next.findIndex(
         (entry) => entry.meta?.kind === "lab" && entry.meta?.date === dateKey
       );
       if (idx >= 0) {
         const entry = next[idx];
-        const lines: string[] = entry.meta?.lines ? [...entry.meta.lines] : entry.summary.split(";").map((s) => s.trim()).filter(Boolean);
+        const lines: string[] = entry.meta?.lines
+          ? [...entry.meta.lines]
+          : entry.summary.split(";").map((s) => s.trim()).filter(Boolean);
         if (!lines.includes(result.summary)) {
           lines.push(result.summary);
           entry.summary = lines.join("; ");
@@ -435,12 +621,12 @@ export default function MedicalCertificateDrawer({
           meta: { kind: "lab", date: dateKey, lines: [result.summary] },
         });
       }
-      return next;
+      return { ...prev, customSupporting: next };
     });
   }
 
   const isEditing = Boolean(existingCertificate);
-  const issueDate = useMemo(() => new Date(), [open]);
+  const issueDate = useMemo(() => new Date(`${issueDateKey}T00:00:00`), [issueDateKey]);
   const validUntil = useMemo(
     () => new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000),
     [issueDate]
@@ -453,7 +639,7 @@ export default function MedicalCertificateDrawer({
     setError(null);
     setSuccessMessage(null);
     try {
-      const selectedSuggestions: SupportingDataEntry[] = suggestions
+      const selectedSuggestions: SupportingDataEntry[] = formState.suggestions
         .filter((s) => s.checked && s.summary)
         .map((s) => ({
           type: s.type,
@@ -462,7 +648,7 @@ export default function MedicalCertificateDrawer({
           source_id: s.source_id || null,
         }));
 
-      const customEntries: SupportingDataEntry[] = customSupporting
+      const customEntries: SupportingDataEntry[] = formState.customSupporting
         .map((entry) => ({
           type: entry.type || "custom",
           label: entry.label.trim(),
@@ -475,11 +661,11 @@ export default function MedicalCertificateDrawer({
         patient_id: patientId,
         consultation_id: consultationId,
         encounter_id: encounterId,
-        physical_exam: physicalExam,
-        diagnosis_text: diagnosisText,
-        remarks,
-        advice,
-        findings_summary: findingsSummary || null,
+        physical_exam: formState.physicalExam,
+        diagnosis_text: formState.diagnosisText,
+        remarks: formState.remarks,
+        advice: formState.advice,
+        findings_summary: formState.findingsSummary || null,
         supporting_data: [...selectedSuggestions, ...customEntries],
       };
 
@@ -503,7 +689,10 @@ export default function MedicalCertificateDrawer({
             const detail = await detailRes.json();
             if (detailRes.ok && detail?.certificate) {
               setExistingCertificate(detail.certificate);
-              hydrateFromCertificate(detail.certificate);
+              setFormState((prev) => {
+                const next = certificateToFormState(detail.certificate);
+                return { ...next, suggestions: prev.suggestions };
+              });
               setError("A certificate already exists for this consultation. Loaded it for editing.");
               return;
             }
@@ -517,7 +706,10 @@ export default function MedicalCertificateDrawer({
       setSuccessMessage(message);
       if (data?.certificate) {
         setExistingCertificate(data.certificate);
-        hydrateFromCertificate(data.certificate);
+        setFormState((prev) => {
+          const next = certificateToFormState(data.certificate);
+          return { ...next, suggestions: prev.suggestions };
+        });
         setHistory((prev) => {
           const filtered = prev.filter((item) => item.id !== data.certificate.id);
           return [data.certificate, ...filtered].slice(0, 5);
@@ -525,8 +717,12 @@ export default function MedicalCertificateDrawer({
         if (!isEditing && typeof window !== "undefined" && data.certificate.id) {
           window.open(`/doctor/medical-certificates/${data.certificate.id}/print`, "_blank");
         }
+        persistDraftToStorage({
+          ...certificateToFormState(data.certificate),
+          suggestions: formState.suggestions,
+        });
       }
-      onIssued?.(data.certificate);
+      onIssued?.(data.certificate, { isEdit: isEditing });
     } catch (err: any) {
       setError(err?.message || "Failed to create certificate.");
     } finally {
@@ -647,7 +843,7 @@ export default function MedicalCertificateDrawer({
             </div>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {PHYSICAL_EXAM_SECTIONS.map(({ key, label }) => {
-                const entry = physicalExam[key];
+                const entry = formState.physicalExam[key];
                 return (
                   <div key={key} className="rounded-lg border p-3">
                     <div className="flex items-center justify-between text-sm font-medium text-gray-800">
@@ -696,8 +892,10 @@ export default function MedicalCertificateDrawer({
               <textarea
                 className="mt-1 w-full rounded border px-3 py-2 text-sm"
                 rows={3}
-                value={diagnosisText}
-                onChange={(e) => setDiagnosisText(e.target.value)}
+                value={formState.diagnosisText}
+                onChange={(e) =>
+                  setFormState((prev) => ({ ...prev, diagnosisText: e.target.value }))
+                }
               />
             </div>
             <div>
@@ -705,8 +903,10 @@ export default function MedicalCertificateDrawer({
               <textarea
                 className="mt-1 w-full rounded border px-3 py-2 text-sm"
                 rows={3}
-                value={findingsSummary}
-                onChange={(e) => setFindingsSummary(e.target.value)}
+                value={formState.findingsSummary}
+                onChange={(e) =>
+                  setFormState((prev) => ({ ...prev, findingsSummary: e.target.value }))
+                }
                 placeholder="Optional overview of pertinent findings."
               />
             </div>
@@ -716,8 +916,10 @@ export default function MedicalCertificateDrawer({
                 <textarea
                   className="mt-1 w-full rounded border px-3 py-2 text-sm"
                   rows={4}
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
+                  value={formState.remarks}
+                  onChange={(e) =>
+                    setFormState((prev) => ({ ...prev, remarks: e.target.value }))
+                  }
                   placeholder="e.g., Fit for work, Unfit for work for x days…"
                 />
               </div>
@@ -726,8 +928,10 @@ export default function MedicalCertificateDrawer({
                 <textarea
                   className="mt-1 w-full rounded border px-3 py-2 text-sm"
                   rows={4}
-                  value={advice}
-                  onChange={(e) => setAdvice(e.target.value)}
+                  value={formState.advice}
+                  onChange={(e) =>
+                    setFormState((prev) => ({ ...prev, advice: e.target.value }))
+                  }
                 />
               </div>
             </div>
@@ -739,10 +943,10 @@ export default function MedicalCertificateDrawer({
               {supportingLoading && <span className="text-xs text-gray-400">Loading…</span>}
             </div>
             <div className="mt-3 space-y-3">
-              {suggestions.length === 0 && (
+              {formState.suggestions.length === 0 && (
                 <p className="text-sm text-gray-500">No automatic suggestions found for this encounter.</p>
               )}
-              {suggestions.map((item, idx) => (
+              {formState.suggestions.map((item, idx) => (
                 <label key={item.key} className="flex gap-3 rounded border px-3 py-2 text-sm">
                   <input
                     type="checkbox"
@@ -822,13 +1026,13 @@ export default function MedicalCertificateDrawer({
                   + Add entry
                 </button>
               </div>
-              {customSupporting.length === 0 && (
+              {formState.customSupporting.length === 0 && (
                 <p className="mt-2 text-sm text-gray-500">
                   Add manual supporting statements that will appear on the certificate.
                 </p>
               )}
               <div className="mt-2 space-y-3">
-                {customSupporting.map((entry) => (
+                {formState.customSupporting.map((entry) => (
                   <div key={entry.id} className="rounded-lg border px-3 py-2">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold uppercase text-gray-500">Label</label>
@@ -898,14 +1102,24 @@ export default function MedicalCertificateDrawer({
             <div className="text-xs text-gray-500">
               Certificates are saved to the patient record with a 30-day validity by default.
             </div>
-            <button
-              type="button"
-              disabled={saving || loading}
-              onClick={handleSubmit}
-              className="inline-flex items-center justify-center rounded-full bg-[#2e6468] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {saving ? "Generating…" : "Generate certificate"}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleDiscardDraft}
+                className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                disabled={saving}
+              >
+                Discard draft
+              </button>
+              <button
+                type="button"
+                disabled={saving || loading}
+                onClick={handleSubmit}
+                className="inline-flex items-center justify-center rounded-full bg-[#2e6468] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {saving ? "Generating…" : "Generate certificate"}
+              </button>
+            </div>
           </div>
         </footer>
       </div>
