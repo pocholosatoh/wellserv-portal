@@ -97,7 +97,15 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
   });
 
   return (
-    <div className="mx-auto max-w-7xl p-4 sm:p-6 space-y-6">
+      <div
+    className="
+      w-full mx-auto
+      max-w-[1720px]
+      px-4 sm:px-6 lg:px-8 2xl:px-12
+      pt-4 sm:pt-6 pb-8
+      space-y-6
+    "
+  >
       <ConsentBus patientId={patientId} />
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-3">

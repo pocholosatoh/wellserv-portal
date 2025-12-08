@@ -26,16 +26,44 @@ body {
 }
 
 /* Print helpers */
+@page {
+  size: 8in 13in;
+  margin: 0;
+}
 @media print {
-  .print\:hidden {
-    display: none !important;
-  }
-  @page {
-    margin: 12mm;
-  }
+  html,
   body {
+    margin: 0;
+    padding: 0;
+    height: auto;
+    background: white !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  .print-page-root {
+    background: white !important;
+  }
+  .certificate-print-wrapper {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 8in;
+    min-height: 13in;
+    box-shadow: none !important;
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .page-break-after {
+    page-break-after: always;
+    break-after: page;
+  }
+  .avoid-page-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .print\:hidden {
+    display: none !important;
   }
 }
 

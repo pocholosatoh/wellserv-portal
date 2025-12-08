@@ -802,7 +802,23 @@ export default function ReportViewer(props: ReportViewerProps) {
         .ph-meta { color:rgba(41,74,86,0.75); word-break: break-word; }
 
         /* controls row */
-        .controls { display:flex; gap:12px; margin:12px 0; flex-wrap:wrap; }
+        .controls { display:flex; gap:12px; margin:8px 0 12px; flex-wrap:wrap; }
+        .control-card{
+          flex-basis: 100%;
+          display:flex;
+          align-items:center;
+          gap:12px;
+          padding: 12px 14px;
+          border-radius: 14px;
+          border: 1px solid rgba(25,82,102,0.12);
+          background: rgba(244,247,251,0.65);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 10px 30px rgba(15,23,42,0.04);
+        }
+        .control-count{
+          font-weight: 700;
+          color: var(--brand);
+          letter-spacing: 0.01em;
+        }
         .control-select{
           flex:1 1 auto;
           min-width:0;
@@ -1005,6 +1021,8 @@ export default function ReportViewer(props: ReportViewerProps) {
           .ph-name { font-size: 18px; }
           .ph-meta { font-size: 13px; line-height: 1.4; }
           .controls { flex-direction: column; align-items: stretch; gap: 12px; }
+          .control-card{ flex-direction: column; align-items: flex-start; gap: 8px; }
+          .control-count{ font-size: 13.5px; }
           .control-toggle { width: 100%; }
           .control-select{
             width: 100%;
@@ -1055,6 +1073,8 @@ export default function ReportViewer(props: ReportViewerProps) {
             border-radius: 16px;
           }
           .container { padding-inline: 12px; }
+          .control-card{ gap: 6px; }
+          .control-count{ font-size: 13px; }
           .control-row {
             flex-direction: column;
             align-items: stretch;
@@ -1300,7 +1320,7 @@ export default function ReportViewer(props: ReportViewerProps) {
         @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: .4; } 50% { transform: scale(1.3); opacity: 1; } }
 
         /* Patient Summary Card (screen only by default) */
-        .ps-card { border: 1px solid rgba(25,82,102,0.12); border-radius: 20px; padding: 16px; margin: 8px 0 16px; background: rgba(244,247,251,0.65); backdrop-filter: blur(4px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.45); }
+        .ps-card { border: 1px solid rgba(25,82,102,0.12); border-radius: 20px; padding: 16px; margin: 8px 0 8px; background: rgba(244,247,251,0.65); backdrop-filter: blur(4px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.45); }
         .ps-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
         .ps-title { font-weight: 700; font-size: 15px; color: var(--brand); }
         .ps-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -1619,15 +1639,24 @@ export default function ReportViewer(props: ReportViewerProps) {
         {/* ---------- Controls: show ONLY after a report is loaded ---------- */}
         {report && (
           <div className="controls">
-            {visitDates.length > 1 && (
-              <label className="control-toggle">
-                <input
-                  type="checkbox"
-                  checked={compareOn}
-                  onChange={(e)=>setCompareOn(e.target.checked)}
-                />
-                Compare with prev. visit/s
-              </label>
+            {visitDates.length > 0 && (
+              <div className="control-card" aria-live="polite">
+                <div className="control-count">
+                  {visitDates.length === 1
+                    ? "1 visit available"
+                    : `${visitDates.length} visits available`}
+                </div>
+                {visitDates.length > 1 && (
+                  <label className="control-toggle">
+                    <input
+                      type="checkbox"
+                      checked={compareOn}
+                      onChange={(e)=>setCompareOn(e.target.checked)}
+                    />
+                    Compare with prev. visit/s
+                  </label>
+                )}
+              </div>
             )}
 
             {visitDates.length > 0 && (
