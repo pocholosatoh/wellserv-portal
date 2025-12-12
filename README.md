@@ -1,12 +1,18 @@
 # WELLSERV Online Portal App
 
-Patient + staff results viewer powered by Next.js (App Router) with Supabase as the **source of truth**. Google Sheets is retained only for RMT CSV hemato uploads (branch “running sheets”).
+Patient, staff, and doctor portals built on Next.js (App Router) with Supabase as the **source of truth**. Google Sheets is retained only for RMT CSV hemato uploads (branch “running sheets”).
+
+## Personas & entry points
+
+- **Doctor console** (`/doctor`): branch-aware consult queue, patient search redirect, ECG inbox (`/doctor/ecg`), and patient workspace (`/doctor/patient/[patientId]`) with lab results, other labs, consult notes/prescriptions/diagnoses, and past consultations.
+- **Patient portal** (`/patient`): authenticated overview with latest result/prescription badges plus quick links to `/results`, `/prescriptions`, `/patient/medcerts`, `/patient/delivery`, and follow-up/help contacts.
+- **Staff workspace** (`/staff` → protected): launcher for follow-ups (`/staff/followups`), other labs/send-outs (`/staff/other-labs`), patient vitals/history (`/staff/patienthistory`), results portal (`/staff/portal`), prescriptions (`/staff/prescriptions`), med orders (`/staff/med-orders`), medical certificates (`/staff/medcerts`), RMT hema upload (`/staff/rmt/hemaupload`), section assignments (`/staff/section-assignments`, ADM/RMT), and staff registration (`/staff/staff/register`, ADM).
 
 ## Monorepo layout
 
 ```
 apps/
-  web/      # Next.js portal (existing app)
+  web/      # Next.js portal
   mobile/   # Expo Router app
 packages/
   core/     # shared types + helpers
@@ -15,6 +21,22 @@ packages/
 ```
 
 Use `pnpm dev:web`, `pnpm dev:mobile`, or `pnpm dev` (Turborepo) for both. Shared packages build with `pnpm --filter @wellserv/core build` etc.
+
+## Key routes & APIs
+
+- Patient results API: `/api/patient-results` (used by patient/staff/doctor viewers)
+- Other labs viewer: `/api/patient/other-labs-v2`
+- Doctor console: `/doctor`, patient workspace at `/doctor/patient/[patientId]`
+- Patient portal: `/patient` with `/results`, `/prescriptions`, `/patient/medcerts`, `/patient/delivery`
+- Staff portal: `/staff` and nested tools listed above
+- RMT ingest: `/staff/rmt/hemaupload` → `/api/rmt/hema/import`
+
+## Stack
+
+- **Next.js App Router** (`/app`)
+- **Supabase** (Postgres + RLS), optional **Supabase Storage** (future)
+- **Google Sheets** (RMT ingest only)
+- TypeScript, Tailwind + PostCSS
 
 ## CI / sanity checks
 
@@ -33,50 +55,6 @@ pnpm test   # currently placeholder
 - Keep the repo-level `vercel.json` committed so auto-imports don’t override the settings.
 - When running locally you can mirror production with `pnpm --filter web build && pnpm --filter web start`.
 
-## Stack
-
-- **Next.js App Router** (`/app`)
-- **Supabase** (Postgres + RLS), optional **Supabase Storage** (future)
-- **Google Sheets** (RMT ingest only)
-- TypeScript, (optional) Tailwind + PostCSS
-
-## High-level flow
-
-UI (ReportViewer)
-⇅ JSON
-/app/api/patient-results ← unified API (Node runtime)
-⇅ DataProvider (lib/data)
-Supabase (patients, results_flat, ranges)
-
-markdown
-Copy code new
-
-## Key routes
-
-- Patient view: `/patient-results`
-- Staff portal: `/portal`
-- Unified API (Supabase): `/api/patient-results`
-- RMT ingest (Sheets): `/rmt/hemaupload` → `/api/rmt/hema/import`
-
-## Repo layout
-
-/app
-/(patient)/patient-results/page.tsx
-/(portal)/portal/page.tsx
-/api/patient-results/route.ts
-/components/ReportViewer.tsx
-/lib
-/data
-data-provider.ts # interface + types
-provider-factory.ts # picks sheets/supabase by DATA_BACKEND
-supabase-provider.ts # Supabase implementation (source of truth)
-supabase.ts # create Supabase client (server)
-/public # logos, static assets
-/scripts # future ETL, migrations
-
-pgsql
-Copy code
-
 ## Environment variables
 
 | Name                                 | Scope  | Purpose                                     |
@@ -94,80 +72,23 @@ Create a `.env.local` with the server variables above (don’t commit it). In Ve
 
 ## Development
 
-````bash
-npm i
-npm run dev
+```bash
+pnpm install
+pnpm dev
 # open http://localhost:3000
-Smoke tests
-bash
-Copy code
-# API
+```
+
+Smoke test the patient results API:
+
+```bash
 curl -X POST http://localhost:3000/api/patient-results \
   -H "content-type: application/json" \
   -d '{"patient_id":"<REAL_ID>"}'
+```
 
-# UI
-# - /patient-results (patient)
-# - /portal (staff)
-Logs (local & Vercel)
-We log a single line per request in /api/patient-results:
+## Maintenance notes
 
-json
-Copy code
-{"route":"patient-results","patient_id":"P-0001","count":3,"dates":["2025-09-25","2025-07-10","2025-06-02"]}
-Filter for it in Vercel Logs to spot anomalies.
-
-Deployment (Vercel)
-Ensure /app/api/patient-results/route.ts has:
-
-ts
-Copy code
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-Push to main; Vercel builds & deploys.
-
-Set ENV vars in Vercel before/after first deploy.
-
-Data notes
-results_flat contains one row per analyte; ranges provides label/unit/low/high and section via prefix (hema_, chem_, ua_, fa_, sero_).
-
-We treat "-", empty, and n/a as blank (not rendered).
-
-Flags: we show only L/H/A. Normal is blank.
-
-Urinalysis/Fecalysis: UI hides Reference & Flag columns.
-
-Maintenance
-Deprecated Sheets endpoints: /api/results, /api/report. Watch logs for [DEPRECATED]. Delete after a week of zero hits.
-
-Edit DEFAULT_ORDER in supabase-provider.ts (fallback ordering). If ranges.order exists, it takes precedence.
-
-Run:
-
-npx depcheck (unused deps)
-
-npx ts-prune (unused exports) — beware Next false positives (pages/layout/metadata/middleware).
-
-Glossary
-API/endpoint: URL that returns data (JSON).
-
-Adapter/Data Provider: hides the data source (Sheets vs Supabase) and returns stable shapes to the UI.
-
-JSON shape: the structure of returned fields and types.
-
-Node runtime: full Node.js environment for server routes (required for Supabase service key & Google APIs).
-
-yaml
-Copy code
-
----
-
-## “Watch logs for a week”—put it on rails
-
-- Add the deprecation log (you already did):
-  `console.warn("[DEPRECATED] /api/results ...");`
-- Set a calendar reminder to run:
-  ```bash
-  vercel logs https://<your-prod>.vercel.app --since 7d --filter "[DEPRECATED]"
-Or add a log drain + saved query → email/slack alert if count > 0 in last 24h.
-````
+- `results_flat` contains one row per analyte; `ranges` provides label/unit/low/high and section via prefix (hema*, chem*, ua*, fa*, sero\_). We treat "-", empty, and n/a as blank.
+- Urinalysis/Fecalysis UI hides Reference & Flag columns; flags show only L/H/A.
+- Deprecated Sheets endpoints: `/api/results`, `/api/report`. Watch logs for `[DEPRECATED]` before removing.
+- Useful hygiene: `npx depcheck` (unused deps), `npx ts-prune` (unused exports; beware Next false positives for pages/layout/metadata/middleware).

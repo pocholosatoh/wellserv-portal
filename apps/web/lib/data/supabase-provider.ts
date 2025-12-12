@@ -161,7 +161,33 @@ type RangeMeta = {
   unit?: string | null;
   low?: number | string | null;
   high?: number | string | null;
+  sex?: string | null;
 };
+
+function normalizeSexText(value: any): string | null {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  if (!text || text.toLowerCase() === "null") return null;
+  return text;
+}
+
+function normalizeSexValue(value?: string | null): "male" | "female" | "any" {
+  const text = normalizeSexText(value);
+  if (!text) return "any";
+  const lowered = text.toLowerCase();
+  if (lowered.startsWith("m")) return "male";
+  if (lowered.startsWith("f")) return "female";
+  return "any";
+}
+
+function pickRangeMeta(list: RangeMeta[] | undefined, patientSex?: string | null): RangeMeta | undefined {
+  if (!list || list.length === 0) return undefined;
+  const target = normalizeSexValue(patientSex);
+  const exact = list.find(meta => normalizeSexValue(meta.sex) === target);
+  if (exact) return exact;
+  const anyMeta = list.find(meta => normalizeSexValue(meta.sex) === "any");
+  return anyMeta ?? list[0];
+}
 
 export function createSupabaseProvider(): DataProvider {
   const TABLE_PATIENTS = "patients";
@@ -173,16 +199,16 @@ export function createSupabaseProvider(): DataProvider {
   const db = getSupabase();
 
   // cache ranges + raw rows (for ordering)
-  let rangesCache: Map<string, RangeMeta> | null = null;
+  let rangesCache: Map<string, RangeMeta[]> | null = null;
   let rangesRowsCache: Record<string, any>[] | null = null;
 
-  async function getRangesMap(): Promise<{ map: Map<string, RangeMeta>; rows: Record<string, any>[] }> {
+  async function getRangesMap(): Promise<{ map: Map<string, RangeMeta[]>; rows: Record<string, any>[] }> {
     if (rangesCache && rangesRowsCache) return { map: rangesCache, rows: rangesRowsCache };
     const { data, error } = await db.from(TABLE_RANGES).select("*");
     if (error) throw error;
 
     const rows = (data || []) as Record<string, any>[];
-    const map = new Map<string, RangeMeta>();
+    const map = new Map<string, RangeMeta[]>();
     for (const r of rows) {
       const key = String(
         r.analyte_key ?? r.key ?? r.parameter_key ?? r.param_key ?? ""
@@ -197,8 +223,20 @@ export function createSupabaseProvider(): DataProvider {
       // Your ranges use "low"/"high" (may be text); keep raw for display, numeric for flag logic
       const low  = r.low  ?? null;
       const high = r.high ?? null;
+      const sex = normalizeSexText(
+        pick(
+          r.sex,
+          r.gender,
+          r.sex_identity,
+          r.gender_identity,
+          r.sex_at_birth,
+          r.gender_at_birth
+        )
+      );
 
-      map.set(key, { section, label, unit, low, high });
+      const list = map.get(key) ?? [];
+      list.push({ section, label, unit, low, high, sex });
+      map.set(key, list);
     }
     rangesCache = map;
     rangesRowsCache = rows;
@@ -483,6 +521,18 @@ export function createSupabaseProvider(): DataProvider {
       const rows = await fetchResultRows(patient_id, date);
       if (rows.length === 0) return null;
 
+      const fallbackSexRaw = rows.length
+        ? pick(
+            rows[0].sex,
+            rows[0].gender,
+            rows[0].patient_sex,
+            rows[0].patient_gender,
+            rows[0].sex_at_birth,
+            rows[0].gender_identity
+          )
+        : null;
+      const patientSex = normalizeSexText(patient.sex) ?? normalizeSexText(fallbackSexRaw) ?? undefined;
+
       const { map: rangesMap, rows: rangesRows } = await getRangesMap();
       const bySection = new Map<string, ReportItem[]>();
 
@@ -495,7 +545,8 @@ export function createSupabaseProvider(): DataProvider {
           r.key ??
           ""
         ).trim();
-        const meta = key ? rangesMap.get(key) : undefined;
+        const metaList = key ? rangesMap.get(key) : undefined;
+        const meta = pickRangeMeta(metaList, patientSex ?? null);
 
         const label = String(
           pick(

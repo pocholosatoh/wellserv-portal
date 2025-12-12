@@ -19,6 +19,8 @@ type SupportingDisplayItem = {
   summary: string;
 };
 
+const DISPLAY_TIME_ZONE = process.env.APP_TZ || "Asia/Manila";
+
 async function getBaseUrl(): Promise<string> {
   const h = await headers();
   const host =
@@ -75,6 +77,7 @@ function formatDate(iso?: string | null) {
     year: "numeric",
     month: "long",
     day: "2-digit",
+    timeZone: DISPLAY_TIME_ZONE,
   }).format(dt);
 }
 
@@ -88,6 +91,7 @@ function formatDateTime(iso?: string | null) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: DISPLAY_TIME_ZONE,
   }).format(dt);
 }
 

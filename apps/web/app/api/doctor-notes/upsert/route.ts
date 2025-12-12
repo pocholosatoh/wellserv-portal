@@ -97,6 +97,11 @@ export async function POST(req: Request) {
     let notes_markdown: string | null = currentMd;
     let notes_soap: any | null = currentSoap;
 
+    const isConsultationDuplicate = (err: any) =>
+      err?.code === "23505" &&
+      typeof err?.details === "string" &&
+      err.details.includes("doctor_notes_consultation_id_key");
+
     if (body?.mode === "markdown") {
       const next = normalizeMd(mdInput);
       if (next !== undefined) notes_markdown = next;
@@ -126,6 +131,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: upd.error.message }, { status: 400 });
       }
     } else {
+      const now = new Date().toISOString();
       const ins = await db
         .from("doctor_notes")
         .insert({
@@ -133,14 +139,31 @@ export async function POST(req: Request) {
           notes_markdown,
           notes_soap,
           created_by: createdBy, // NULL for relievers/staff (FK stays valid)
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          created_at: now,
+          updated_at: now,
         })
         .select("id")
         .single();
 
       if (ins.error) {
-        return NextResponse.json({ error: ins.error.message }, { status: 400 });
+        if (isConsultationDuplicate(ins.error)) {
+          const fallback = await db
+            .from("doctor_notes")
+            .update({
+              notes_markdown,
+              notes_soap,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("consultation_id", consultationId)
+            .select("id")
+            .single();
+
+          if (fallback.error) {
+            return NextResponse.json({ error: fallback.error.message }, { status: 400 });
+          }
+        } else {
+          return NextResponse.json({ error: ins.error.message }, { status: 400 });
+        }
       }
     }
 
