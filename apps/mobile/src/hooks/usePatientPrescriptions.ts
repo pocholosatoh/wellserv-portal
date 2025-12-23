@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getApiBaseUrl } from "../lib/api";
+import { apiFetch } from "../lib/http";
 import { useSession } from "../providers/SessionProvider";
 
 type ApiPrescriptionItem = {
@@ -122,22 +122,11 @@ export function usePatientPrescriptions() {
     enabled: Boolean(patientId) && !isLoading,
     queryFn: async () => {
       if (!patientId) return [];
-      const baseUrl = getApiBaseUrl();
-      if (!baseUrl) {
-        throw new Error("API base URL not configured");
-      }
-      const url = `${baseUrl}/api/mobile/patient/prescriptions`;
-      console.warn("PRESCRIPTIONS REQUEST URL:", url);
+      console.warn("PRESCRIPTIONS REQUEST URL:", "/api/mobile/patient/prescriptions");
       let res: Response;
       try {
-        const cookieHeader = `role=patient; patient_id=${encodeURIComponent(patientId)}`;
-        res = await fetch(url, {
+        res = await apiFetch("/api/mobile/patient/prescriptions", {
           method: "POST",
-          headers: {
-            "content-type": "application/json",
-            // RN fetch does not always persist the cookie jar; send an explicit session cookie.
-            cookie: cookieHeader,
-          },
           body: JSON.stringify({
             patientId,
           }),

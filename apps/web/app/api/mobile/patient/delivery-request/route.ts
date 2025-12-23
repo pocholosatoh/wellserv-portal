@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireActor } from "@/lib/api-actor";
+import { getMobilePatient } from "@/lib/mobileAuth";
 import { getSupabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -24,8 +24,8 @@ function hasAddress(row: any) {
 
 export async function POST(req: Request) {
   try {
-    const actor = await requireActor().catch(() => null);
-    if (!actor || actor.kind !== "patient") {
+    const actor = await getMobilePatient(req);
+    if (!actor?.patient_id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

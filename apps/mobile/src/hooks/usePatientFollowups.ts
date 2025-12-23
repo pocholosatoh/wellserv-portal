@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "../providers/SessionProvider";
-import { getApiBaseUrl } from "../lib/api";
+import { apiFetch } from "../lib/http";
 
 type ApiFollowup = {
   id: string;
@@ -77,20 +77,11 @@ export function usePatientFollowups() {
     enabled: Boolean(patientId) && !isLoading,
     queryFn: async () => {
       if (!patientId) return null;
-      const baseUrl = getApiBaseUrl();
-      if (!baseUrl) {
-        throw new Error("API base URL not configured");
-      }
-      const url = `${baseUrl}/api/mobile/patient/followups`;
-      const cookieHeader = `role=patient; patient_id=${encodeURIComponent(patientId)}`;
+      const url = "/api/mobile/patient/followups";
       let res: Response;
       try {
-        res = await fetch(url, {
+        res = await apiFetch(url, {
           method: "POST",
-          headers: {
-            "content-type": "application/json",
-            cookie: cookieHeader,
-          },
           body: JSON.stringify({ patientId }),
         });
       } catch (error) {

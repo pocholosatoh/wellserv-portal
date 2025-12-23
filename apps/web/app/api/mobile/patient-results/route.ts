@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildAllReports } from "@/lib/api/patient-results-core";
-import { requireActor } from "@/lib/api-actor";
+import { getMobilePatient } from "@/lib/mobileAuth";
 import { getSupabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -30,13 +30,13 @@ export async function POST(req: Request) {
       hasCookie: !!req.headers.get("cookie"),
       headers,
     });
-    const actor = await requireActor().catch(() => null);
+    const actor = await getMobilePatient(req);
     const body = await req.json().catch(() => ({}));
     const limit = body?.limit != null ? Number(body.limit) : undefined;
     const visitDateRaw = body?.visitDate || body?.visit_date || body?.date;
     const visitDate = visitDateRaw ? String(visitDateRaw) : undefined;
 
-    let patientId: string | null = actor?.kind === "patient" ? actor.patient_id : null;
+    let patientId: string | null = actor?.patient_id || null;
 
     if (!patientId) {
       patientId = body?.patientId || body?.patient_id || null;

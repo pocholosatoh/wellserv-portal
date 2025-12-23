@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getApiBaseUrl } from "../lib/api";
+import { apiFetch } from "../lib/http";
 
 export type Hub = {
   code: string;
@@ -9,13 +9,14 @@ export type Hub = {
 };
 
 export async function fetchHubs(): Promise<Hub[]> {
-  const baseUrl = getApiBaseUrl();
-  if (!baseUrl) {
-    throw new Error("API base URL not configured");
-  }
-  const res = await fetch(`${baseUrl}/api/mobile/hubs`);
+  const res = await apiFetch("/api/mobile/hubs");
   if (!res.ok) throw new Error("Failed to load hubs");
-  return ((await res.json()) as Hub[]) ?? [];
+  try {
+    return ((await res.json()) as Hub[]) ?? [];
+  } catch (error) {
+    console.warn("[apiFetch] JSON_PARSE_ERROR", error);
+    throw error;
+  }
 }
 
 export function useHubs() {

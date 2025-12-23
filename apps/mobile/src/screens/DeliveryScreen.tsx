@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { colors, radii, spacing } from "@wellserv/theme";
 import { getApiBaseUrl } from "../lib/api";
+import { apiFetch } from "../lib/http";
 import { useSession } from "../providers/SessionProvider";
 import { PatientDeliveryInfo, useDeliveryInfo } from "../hooks/useDeliveryInfo";
 import { PatientTabsLayout } from "../components/PatientTabsLayout";
@@ -388,14 +389,8 @@ const AddressForm: React.FC<AddressFormProps> = ({ patient, onSaved, onError }) 
       const baseUrl = getApiBaseUrl();
       if (!baseUrl) throw new Error("API base URL not configured");
 
-      const cookieHeader = `role=patient; patient_id=${encodeURIComponent(patientId)}`;
-      const res = await fetch(`${baseUrl}/api/mobile/patient/delivery-address`, {
+      const res = await apiFetch("/api/mobile/patient/delivery-address", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          cookie: cookieHeader,
-        },
-        credentials: "include",
         body: JSON.stringify({
           delivery_address_label,
           delivery_address_text,
@@ -599,14 +594,8 @@ const DeliveryOrderScreen: React.FC<DeliveryOrderScreenProps> = ({
       const baseUrl = getApiBaseUrl();
       if (!baseUrl) throw new Error("API base URL not configured");
 
-      const cookieHeader = `role=patient; patient_id=${encodeURIComponent(patient.patient_id)}`;
-      const res = await fetch(`${baseUrl}/api/mobile/patient/delivery-request`, {
+      const res = await apiFetch("/api/mobile/patient/delivery-request", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          cookie: cookieHeader,
-        },
-        credentials: "include",
         body: JSON.stringify({ patientId: patient.patient_id }),
       });
 

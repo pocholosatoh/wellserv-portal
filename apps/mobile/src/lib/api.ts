@@ -1,5 +1,7 @@
-import { WEB_API_BASE_URL } from "./env";
-
 export function getApiBaseUrl() {
-  return WEB_API_BASE_URL;
+  const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "";
+  if (!baseUrl && __DEV__) {
+    throw new Error("EXPO_PUBLIC_API_BASE_URL missing");
+  }
+  return baseUrl;
 }

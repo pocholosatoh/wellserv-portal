@@ -7,6 +7,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/env";
 import Constants from "expo-constants";
 import { getApiBaseUrl } from "../lib/api";
+import { apiFetch } from "../lib/http";
+import { SESSION_STORAGE_KEY, setStoredSessionToken } from "../lib/sessionStorage";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -23,6 +25,7 @@ type SessionValue = {
   fullName?: string | null;
   birthday?: string | null;
   sex?: string | null;
+  token?: string | null;
 };
 
 type SessionContextValue = {
@@ -42,8 +45,6 @@ const SessionContext = createContext<SessionContextValue>({
   signIn: async () => ({ ok: true, patientId: "" }),
   signOut: async () => {},
 });
-
-const STORAGE_KEY = "wellserv.session";
 
 async function registerPushToken(): Promise<string | null> {
   if (!Device.isDevice) return null;
@@ -80,10 +81,14 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const router = useRouter();
 
   useEffect(() => {
-    Promise.resolve(storage.getItem(STORAGE_KEY))
+    Promise.resolve(storage.getItem(SESSION_STORAGE_KEY))
       .then((value) => {
         if (value) {
-          setSession(JSON.parse(value));
+          const parsed = JSON.parse(value);
+          setSession(parsed);
+          if (parsed?.token) {
+            setStoredSessionToken(parsed.token);
+          }
         }
       })
       .finally(() => setIsLoading(false));
@@ -95,6 +100,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
       .catch((err) => console.warn("Push registration failed", err));
   }, []);
 
+  useEffect(() => {
+    const baseUrl = getApiBaseUrl();
+    console.log(`API_BASE_URL=${baseUrl}`);
+  }, []);
+
   const signIn: SessionContextValue["signIn"] = useCallback(
     async (rawPatientId, pin) => {
       if (!rawPatientId) throw new Error("Enter Patient ID");
@@ -103,14 +113,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
       if (!baseUrl) throw new Error("API base URL not configured");
 
       const normalized = rawPatientId.trim().toUpperCase();
-      const url = `${baseUrl}/api/mobile/patient/login`;
 
       let res: Response;
       try {
-        res = await fetch(url, {
+        res = await apiFetch("/api/mobile/patient/login", {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({ patient_id: normalized, pin }),
         });
       } catch (error) {
@@ -123,6 +130,16 @@ export function SessionProvider({ children }: PropsWithChildren) {
         json = await res.json();
       } catch (error) {
         console.warn("PATIENT LOGIN PARSE ERROR", error);
+      }
+      const token =
+        (typeof json?.token === "string" && json.token) ||
+        (typeof json?.access_token === "string" && json.access_token) ||
+        (typeof json?.accessToken === "string" && json.accessToken) ||
+        null;
+      if (__DEV__) {
+        const hasSetCookie = !!res.headers.get("set-cookie");
+        console.log("LOGIN DEBUG: set-cookie", hasSetCookie, "token", !!token);
+        console.log("LOGIN DEBUG: token returned", !!token);
       }
 
       if (json?.code === "PIN_REQUIRED") {
@@ -141,9 +158,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
         fullName: json?.patient?.full_name ?? null,
         birthday: json?.patient?.birthday ?? null,
         sex: json?.patient?.sex ?? null,
+        token,
       };
 
-      await storage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      await storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+      await setStoredSessionToken(token);
       setSession(payload);
 
       return { ok: true as const, patientId: payload.patientId };
@@ -153,21 +172,23 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
   const signOut = useCallback(async () => {
     console.log("SIGN OUT: clearing session");
-    const baseUrl = getApiBaseUrl();
-    if (baseUrl) {
+    // Best UX: always clear local session, even if server call fails.
+    if (session) {
       try {
-        await fetch(`${baseUrl}/api/auth/logout`, {
-          method: "POST",
-          credentials: "include",
-        });
-      } catch (error) {
-        console.warn("Failed to clear server session", error);
+        getApiBaseUrl();
+        await apiFetch("/api/mobile/auth/signout", { method: "POST" });
+      } catch (err) {
+        console.warn("Failed to clear server session", err);
       }
+    } else {
+      console.log("SIGN OUT: no session, skipping server call");
     }
-    await storage.removeItem(STORAGE_KEY);
+
+    await storage.removeItem(SESSION_STORAGE_KEY);
+    await setStoredSessionToken(null);
     setSession(null);
     router.replace("/login");
-  }, [storage, router]);
+  }, [storage, router, session]);
 
   return (
     <SessionContext.Provider value={{ client, session, isLoading, pushToken, signIn, signOut }}>

@@ -4,6 +4,7 @@ import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from "reac
 import { colors, radii, spacing } from "@wellserv/theme";
 import { PATIENT_ACCESS_CODE } from "../src/lib/env";
 import { getApiBaseUrl } from "../src/lib/api";
+import { apiFetch } from "../src/lib/http";
 
 export default function SetPinScreen() {
   const router = useRouter();
@@ -50,10 +51,8 @@ export default function SetPinScreen() {
         throw new Error("API base URL not configured");
       }
 
-      const res = await fetch(`${baseUrl}/api/mobile/patient/set-pin`, {
+      const res = await apiFetch("/api/mobile/patient/set-pin", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           patient_id: patientId.trim().toUpperCase(),
           general_access_code: accessCode.trim(),

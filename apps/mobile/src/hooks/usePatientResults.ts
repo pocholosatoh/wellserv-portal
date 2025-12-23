@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "../providers/SessionProvider";
-import { getApiBaseUrl } from "../lib/api";
+import { apiFetch } from "../lib/http";
 import type { PatientResultsResponse, Report } from "../../../shared/types/patient-results";
 
 type UsePatientResultsOptions = {
@@ -17,24 +17,13 @@ export function usePatientResults(options: UsePatientResultsOptions = {}) {
     enabled: Boolean(patientId) && !isLoading,
     queryFn: async () => {
       if (!patientId) throw new Error("Missing patient");
-      const baseUrl = getApiBaseUrl();
-      if (!baseUrl) {
-        throw new Error("API base URL not configured");
-      }
-      const url = `${baseUrl}/api/mobile/patient-results`;
-      console.warn("LAB RESULTS REQUEST URL:", url);
+      console.warn("LAB RESULTS REQUEST URL:", "/api/mobile/patient-results");
 
       // Call the web app API (mobile variant) so we reuse buildAllReports/adaptReportForUI.
       let res: Response;
       try {
-        const cookieHeader = `role=patient; patient_id=${encodeURIComponent(patientId)}`;
-        res = await fetch(url, {
+        res = await apiFetch("/api/mobile/patient-results", {
           method: "POST",
-          headers: {
-            "content-type": "application/json",
-            // RN fetch does not always persist the cookie jar; send an explicit session cookie.
-            cookie: cookieHeader,
-          },
           body: JSON.stringify({
             patientId,
             limit: options.limit,

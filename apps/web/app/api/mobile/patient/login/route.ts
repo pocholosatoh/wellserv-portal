@@ -7,6 +7,7 @@ import { z } from "zod";
 import { getSupabase } from "@/lib/supabase";
 import { verifyPin } from "@/lib/auth/pinHash";
 import { setSession } from "@/lib/session";
+import { signMobileToken } from "@/lib/mobileAuth";
 
 const RequestSchema = z.object({
   patient_id: z.string().min(1),
@@ -79,8 +80,10 @@ export async function POST(req: Request) {
       .update({ last_login_at: new Date().toISOString() })
       .eq("patient_id", canonicalId);
 
+    const token = await signMobileToken(canonicalId);
     const res = NextResponse.json({
       ok: true,
+      token,
       patient: {
         patient_id: canonicalId,
         full_name: patient.full_name,
@@ -88,6 +91,7 @@ export async function POST(req: Request) {
         birthday: patient.birthday,
       },
     });
+    console.log("[mobile] login token issued", !!token);
 
     setSession(res, {
       role: "patient",
