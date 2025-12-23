@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "turbo dev",
     "dev:web": "pnpm --filter web dev",
-    "dev:mobile": "cd apps/mobile && pnpm expo start --clear",
+    "dev:mobile": "pnpm --filter mobile expo start --clear",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
@@ -36,10 +36,18 @@
   },
   "pnpm": {
     "overrides": {
-      "eslint": "8.57.0"
+      "@expo/cli": "54.0.20",
+      "@expo/config-plugins": "54.0.4",
+      "@expo/metro-runtime": "6.1.2",
+      "eslint": "8.57.0",
+      "expo": "54.0.30",
+      "expo-constants": "18.0.12",
+      "expo-dev-client": "6.0.20",
+      "expo-dev-launcher": "6.0.20",
+      "expo-dev-menu": "7.0.18",
+      "expo-modules-core": "3.0.29",
+      "expo-router": "6.0.21",
+      "expo-updates": "29.0.15"
     }
-  },
-  "dependencies": {
-    "expo": "^54.0.25"
   }
 }
