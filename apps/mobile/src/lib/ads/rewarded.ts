@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import {
   AdEventType,
   RewardedAd,
@@ -27,6 +28,20 @@ function getRewardedAdUnitId() {
 }
 
 export function loadRewardedAd(callbacks: RewardedAdCallbacks) {
+  const adsConfig = Constants.expoConfig?.["react-native-google-mobile-ads"] as
+    | { ios_app_id?: string; android_app_id?: string }
+    | undefined;
+  const iosAppId = adsConfig?.ios_app_id;
+  const androidAppId = adsConfig?.android_app_id;
+
+  if (Platform.OS === "ios" && !iosAppId) {
+    console.warn("Missing iOS AdMob App ID; skipping rewarded ad init.");
+    return { ad: null, unsubscribe: () => {} };
+  }
+  if (Platform.OS === "android" && !androidAppId) {
+    console.warn("Missing Android AdMob App ID; skipping rewarded ad init.");
+    return { ad: null, unsubscribe: () => {} };
+  }
   const adUnitId = getRewardedAdUnitId();
   const ad = RewardedAd.createForAdRequest(adUnitId, {
     requestNonPersonalizedAdsOnly: true,
