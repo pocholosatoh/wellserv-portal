@@ -9,3 +9,16 @@ Examples:
 
 - Vercel: `EXPO_PUBLIC_API_BASE_URL=https://your-site.vercel.app`
 - LAN: `EXPO_PUBLIC_API_BASE_URL=http://192.168.1.42:3000`
+
+## Rewarded ads
+
+Environment variables:
+
+- `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS`
+- `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID`
+
+Cooldown behavior:
+
+- Results can show a rewarded ad overlay at most once per hour.
+- The last successful ad timestamp is stored in SecureStore as `LAST_REWARDED_AD_TS`.
+- Ads are skipped during the cooldown and results load immediately.
