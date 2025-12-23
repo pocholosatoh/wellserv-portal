@@ -3,7 +3,6 @@
     "name": "Wellserv Mobile",
     "slug": "wellserv-mobile",
     "version": "0.1.0",
-    "entryPoint": "./App.tsx",
     "orientation": "portrait",
     "scheme": "wellserv",
     "userInterfaceStyle": "light",
@@ -13,10 +12,15 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "bundleIdentifier": "com.wellserv.mobile",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.wellserv.mobile",
@@ -32,7 +36,10 @@
               "scheme": "wellserv"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -43,21 +50,22 @@
         {
           "icon": "./assets/icon.png"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "f10e5a6f-4ed3-4215-8569-4911a1960016"
       },
       "supabaseUrl": "${EXPO_PUBLIC_SUPABASE_URL}",
       "supabaseAnonKey": "${EXPO_PUBLIC_SUPABASE_ANON_KEY}",
-      "patientAccessCode": "${EXPO_PUBLIC_PATIENT_ACCESS_CODE}"
-    },
-    "devServer": {
-      "port": 8081
+      "patientAccessCode": "${EXPO_PUBLIC_PATIENT_ACCESS_CODE}",
+      "router": {}
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "owner": "pocholosatoh"
   }
 }

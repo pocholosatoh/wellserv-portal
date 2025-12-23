@@ -35,7 +35,6 @@ export function usePatientResults(options: UsePatientResultsOptions = {}) {
             // RN fetch does not always persist the cookie jar; send an explicit session cookie.
             cookie: cookieHeader,
           },
-          credentials: "include",
           body: JSON.stringify({
             patientId,
             limit: options.limit,

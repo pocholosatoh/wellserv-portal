@@ -91,7 +91,6 @@ export function usePatientFollowups() {
             "content-type": "application/json",
             cookie: cookieHeader,
           },
-          credentials: "include",
           body: JSON.stringify({ patientId }),
         });
       } catch (error) {

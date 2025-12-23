@@ -35,17 +35,22 @@ function commonCookieOpts(persist?: boolean) {
   };
 }
 
+function normalizeCookieValue(value?: string | null) {
+  if (!value) return "";
+  return value.split(",")[0]?.trim() || "";
+}
+
 /**
  * Read a lightweight session snapshot from request cookies (server side).
  * Use this in server components / route handlers when you need to branch on role.
  */
 export async function getSession() {
   const c = await cookies();
-  const roleCookie = c.get("role")?.value || "";
-  const staffRoleCookie = c.get("staff_role")?.value || "";
-  const staffLoginCode = c.get("staff_login_code")?.value || "";
-  const staffRolePrefixCookie = c.get("staff_role_prefix")?.value || "";
-  const staffIdCookie = c.get("staff_id")?.value || "";
+  const roleCookie = normalizeCookieValue(c.get("role")?.value);
+  const staffRoleCookie = normalizeCookieValue(c.get("staff_role")?.value);
+  const staffLoginCode = normalizeCookieValue(c.get("staff_login_code")?.value);
+  const staffRolePrefixCookie = normalizeCookieValue(c.get("staff_role_prefix")?.value);
+  const staffIdCookie = normalizeCookieValue(c.get("staff_id")?.value);
 
   const codePrefix =
     (staffLoginCode.includes("-") ? staffLoginCode.split("-")[0] : "").toUpperCase() || "";
@@ -55,7 +60,7 @@ export async function getSession() {
   const hasStaffHints = !!(staffRoleCookie || staffLoginCode || staffIdCookie);
   const role = hasStaffHints ? "staff" : roleCookie;
   const staff_initials =
-    c.get("staff_initials")?.value ||
+    normalizeCookieValue(c.get("staff_initials")?.value) ||
     (staffLoginCode.includes("-") ? staffLoginCode.split("-").slice(1).join("-") : "") ||
     "";
 
@@ -63,13 +68,13 @@ export async function getSession() {
 
   return {
     role,
-    patient_id: c.get("patient_id")?.value || "",
+    patient_id: normalizeCookieValue(c.get("patient_id")?.value),
     staff_id: staffIdCookie || "",
-    staff_no: c.get("staff_no")?.value || "",
+    staff_no: normalizeCookieValue(c.get("staff_no")?.value),
     staff_login_code: staffLoginCode || "",
     staff_role_prefix,
     staff_role,
-    staff_branch: c.get("staff_branch")?.value || "",
+    staff_branch: normalizeCookieValue(c.get("staff_branch")?.value),
     staff_initials,
   };
 }
