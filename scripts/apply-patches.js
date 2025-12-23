@@ -816,6 +816,12 @@ function patchExpoReactNativeFactory() {
       contents = contents.replace(releaseBlock, releaseReplacement);
       updated = true;
     }
+    const initBlockOriginal = `  @objc public override init(delegate: any RCTReactNativeFactoryDelegate) {\n    super.init(delegate: delegate)\n  }\n`;
+    const initBlockReplacement = `  @objc public override init(delegate: any RCTReactNativeFactoryDelegate) {\n    super.init(delegate: delegate)\n  }\n\n  @objc public override init(\n    delegate: any RCTReactNativeFactoryDelegate,\n    releaseLevel: RCTReleaseLevel\n  ) {\n    super.init(delegate: delegate, releaseLevel: releaseLevel)\n  }\n`;
+    if (!contents.includes('releaseLevel: RCTReleaseLevel') && contents.includes(initBlockOriginal)) {
+      contents = contents.replace(initBlockOriginal, initBlockReplacement);
+      updated = true;
+    }
     if (contents.includes(jsRuntimeLine)) {
       contents = contents.replace(jsRuntimeLine, jsRuntimeReplacement);
       updated = true;
