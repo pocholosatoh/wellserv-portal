@@ -833,48 +833,6 @@ function patchExpoReactNativeFactory() {
   }
 }
 
-function patchExpoAdsAdmob() {
-  if (!fs.existsSync(pnpmDir)) return;
-
-  for (const entry of fs.readdirSync(pnpmDir)) {
-    if (!entry.startsWith('expo-ads-admob@')) continue;
-
-    const filePath = path.join(
-      pnpmDir,
-      entry,
-      'node_modules',
-      'expo-ads-admob',
-      'android',
-      'build.gradle'
-    );
-
-    if (!fs.existsSync(filePath)) continue;
-
-    let contents = fs.readFileSync(filePath, 'utf8');
-    let updated = false;
-
-    // Fix AGP 8+ task APIs and ensure compileSdk fallback for EAS builds.
-    const classifierNeedle = "classifier = 'sources'";
-    if (contents.includes(classifierNeedle)) {
-      contents = contents.replace(classifierNeedle, "archiveClassifier.set('sources')");
-      updated = true;
-    }
-
-    const compileSdkLine = 'compileSdkVersion safeExtGet("compileSdkVersion", 31)';
-    if (contents.includes(compileSdkLine)) {
-      contents = contents.replace(
-        compileSdkLine,
-        'compileSdkVersion rootProject.ext.has("compileSdkVersion") ? rootProject.ext.compileSdkVersion : 34'
-      );
-      updated = true;
-    }
-
-    if (updated) {
-      fs.writeFileSync(filePath, contents, 'utf8');
-    }
-  }
-}
-
 function main() {
   if (!fs.existsSync(path.join(rootDir, 'node_modules'))) {
     return;
@@ -887,7 +845,6 @@ function main() {
   patchExpoModulesCore();
   patchExpoReactNativeFactory();
   patchRNScreens();
-  patchExpoAdsAdmob();
 }
 
 main();

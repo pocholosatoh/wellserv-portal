@@ -1,7 +1,5 @@
-const iosAppId =
-  process.env.ADMOB_IOS_APP_ID ?? process.env.EXPO_PUBLIC_ADMOB_APP_ID_IOS ?? "";
-const androidAppId =
-  process.env.ADMOB_ANDROID_APP_ID ?? process.env.EXPO_PUBLIC_ADMOB_APP_ID_ANDROID ?? "";
+const iosAppId = process.env.ADMOB_IOS_APP_ID ?? "";
+const androidAppId = process.env.ADMOB_ANDROID_APP_ID ?? "";
 
 const config = {
   expo: {
@@ -21,18 +19,13 @@ const config = {
     ios: {
       bundleIdentifier: "com.wellserv.mobile",
       supportsTablet: true,
-      config: {
-        googleMobileAdsAppId: iosAppId,
-      },
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        GADApplicationIdentifier: iosAppId,
       },
     },
     android: {
       package: "com.wellserv.mobile",
-      config: {
-        googleMobileAdsAppId: androidAppId,
-      },
       adaptiveIcon: {
         foregroundImage: "./assets/icon.png",
         backgroundColor: "#ffffff",
@@ -50,6 +43,7 @@ const config = {
       ["expo-notifications", { icon: "./assets/icon.png" }],
       "expo-font",
       "expo-secure-store",
+      ["react-native-google-mobile-ads", { iosAppId, androidAppId }],
     ],
     extra: {
       eas: { projectId: "f10e5a6f-4ed3-4215-8569-4911a1960016" },
