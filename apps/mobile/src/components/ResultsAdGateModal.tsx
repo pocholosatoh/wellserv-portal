@@ -4,45 +4,24 @@ import { colors, spacing } from "@wellserv/theme";
 import { loadRewardedAd, showRewardedAd } from "../lib/ads/rewarded";
 import { setLastAdTimestamp } from "../lib/ads/adCooldown";
 
-const AD_CLOSE_DELAY_SECONDS = 30;
-const AD_FAIL_CLOSE_DELAY_SECONDS = 5;
-const AD_START_TIMEOUT_MS = 8000;
-
 type ResultsAdGateModalProps = {
   visible: boolean;
   onClose: () => void;
 };
 
-function formatCountdown(seconds: number) {
-  const minutes = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const remainder = Math.max(seconds % 60, 0)
-    .toString()
-    .padStart(2, "0");
-  return `${minutes}:${remainder}`;
-}
+type AdStatus = "idle" | "loading" | "showing" | "rewarded" | "done";
 
 export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps) {
-  const [remainingSeconds, setRemainingSeconds] = useState(AD_CLOSE_DELAY_SECONDS);
-  const [adFailed, setAdFailed] = useState(false);
+  const [status, setStatus] = useState<AdStatus>("idle");
   const [adLoaded, setAdLoaded] = useState(false);
-  const [adShowing, setAdShowing] = useState(false);
-  const [showDelayedFallback, setShowDelayedFallback] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const adStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const adUnsubscribeRef = useRef<null | (() => void)>(null);
-  const adFailedRef = useRef(false);
-  const adShowingRef = useRef(false);
   const adCompletedRef = useRef(false);
-  const fallbackElapsedRef = useRef(false);
   const cooldownSavedRef = useRef(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateAnim = useRef(new Animated.Value(12)).current;
-
-  const closeEnabled = remainingSeconds <= 0;
 
   const persistCooldown = useCallback(() => {
     if (cooldownSavedRef.current) return;
@@ -51,40 +30,62 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
     void setLastAdTimestamp(Date.now());
   }, []);
 
-  const startCountdown = useCallback((seconds: number) => {
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-    }
-    fallbackElapsedRef.current = false;
-    setRemainingSeconds(seconds);
-    const start = Date.now();
-    countdownIntervalRef.current = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - start) / 1000);
-      const next = Math.max(seconds - elapsed, 0);
-      setRemainingSeconds(next);
-      if (next <= 0) {
-        if (adFailedRef.current) {
-          fallbackElapsedRef.current = true;
-        }
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
-          countdownIntervalRef.current = null;
-        }
-      }
-    }, 500);
-  }, []);
-
-  const setFailedState = useCallback((value: boolean) => {
-    adFailedRef.current = value;
-    setAdFailed(value);
-  }, []);
-
   const handleClose = useCallback(() => {
-    if (!closeEnabled) return;
     console.log("ad_closed");
-    persistCooldown();
     onClose();
-  }, [closeEnabled, onClose, persistCooldown]);
+  }, [onClose]);
+
+  const handleAdFailure = useCallback(
+    (nextMessage: string) => {
+      setMessage(nextMessage);
+      setStatus("done");
+    },
+    [setMessage]
+  );
+
+  const startAdFlow = useCallback(() => {
+    if (!visible) return;
+    setStatus("loading");
+    setAdLoaded(false);
+    setMessage(null);
+    adCompletedRef.current = false;
+
+    const { ad, unsubscribe } = loadRewardedAd({
+      onLoaded: () => {
+        setAdLoaded(true);
+        console.log("ad_loaded");
+        if (!ad) return;
+        void showRewardedAd(ad).catch(() => {
+          console.log("ad_failed");
+          handleAdFailure("Ad unavailable right now. Please continue.");
+        });
+      },
+      onFailedToLoad: () => {
+        console.log("ad_failed");
+        handleAdFailure("Ad unavailable right now. Please continue.");
+      },
+      onOpened: () => {
+        setStatus("showing");
+      },
+      onClosed: () => {
+        if (adCompletedRef.current) return;
+        handleAdFailure("Thanks for trying! You can continue without the ad or try again.");
+      },
+      onEarnedReward: () => {
+        adCompletedRef.current = true;
+        setStatus("rewarded");
+        persistCooldown();
+        handleClose();
+      },
+    });
+
+    if (!ad) {
+      console.log("ad_failed");
+      handleAdFailure("Ad unavailable right now. Please continue.");
+    } else {
+      adUnsubscribeRef.current = unsubscribe;
+    }
+  }, [handleAdFailure, handleClose, persistCooldown, visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -104,102 +105,28 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
       }),
     ]).start();
 
-    startCountdown(AD_CLOSE_DELAY_SECONDS);
-
-    adStartTimeoutRef.current = setTimeout(() => {
-      if (!adShowingRef.current) {
-        setShowDelayedFallback(true);
-      }
-    }, AD_START_TIMEOUT_MS);
-
-    const { ad, unsubscribe } = loadRewardedAd({
-      onLoaded: () => {
-        setAdLoaded(true);
-        console.log("ad_loaded");
-        if (!ad) return;
-        void showRewardedAd(ad).catch(() => {
-          console.log("ad_failed");
-          setFailedState(true);
-          setShowDelayedFallback(true);
-          if (adStartTimeoutRef.current) {
-            clearTimeout(adStartTimeoutRef.current);
-            adStartTimeoutRef.current = null;
-          }
-          startCountdown(AD_FAIL_CLOSE_DELAY_SECONDS);
-        });
-      },
-      onFailedToLoad: () => {
-        console.log("ad_failed");
-        setFailedState(true);
-        setShowDelayedFallback(true);
-        if (adStartTimeoutRef.current) {
-          clearTimeout(adStartTimeoutRef.current);
-          adStartTimeoutRef.current = null;
-        }
-        startCountdown(AD_FAIL_CLOSE_DELAY_SECONDS);
-      },
-      onOpened: () => {
-        adShowingRef.current = true;
-        setAdShowing(true);
-        if (adStartTimeoutRef.current) {
-          clearTimeout(adStartTimeoutRef.current);
-          adStartTimeoutRef.current = null;
-        }
-      },
-      onClosed: () => {
-        adShowingRef.current = false;
-        setAdShowing(false);
-      },
-      onEarnedReward: () => {
-        adCompletedRef.current = true;
-        persistCooldown();
-      },
-    });
-
-    if (!ad) {
-      console.log("ad_failed");
-      setFailedState(true);
-      setShowDelayedFallback(true);
-      if (adStartTimeoutRef.current) {
-        clearTimeout(adStartTimeoutRef.current);
-        adStartTimeoutRef.current = null;
-      }
-      startCountdown(AD_FAIL_CLOSE_DELAY_SECONDS);
-    } else {
-      adUnsubscribeRef.current = unsubscribe;
-    }
+    startAdFlow();
 
     return () => {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = null;
-      }
-      if (adStartTimeoutRef.current) {
-        clearTimeout(adStartTimeoutRef.current);
-        adStartTimeoutRef.current = null;
-      }
       if (adUnsubscribeRef.current) {
         adUnsubscribeRef.current();
         adUnsubscribeRef.current = null;
       }
-      if (adCompletedRef.current || fallbackElapsedRef.current) {
+      if (adCompletedRef.current) {
         persistCooldown();
       }
     };
-  }, [fadeAnim, persistCooldown, startCountdown, translateAnim, visible, setFailedState]);
-
-  const countdownLabel = useMemo(
-    () => `You can close in ${formatCountdown(remainingSeconds)}`,
-    [remainingSeconds]
-  );
+  }, [fadeAnim, persistCooldown, startAdFlow, translateAnim, visible]);
 
   const adStatusCopy = useMemo(() => {
-    if (adFailed) return "Ad unavailable right now. Please continue.";
-    if (showDelayedFallback && !adShowing) return "Ad is taking longer than expected.";
-    if (adShowing) return "Ad is playing. Thank you for your support.";
-    if (adLoaded) return "Ad is starting...";
-    return "Loading ad...";
-  }, [adFailed, adLoaded, adShowing, showDelayedFallback]);
+    if (status === "showing") return "Ad playing…";
+    if (status === "loading") return "Loading ad…";
+    if (adLoaded) return "Ad is starting…";
+    return "Preparing ad…";
+  }, [adLoaded, status]);
+
+  const showSpinner = status === "loading";
+  const showFallbackActions = status === "done";
 
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={handleClose}>
@@ -250,33 +177,67 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
               marginBottom: spacing.md,
             }}
           >
-            {!adFailed && !adShowing && <ActivityIndicator color={colors.primary} />}
+            {showSpinner && <ActivityIndicator color={colors.primary} />}
             <Text style={{ marginTop: spacing.sm, textAlign: "center", color: colors.gray[600] }}>
               {adStatusCopy}
             </Text>
           </View>
 
-          <Text style={{ color: colors.gray[500], marginBottom: spacing.sm }}>{countdownLabel}</Text>
+          {message ? (
+            <Text style={{ color: colors.gray[600], marginBottom: spacing.md }}>{message}</Text>
+          ) : null}
 
-          <TouchableOpacity
-            onPress={handleClose}
-            disabled={!closeEnabled}
-            style={{
-              backgroundColor: closeEnabled ? colors.primary : colors.gray[200],
-              paddingVertical: 12,
-              borderRadius: 12,
-            }}
-          >
-            <Text
+          {showFallbackActions ? (
+            <>
+              <TouchableOpacity
+                onPress={handleClose}
+                style={{
+                  backgroundColor: colors.primary,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  marginBottom: spacing.sm,
+                }}
+              >
+                <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+                  Continue without ad
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={startAdFlow}
+                style={{
+                  backgroundColor: colors.gray[100],
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                }}
+              >
+                <Text style={{ color: colors.gray[700], textAlign: "center", fontWeight: "600" }}>
+                  Try again
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              onPress={handleClose}
+              disabled={status === "loading" || status === "showing"}
               style={{
-                color: closeEnabled ? "#fff" : colors.gray[500],
-                textAlign: "center",
-                fontWeight: "600",
+                backgroundColor:
+                  status === "loading" || status === "showing" ? colors.gray[200] : colors.primary,
+                paddingVertical: 12,
+                borderRadius: 12,
               }}
             >
-              Close
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={{
+                  color:
+                    status === "loading" || status === "showing" ? colors.gray[500] : "#fff",
+                  textAlign: "center",
+                  fontWeight: "600",
+                }}
+              >
+                Close
+              </Text>
+            </TouchableOpacity>
+          )}
         </Animated.View>
       </View>
     </Modal>

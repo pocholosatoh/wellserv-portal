@@ -4,12 +4,11 @@ import {
   RewardedAd,
   RewardedAdEventType,
   TestIds,
-  type AdError,
 } from "react-native-google-mobile-ads";
 
 type RewardedAdCallbacks = {
   onLoaded?: () => void;
-  onFailedToLoad?: (error: AdError) => void;
+  onFailedToLoad?: (error: Error) => void;
   onOpened?: () => void;
   onClosed?: () => void;
   onEarnedReward?: () => void;
@@ -54,8 +53,8 @@ export function loadRewardedAd(callbacks: RewardedAdCallbacks) {
     unsubscribeLoaded = ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
       callbacks.onLoaded?.();
     });
-    unsubscribeFailed = ad.addAdEventListener(AdEventType.ERROR, (error: AdError) => {
-      callbacks.onFailedToLoad?.(error as AdError);
+    unsubscribeFailed = ad.addAdEventListener(AdEventType.ERROR, (error: Error) => {
+      callbacks.onFailedToLoad?.(error);
     });
     unsubscribeOpened = ad.addAdEventListener(AdEventType.OPENED, () => {
       callbacks.onOpened?.();
@@ -68,7 +67,7 @@ export function loadRewardedAd(callbacks: RewardedAdCallbacks) {
     });
   } catch (error) {
     console.error("Failed to register rewarded ad event listeners.", error);
-    callbacks.onFailedToLoad?.(error as AdError);
+    callbacks.onFailedToLoad?.(error as Error);
   }
 
   ad.load();
