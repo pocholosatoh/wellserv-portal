@@ -1,16 +1,9 @@
 import { Platform } from "react-native";
-import Constants from "expo-constants";
-import {
-  AdEventType,
-  RewardedAd,
-  RewardedAdEventType,
-  TestIds,
-  type AdError,
-} from "react-native-google-mobile-ads";
+import { AdMobRewarded } from "expo-ads-admob";
 
 type RewardedAdCallbacks = {
   onLoaded?: () => void;
-  onFailedToLoad?: (error: AdError) => void;
+  onFailedToLoad?: (error: Error | unknown) => void;
   onOpened?: () => void;
   onClosed?: () => void;
   onEarnedReward?: () => void;
@@ -19,65 +12,74 @@ type RewardedAdCallbacks = {
 const iosUnitId = process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS;
 const androidUnitId = process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID;
 
+let rewardedAvailable = false;
+
+function setRewardedAvailable(value: boolean) {
+  rewardedAvailable = value;
+}
+
+export function isRewardedAdAvailable() {
+  return rewardedAvailable;
+}
+
 function getRewardedAdUnitId() {
   const envId = Platform.OS === "ios" ? iosUnitId : androidUnitId;
   if (envId) return envId;
-  if (__DEV__) return TestIds.REWARDED;
-  console.warn("Missing rewarded ad unit id; falling back to test id.");
-  return TestIds.REWARDED;
+  console.warn("Missing rewarded ad unit id; skipping rewarded ad init.");
+  return null;
 }
 
 export function loadRewardedAd(callbacks: RewardedAdCallbacks) {
-  const adsConfig = Constants.expoConfig?.["react-native-google-mobile-ads"] as
-    | { ios_app_id?: string; android_app_id?: string }
-    | undefined;
-  const iosAppId = adsConfig?.ios_app_id;
-  const androidAppId = adsConfig?.android_app_id;
-
-  if (Platform.OS === "ios" && !iosAppId) {
-    console.warn("Missing iOS AdMob App ID; skipping rewarded ad init.");
-    return { ad: null, unsubscribe: () => {} };
-  }
-  if (Platform.OS === "android" && !androidAppId) {
-    console.warn("Missing Android AdMob App ID; skipping rewarded ad init.");
-    return { ad: null, unsubscribe: () => {} };
-  }
   const adUnitId = getRewardedAdUnitId();
-  const ad = RewardedAd.createForAdRequest(adUnitId, {
-    requestNonPersonalizedAdsOnly: true,
-  });
+  if (!adUnitId) {
+    setRewardedAvailable(false);
+    return { isAvailable: false, unsubscribe: () => {} };
+  }
 
-  const unsubscribeLoaded = ad.addAdEventListener(AdEventType.LOADED, () => {
+  AdMobRewarded.setAdUnitID(adUnitId);
+  setRewardedAvailable(false);
+
+  const subscriptionLoaded = AdMobRewarded.addEventListener("rewardedVideoDidLoad", () => {
+    setRewardedAvailable(true);
     callbacks.onLoaded?.();
   });
-  const unsubscribeFailed = ad.addAdEventListener(AdEventType.ERROR, (error: AdError) => {
-    callbacks.onFailedToLoad?.(error as AdError);
-  });
-  const unsubscribeOpened = ad.addAdEventListener(AdEventType.OPENED, () => {
+  const subscriptionFailed = AdMobRewarded.addEventListener(
+    "rewardedVideoDidFailToLoad",
+    (error) => {
+      setRewardedAvailable(false);
+      callbacks.onFailedToLoad?.(error);
+    }
+  );
+  const subscriptionOpened = AdMobRewarded.addEventListener("rewardedVideoDidOpen", () => {
+    setRewardedAvailable(false);
     callbacks.onOpened?.();
   });
-  const unsubscribeClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
+  const subscriptionClosed = AdMobRewarded.addEventListener("rewardedVideoDidClose", () => {
+    setRewardedAvailable(false);
     callbacks.onClosed?.();
   });
-  const unsubscribeRewarded = ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
+  const subscriptionRewarded = AdMobRewarded.addEventListener("rewardedVideoDidRewardUser", () => {
     callbacks.onEarnedReward?.();
   });
 
-  ad.load();
+  void AdMobRewarded.requestAdAsync().catch((error) => {
+    setRewardedAvailable(false);
+    callbacks.onFailedToLoad?.(error);
+  });
 
   return {
-    ad,
+    isAvailable: true,
     unsubscribe: () => {
-      unsubscribeLoaded();
-      unsubscribeFailed();
-      unsubscribeOpened();
-      unsubscribeClosed();
-      unsubscribeRewarded();
+      subscriptionLoaded.remove();
+      subscriptionFailed.remove();
+      subscriptionOpened.remove();
+      subscriptionClosed.remove();
+      subscriptionRewarded.remove();
     },
   };
 }
 
-export async function showRewardedAd(ad: RewardedAd) {
-  if (!ad.loaded) return;
-  await ad.show();
+export async function showRewardedAd() {
+  if (!rewardedAvailable) return;
+  await AdMobRewarded.showAdAsync();
 }

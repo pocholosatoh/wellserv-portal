@@ -112,12 +112,11 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
       }
     }, AD_START_TIMEOUT_MS);
 
-    const { ad, unsubscribe } = loadRewardedAd({
+    const { isAvailable, unsubscribe } = loadRewardedAd({
       onLoaded: () => {
         setAdLoaded(true);
         console.log("ad_loaded");
-        if (!ad) return;
-        void showRewardedAd(ad).catch(() => {
+        void showRewardedAd().catch(() => {
           console.log("ad_failed");
           setFailedState(true);
           setShowDelayedFallback(true);
@@ -156,7 +155,7 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
       },
     });
 
-    if (!ad) {
+    if (!isAvailable) {
       console.log("ad_failed");
       setFailedState(true);
       setShowDelayedFallback(true);
