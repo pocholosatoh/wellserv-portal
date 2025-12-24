@@ -44,21 +44,32 @@ export function loadRewardedAd(callbacks: RewardedAdCallbacks) {
     requestNonPersonalizedAdsOnly: true,
   });
 
-  const unsubscribeLoaded = ad.addAdEventListener(AdEventType.LOADED, () => {
-    callbacks.onLoaded?.();
-  });
-  const unsubscribeFailed = ad.addAdEventListener(AdEventType.ERROR, (error: AdError) => {
+  let unsubscribeLoaded = () => {};
+  let unsubscribeFailed = () => {};
+  let unsubscribeOpened = () => {};
+  let unsubscribeClosed = () => {};
+  let unsubscribeRewarded = () => {};
+
+  try {
+    unsubscribeLoaded = ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+      callbacks.onLoaded?.();
+    });
+    unsubscribeFailed = ad.addAdEventListener(AdEventType.ERROR, (error: AdError) => {
+      callbacks.onFailedToLoad?.(error as AdError);
+    });
+    unsubscribeOpened = ad.addAdEventListener(AdEventType.OPENED, () => {
+      callbacks.onOpened?.();
+    });
+    unsubscribeClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
+      callbacks.onClosed?.();
+    });
+    unsubscribeRewarded = ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
+      callbacks.onEarnedReward?.();
+    });
+  } catch (error) {
+    console.error("Failed to register rewarded ad event listeners.", error);
     callbacks.onFailedToLoad?.(error as AdError);
-  });
-  const unsubscribeOpened = ad.addAdEventListener(AdEventType.OPENED, () => {
-    callbacks.onOpened?.();
-  });
-  const unsubscribeClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
-    callbacks.onClosed?.();
-  });
-  const unsubscribeRewarded = ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
-    callbacks.onEarnedReward?.();
-  });
+  }
 
   ad.load();
 
