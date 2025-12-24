@@ -3,7 +3,7 @@ const ANDROID_TEST_APP_ID = "ca-app-pub-3940256099942544~3347511713";
 
 function resolveAppId(primaryValue, fallbackValue, testValue) {
   const candidate = primaryValue || fallbackValue || testValue;
-  if (!candidate || candidate.includes("/")) return testValue;
+  if (!candidate || candidate.includes("/") || !candidate.includes("~")) return testValue;
   return candidate;
 }
 
@@ -38,7 +38,6 @@ const config = {
       supportsTablet: true,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
-        GADApplicationIdentifier: iosAppId,
       },
     },
     android: {
@@ -60,6 +59,14 @@ const config = {
       ["expo-notifications", { icon: "./assets/icon.png" }],
       "expo-font",
       "expo-secure-store",
+      [
+        "react-native-google-mobile-ads",
+        {
+          androidAppId: androidAppId,
+          iosAppId: iosAppId,
+          delayAppMeasurementInit: true,
+        },
+      ],
     ],
     extra: {
       eas: { projectId: "f10e5a6f-4ed3-4215-8569-4911a1960016" },
