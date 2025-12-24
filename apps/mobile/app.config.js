@@ -43,7 +43,6 @@ const config = {
       ["expo-notifications", { icon: "./assets/icon.png" }],
       "expo-font",
       "expo-secure-store",
-      ["react-native-google-mobile-ads", { iosAppId, androidAppId }],
     ],
     extra: {
       eas: { projectId: "f10e5a6f-4ed3-4215-8569-4911a1960016" },
