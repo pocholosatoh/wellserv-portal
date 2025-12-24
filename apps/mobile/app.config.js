@@ -1,5 +1,22 @@
-const iosAppId = process.env.ADMOB_IOS_APP_ID ?? "";
-const androidAppId = process.env.ADMOB_ANDROID_APP_ID ?? "";
+const IOS_TEST_APP_ID = "ca-app-pub-3940256099942544~1458002511";
+const ANDROID_TEST_APP_ID = "ca-app-pub-3940256099942544~3347511713";
+
+function resolveAppId(primaryValue, fallbackValue, testValue) {
+  const candidate = primaryValue || fallbackValue || testValue;
+  if (!candidate || candidate.includes("/")) return testValue;
+  return candidate;
+}
+
+const iosAppId = resolveAppId(
+  process.env.ADMOB_IOS_APP_ID,
+  process.env.EXPO_PUBLIC_ADMOB_APP_ID_IOS,
+  IOS_TEST_APP_ID
+);
+const androidAppId = resolveAppId(
+  process.env.ADMOB_ANDROID_APP_ID,
+  process.env.EXPO_PUBLIC_ADMOB_APP_ID_ANDROID,
+  ANDROID_TEST_APP_ID
+);
 
 const config = {
   expo: {
@@ -26,6 +43,9 @@ const config = {
     },
     android: {
       package: "com.wellserv.mobile",
+      config: {
+        googleMobileAdsAppId: androidAppId,
+      },
       adaptiveIcon: {
         foregroundImage: "./assets/icon.png",
         backgroundColor: "#ffffff",
