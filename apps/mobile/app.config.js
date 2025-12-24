@@ -43,9 +43,6 @@ const config = {
     },
     android: {
       package: "com.wellserv.mobile",
-      config: {
-        googleMobileAdsAppId: androidAppId,
-      },
       adaptiveIcon: {
         foregroundImage: "./assets/icon.png",
         backgroundColor: "#ffffff",
