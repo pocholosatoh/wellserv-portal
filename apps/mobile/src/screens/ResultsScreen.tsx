@@ -334,7 +334,12 @@ export default function ResultsScreen() {
           <View style={{ flex: 1 }}>
             {content}
             {adGateChecked && adGateVisible && (
-              <ResultsAdGateModal visible onClose={() => setAdGateVisible(false)} />
+              <ResultsAdGateModal
+                visible={true}
+                onClose={() => {
+                  setTimeout(() => setAdGateVisible(false), 0);
+                }}
+              />
             )}
           </View>
         );

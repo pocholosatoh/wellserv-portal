@@ -9,16 +9,19 @@ type ResultsAdGateModalProps = {
   onClose: () => void;
 };
 
-type AdStatus = "idle" | "loading" | "showing" | "rewarded" | "done";
+type AdStatus = "idle" | "loading" | "showing" | "rewarded" | "done" | "failed";
 
 export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps) {
   const [status, setStatus] = useState<AdStatus>("idle");
   const [adLoaded, setAdLoaded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const startedRef = useRef(false);
   const adUnsubscribeRef = useRef<null | (() => void)>(null);
   const adCompletedRef = useRef(false);
   const cooldownSavedRef = useRef(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusRef = useRef<AdStatus>("idle");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateAnim = useRef(new Animated.Value(12)).current;
@@ -32,28 +35,58 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
 
   const handleClose = useCallback(() => {
     console.log("ad_closed");
+    if (adUnsubscribeRef.current) {
+      adUnsubscribeRef.current();
+      adUnsubscribeRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    startedRef.current = false;
     onClose();
   }, [onClose]);
 
+  const clearTimeoutRef = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
   const handleAdFailure = useCallback(
     (nextMessage: string) => {
+      clearTimeoutRef();
       setMessage(nextMessage);
-      setStatus("done");
+      setStatus("failed");
     },
-    [setMessage]
+    [clearTimeoutRef]
   );
 
   const startAdFlow = useCallback(() => {
     if (!visible) return;
+    if (adUnsubscribeRef.current) {
+      adUnsubscribeRef.current();
+      adUnsubscribeRef.current = null;
+    }
+    clearTimeoutRef();
     setStatus("loading");
     setAdLoaded(false);
     setMessage(null);
     adCompletedRef.current = false;
+    cooldownSavedRef.current = false;
+
+    timeoutRef.current = setTimeout(() => {
+      if (statusRef.current === "loading") {
+        handleAdFailure("Ad unavailable right now. Please continue.");
+      }
+    }, 8000);
 
     const { ad, unsubscribe } = loadRewardedAd({
       onLoaded: () => {
         setAdLoaded(true);
         console.log("ad_loaded");
+        clearTimeoutRef();
         if (!ad) return;
         void showRewardedAd(ad).catch(() => {
           console.log("ad_failed");
@@ -66,16 +99,33 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
       },
       onOpened: () => {
         setStatus("showing");
+        clearTimeoutRef();
+        timeoutRef.current = setTimeout(() => {
+          if (statusRef.current === "showing") {
+            handleAdFailure(
+              "Ad finished but close event was not received. Please continue."
+            );
+          }
+        }, 20000);
       },
       onClosed: () => {
-        if (adCompletedRef.current) return;
-        handleAdFailure("Thanks for trying! You can continue without the ad or try again.");
+        clearTimeoutRef();
+        if (adCompletedRef.current) {
+          setStatus("done");
+          setMessage("Thanks for watching! You can now view your results.");
+          persistCooldown();
+        } else {
+          setStatus("failed");
+          setMessage("Thanks for trying! You can continue without the ad or try again.");
+        }
+        if (adUnsubscribeRef.current) {
+          adUnsubscribeRef.current();
+          adUnsubscribeRef.current = null;
+        }
       },
       onEarnedReward: () => {
         adCompletedRef.current = true;
         setStatus("rewarded");
-        persistCooldown();
-        handleClose();
       },
     });
 
@@ -85,7 +135,7 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
     } else {
       adUnsubscribeRef.current = unsubscribe;
     }
-  }, [handleAdFailure, handleClose, persistCooldown, visible]);
+  }, [clearTimeoutRef, handleAdFailure, persistCooldown, visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -105,20 +155,43 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
       }),
     ]).start();
 
-    startAdFlow();
+    if (!startedRef.current) {
+      startedRef.current = true;
+      startAdFlow();
+    }
 
     return () => {
       if (adUnsubscribeRef.current) {
         adUnsubscribeRef.current();
         adUnsubscribeRef.current = null;
       }
-      if (adCompletedRef.current) {
-        persistCooldown();
-      }
+      clearTimeoutRef();
     };
-  }, [fadeAnim, persistCooldown, startAdFlow, translateAnim, visible]);
+  }, [clearTimeoutRef, fadeAnim, persistCooldown, startAdFlow, translateAnim, visible]);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    if (visible) return;
+    startedRef.current = false;
+    adCompletedRef.current = false;
+    cooldownSavedRef.current = false;
+    if (adUnsubscribeRef.current) {
+      adUnsubscribeRef.current();
+      adUnsubscribeRef.current = null;
+    }
+    clearTimeoutRef();
+    setStatus("idle");
+    setAdLoaded(false);
+    setMessage(null);
+  }, [clearTimeoutRef, visible]);
 
   const adStatusCopy = useMemo(() => {
+    if (status === "done") return "Ad complete.";
+    if (status === "failed") return "Ad unavailable.";
+    if (status === "rewarded") return "Reward earned.";
     if (status === "showing") return "Ad playing…";
     if (status === "loading") return "Loading ad…";
     if (adLoaded) return "Ad is starting…";
@@ -126,7 +199,8 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
   }, [adLoaded, status]);
 
   const showSpinner = status === "loading";
-  const showFallbackActions = status === "done";
+  const showFallbackActions = status === "failed";
+  const showDoneAction = status === "done";
 
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={handleClose}>
@@ -215,6 +289,19 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
                 </Text>
               </TouchableOpacity>
             </>
+          ) : showDoneAction ? (
+            <TouchableOpacity
+              onPress={handleClose}
+              style={{
+                backgroundColor: colors.primary,
+                paddingVertical: 12,
+                borderRadius: 12,
+              }}
+            >
+              <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+                View Results
+              </Text>
+            </TouchableOpacity>
           ) : (
             <TouchableOpacity
               onPress={handleClose}

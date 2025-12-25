@@ -1,6 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Stack, Link } from "expo-router";
-import { View, Text, TouchableOpacity, ScrollView, Image, Linking } from "react-native";
+import {
+  Animated,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Linking,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FontAwesome, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSession } from "../../src/providers/SessionProvider";
@@ -21,6 +29,23 @@ export default function HomeScreen() {
   const followupQuery = usePatientFollowups();
   const hubsQuery = useHubs();
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [hasTimedOut, setHasTimedOut] = useState(false);
+  const isLoggedIn = !!patientId;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const queryStates = [
+    { isLoading: profileQuery.isLoading, error: profileQuery.error },
+    { isLoading: patientResults.isLoading, error: patientResults.error },
+    { isLoading: rxQuery.isLoading, error: rxQuery.error },
+    { isLoading: followupQuery.isLoading, error: followupQuery.error },
+    { isLoading: hubsQuery.isLoading, error: hubsQuery.error },
+  ];
+  const totalQueries = queryStates.length;
+  const doneCount = queryStates.reduce(
+    (acc, query) => acc + (!query.isLoading || query.error ? 1 : 0),
+    0,
+  );
+  const progress = totalQueries ? doneCount / totalQueries : 1;
+  const allDone = doneCount === totalQueries;
   const greetingName = (() => {
     const toTitle = (s: string) => {
       if (!s) return s;
@@ -42,6 +67,26 @@ export default function HomeScreen() {
   useEffect(() => {
     console.log("HOME session:", session);
   }, [session]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setHasTimedOut(false);
+      return;
+    }
+    if (allDone) return;
+    const timer = setTimeout(() => {
+      setHasTimedOut(true);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [allDone, isLoggedIn]);
+
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: progress,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  }, [progress, progressAnim]);
 
   const formatLongDate = (iso?: string | null) => {
     if (!iso) return "—";
@@ -86,6 +131,62 @@ export default function HomeScreen() {
   const followupBranchLabel =
     followup?.returnBranchLabel?.trim() || followup?.returnBranch?.trim() || "";
   const hubs = hubsQuery.data ?? [];
+  const showDashboard = !isLoggedIn || allDone || hasTimedOut;
+
+  if (isLoggedIn && !showDashboard) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }} edges={["top", "left", "right"]}>
+        <Stack.Screen
+          options={{
+            title: "Home",
+            headerRight: () => (
+              // eslint-disable-next-line jsx-a11y/alt-text -- React Native Image uses accessibilityLabel instead of alt
+              <Image
+                source={icon}
+                style={{ width: 28, height: 28, marginRight: spacing.sm }}
+                resizeMode="contain"
+                accessibilityLabel="Wellserv logo"
+              />
+            ),
+          }}
+        />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32 }}>
+          {/* eslint-disable-next-line jsx-a11y/alt-text -- React Native Image uses accessibilityLabel instead of alt */}
+          <Image
+            source={icon}
+            style={{ width: 96, height: 96, marginBottom: spacing.lg }}
+            resizeMode="contain"
+            accessibilityLabel="Wellserv logo"
+          />
+          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: spacing.md }}>
+            Loading your dashboard...
+          </Text>
+          <View
+            style={{
+              width: "80%",
+              maxWidth: 320,
+              height: 10,
+              borderRadius: 999,
+              backgroundColor: colors.gray[200],
+              overflow: "hidden",
+            }}
+          >
+            <Animated.View
+              style={{
+                height: "100%",
+                width: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0%", "100%"],
+                }),
+                backgroundColor: colors.primary,
+                borderRadius: 999,
+              }}
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }} edges={["top", "left", "right"]}>
