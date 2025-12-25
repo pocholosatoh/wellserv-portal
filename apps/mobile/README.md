@@ -4,6 +4,7 @@
 
 The mobile app reads `EXPO_PUBLIC_API_BASE_URL` at runtime. Set it for the dev-client
 via `apps/mobile/.env` and restart the Metro bundler or dev-client after changes.
+Production env values are provided via EAS Secrets.
 
 Examples:
 
@@ -16,6 +17,7 @@ Environment variables:
 
 - `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS`
 - `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID`
+  Production AdMob IDs are provided via EAS Secrets.
 
 Cooldown behavior:
 

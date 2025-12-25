@@ -1,5 +1,9 @@
 const IOS_TEST_APP_ID = "ca-app-pub-3940256099942544~1458002511";
 const ANDROID_TEST_APP_ID = "ca-app-pub-3940256099942544~3347511713";
+const isProductionBuild =
+  process.env.EAS_BUILD_PROFILE === "production" ||
+  process.env.APP_ENV === "production" ||
+  process.env.NODE_ENV === "production";
 
 function resolveAppId(primaryValue, fallbackValue, testValue) {
   const candidate = primaryValue || fallbackValue || testValue;
@@ -7,15 +11,47 @@ function resolveAppId(primaryValue, fallbackValue, testValue) {
   return candidate;
 }
 
-const iosAppId = resolveAppId(
-  process.env.ADMOB_IOS_APP_ID,
-  process.env.EXPO_PUBLIC_ADMOB_APP_ID_IOS,
+function requireProdValue(name, value) {
+  if (isProductionBuild && !value) {
+    throw new Error(`Missing ${name} for production build`);
+  }
+  return value;
+}
+
+function requireNonTestProdValue(name, value, testValue) {
+  if (isProductionBuild && value === testValue) {
+    throw new Error(`Test ${name} is not allowed in production builds`);
+  }
+  return value;
+}
+
+const iosAppId = requireNonTestProdValue(
+  "ADMOB_IOS_APP_ID",
+  resolveAppId(
+    process.env.ADMOB_IOS_APP_ID,
+    process.env.EXPO_PUBLIC_ADMOB_APP_ID_IOS,
+    IOS_TEST_APP_ID
+  ),
   IOS_TEST_APP_ID
 );
-const androidAppId = resolveAppId(
-  process.env.ADMOB_ANDROID_APP_ID,
-  process.env.EXPO_PUBLIC_ADMOB_APP_ID_ANDROID,
+const androidAppId = requireNonTestProdValue(
+  "ADMOB_ANDROID_APP_ID",
+  resolveAppId(
+    process.env.ADMOB_ANDROID_APP_ID,
+    process.env.EXPO_PUBLIC_ADMOB_APP_ID_ANDROID,
+    ANDROID_TEST_APP_ID
+  ),
   ANDROID_TEST_APP_ID
+);
+
+requireProdValue("EXPO_PUBLIC_API_BASE_URL", process.env.EXPO_PUBLIC_API_BASE_URL);
+requireProdValue(
+  "EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS",
+  process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS
+);
+requireProdValue(
+  "EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID",
+  process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID
 );
 
 const config = {
@@ -38,6 +74,8 @@ const config = {
       supportsTablet: true,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        NSLocationWhenInUseUsageDescription:
+          "We use your location to autofill delivery coordinates.",
       },
     },
     android: {
@@ -70,9 +108,11 @@ const config = {
     ],
     extra: {
       eas: { projectId: "f10e5a6f-4ed3-4215-8569-4911a1960016" },
-      supabaseUrl: "${EXPO_PUBLIC_SUPABASE_URL}",
-      supabaseAnonKey: "${EXPO_PUBLIC_SUPABASE_ANON_KEY}",
-      patientAccessCode: "${EXPO_PUBLIC_PATIENT_ACCESS_CODE}",
+      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      patientAccessCode: process.env.EXPO_PUBLIC_PATIENT_ACCESS_CODE,
+      webApiBaseUrl: process.env.EXPO_PUBLIC_WEB_API_BASE_URL,
+      webAppUrl: process.env.EXPO_PUBLIC_WEB_APP_URL,
       router: {},
     },
     experiments: { typedRoutes: true },

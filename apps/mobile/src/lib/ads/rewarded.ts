@@ -18,6 +18,7 @@ const iosUnitId = process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS;
 const androidUnitId = process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID;
 const iosAppId = process.env.EXPO_PUBLIC_ADMOB_APP_ID_IOS;
 const androidAppId = process.env.EXPO_PUBLIC_ADMOB_APP_ID_ANDROID;
+const TEST_ADMOB_PUB_ID = "3940256099942544";
 
 function hasAppId() {
   if (Platform.OS === "ios") return Boolean(iosAppId);
@@ -26,10 +27,20 @@ function hasAppId() {
 
 function getRewardedAdUnitId() {
   const envId = Platform.OS === "ios" ? iosUnitId : androidUnitId;
-  if (envId) return envId;
-  if (__DEV__) return TestIds.REWARDED;
-  console.warn("Missing rewarded ad unit id; falling back to test id.");
-  return TestIds.REWARDED;
+  if (__DEV__) {
+    return envId || TestIds.REWARDED;
+  }
+  if (!envId) {
+    throw new Error(
+      "Production build cannot run rewarded ads without real AdMob IDs."
+    );
+  }
+  if (envId.includes(TEST_ADMOB_PUB_ID)) {
+    throw new Error(
+      "Production build cannot run rewarded ads without real AdMob IDs."
+    );
+  }
+  return envId;
 }
 
 export function loadRewardedAd(callbacks: RewardedAdCallbacks) {
