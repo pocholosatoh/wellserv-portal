@@ -14,8 +14,8 @@ type RewardedAdCallbacks = {
   onEarnedReward?: () => void;
 };
 
-const iosUnitId = process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS;
-const androidUnitId = process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID;
+const iosUnitId = process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS;
+const androidUnitId = process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID;
 const iosAppId = process.env.EXPO_PUBLIC_ADMOB_APP_ID_IOS;
 const androidAppId = process.env.EXPO_PUBLIC_ADMOB_APP_ID_ANDROID;
 const TEST_ADMOB_PUB_ID = "3940256099942544";

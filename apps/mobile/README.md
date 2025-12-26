@@ -15,8 +15,8 @@ Examples:
 
 Environment variables:
 
-- `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS`
-- `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID`
+- `EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS`
+- `EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID`
   Production AdMob IDs are provided via EAS Secrets.
 
 Cooldown behavior:
