@@ -1,8 +1,9 @@
 import { Redirect, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSession } from "../src/providers/SessionProvider";
-import { colors, radii, spacing } from "@wellserv/theme";
+import { colors, fontSizes, radii, spacing } from "@wellserv/theme";
+import { AuthCard } from "../src/components/AuthCard";
 
 export default function LoginScreen() {
   const { session, signIn, isLoading } = useSession();
@@ -44,71 +45,103 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
-      <Stack.Screen options={{ title: "Patient Login" }} />
-      <View style={{ flex: 1, paddingHorizontal: spacing.lg, justifyContent: "center" }}>
-        <Text style={{ fontSize: 24, fontWeight: "600", marginBottom: spacing.md, color: colors.primary }}>
-          Sign in to Wellserv
-        </Text>
-        <TextInput
-          placeholder="Patient ID"
-          value={patientId}
-          onChangeText={setPatientId}
-          autoCapitalize="characters"
-          style={{
-            borderWidth: 1,
-            borderColor: colors.gray[300],
-            borderRadius: radii.md,
-            padding: 12,
-            marginBottom: spacing.sm,
-          }}
-        />
-        <TextInput
-          placeholder="4-digit PIN"
-          value={pin}
-          onChangeText={setPin}
-          secureTextEntry
-          keyboardType="number-pad"
-          maxLength={4}
-          style={{
-            borderWidth: 1,
-            borderColor: colors.gray[300],
-            borderRadius: radii.md,
-            padding: 12,
-            marginBottom: spacing.md,
-          }}
-        />
-        {error && (
-          <Text style={{ color: "red", marginBottom: spacing.sm }}>
-            {error}
-          </Text>
-        )}
+    <>
+      <Stack.Screen options={{ title: "Patient Portal" }} />
+      <AuthCard
+        title="Patient Portal"
+        subtitle="Enter your Patient ID and PIN to view your results."
+        footer={
+          <TouchableOpacity
+            onPress={() =>
+              router.push({
+                pathname: "/set-pin" as any,
+                params: { patient_id: patientId.trim().toUpperCase() },
+              })
+            }
+          >
+            <Text style={styles.linkText}>First time? Set up PIN</Text>
+          </TouchableOpacity>
+        }
+      >
+        <View style={styles.field}>
+          <Text style={styles.label}>Patient ID</Text>
+          <TextInput
+            placeholder="Enter your Patient ID"
+            value={patientId}
+            onChangeText={setPatientId}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            style={styles.input}
+          />
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>PIN</Text>
+          <TextInput
+            placeholder="4-digit PIN"
+            value={pin}
+            onChangeText={setPin}
+            secureTextEntry
+            keyboardType="number-pad"
+            maxLength={4}
+            style={styles.input}
+          />
+        </View>
+        {error && <Text style={styles.errorText}>{error}</Text>}
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={submitting}
-          style={{
-            backgroundColor: colors.primary,
-            borderRadius: radii.md,
-            paddingVertical: 14,
-            alignItems: "center",
-          }}
+          style={[styles.primaryButton, submitting && styles.buttonDisabled]}
         >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "600" }}>Sign In</Text>}
+          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Continue</Text>}
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() =>
-            router.push({
-              pathname: "/set-pin" as any,
-              params: { patient_id: patientId.trim().toUpperCase() },
-            })
-          }
-          style={{ marginTop: spacing.md, alignSelf: "flex-start" }}
-        >
-          <Text style={{ color: colors.primary, fontWeight: "600" }}>
-            No PIN yet? Set up your PIN
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      </AuthCard>
+    </>
   );
 }
+
+const styles = StyleSheet.create({
+  field: {
+    marginBottom: spacing.md,
+  },
+  label: {
+    fontSize: fontSizes.sm,
+    fontWeight: "600",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: colors.gray[600],
+    marginBottom: spacing.xs,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.gray[300],
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    fontSize: fontSizes.base,
+    backgroundColor: "#fff",
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: fontSizes.base,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  linkText: {
+    color: colors.primary,
+    fontWeight: "600",
+    fontSize: fontSizes.base,
+  },
+  errorText: {
+    color: "#b42318",
+    marginBottom: spacing.sm,
+    fontSize: fontSizes.sm,
+  },
+});

@@ -13,7 +13,7 @@ interface PatientTabsLayoutProps {
   children: RenderChildren;
 }
 
-const contentContainerStyle: ViewStyle = {
+export const patientTabsContentContainerStyle: ViewStyle = {
   paddingHorizontal: spacing.lg,
   paddingTop: 0,
   paddingBottom: spacing.xl,
@@ -30,7 +30,7 @@ export function PatientTabsLayout({ activeTab, onTabPress, children }: PatientTa
         }}
       />
       <PatientTabsHeader activeTab={activeTab} onTabPress={onTabPress} />
-      <View style={{ flex: 1 }}>{children(contentContainerStyle)}</View>
+      <View style={{ flex: 1 }}>{children(patientTabsContentContainerStyle)}</View>
     </SafeAreaView>
   );
 }

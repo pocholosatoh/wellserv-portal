@@ -22,15 +22,32 @@ export function useDeliveryInfo() {
     enabled: Boolean(client && patientId) && !isLoading,
     queryFn: async () => {
       if (!client || !patientId) return null;
-      const { data, error } = await client
-        .from("patients")
-        .select(
-          "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at"
-        )
-        .eq("patient_id", patientId)
-        .maybeSingle();
-      if (error) throw error;
-      return (data as PatientDeliveryInfo | null) ?? null;
+      const timeoutMs = 12_000;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          const err = new Error("Request timed out");
+          err.name = "TimeoutError";
+          reject(err);
+        }, timeoutMs);
+      });
+
+      try {
+        const { data, error } = await Promise.race([
+          client
+            .from("patients")
+            .select(
+              "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at"
+            )
+            .eq("patient_id", patientId)
+            .maybeSingle(),
+          timeoutPromise,
+        ]);
+        if (error) throw error;
+        return (data as PatientDeliveryInfo | null) ?? null;
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
     },
   });
 }

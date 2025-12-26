@@ -80,8 +80,9 @@ const config = {
     },
     android: {
       package: "com.wellserv.mobile",
+      icon: "./assets/icon.png",
       adaptiveIcon: {
-        foregroundImage: "./assets/icon.png",
+        foregroundImage: "./assets/icon-android-foreground.png",
         backgroundColor: "#ffffff",
       },
       intentFilters: [

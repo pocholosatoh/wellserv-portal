@@ -1,12 +1,11 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
-import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { Stack, useFocusEffect } from "expo-router";
 import { ActivityIndicator, FlatList, ScrollView, TouchableOpacity, View, Text, Image } from "react-native";
 import { colors, spacing } from "@wellserv/theme";
 import { usePatientResults } from "../hooks/usePatientResults";
 import type { Report, ResultItem } from "../../../shared/types/patient-results";
 import icon from "../../assets/icon.png";
-import { type PatientTabKey } from "../components/PatientTabsHeader";
-import { PatientTabsLayout } from "../components/PatientTabsLayout";
+import { patientTabsContentContainerStyle } from "../components/PatientTabsLayout";
 import { ResultsAdGateModal } from "../components/ResultsAdGateModal";
 import { hasActiveAdCooldown } from "../lib/ads/adCooldown";
 
@@ -107,38 +106,12 @@ export default function ResultsScreen() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [adGateVisible, setAdGateVisible] = useState(false);
   const [adGateChecked, setAdGateChecked] = useState(false);
-  const router = useRouter();
 
   const data = useMemo(() => reports ?? [], [reports]);
 
   const toggle = useCallback((key: string) => {
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
-
-  const handleTabPress = useCallback(
-    (tab: PatientTabKey) => {
-      switch (tab) {
-        case "home":
-          router.replace("/");
-          break;
-        case "results":
-          router.replace("/results");
-          break;
-        case "prescriptions":
-          router.replace("/prescriptions");
-          break;
-        case "followups":
-          router.replace("/followups");
-          break;
-        case "pharmacy":
-          router.replace("/delivery");
-          break;
-        default:
-          break;
-      }
-    },
-    [router]
-  );
 
   useFocusEffect(
     useCallback(() => {
@@ -165,10 +138,12 @@ export default function ResultsScreen() {
   );
 
   const isEmpty = patientOnly || data.length === 0;
+  const contentContainerStyle = patientTabsContentContainerStyle;
 
   return (
-    <PatientTabsLayout activeTab="results" onTabPress={handleTabPress}>
-      {(contentContainerStyle) => {
+    <View style={{ flex: 1 }}>
+      <Stack.Screen options={{ headerShown: false, headerShadowVisible: false, title: "" }} />
+      {(() => {
         let content: ReactElement;
 
         if (error) {
@@ -293,7 +268,8 @@ export default function ResultsScreen() {
                             {item.visit.branch || "Branch not specified"}
                           </Text>
                           <Text style={{ color: colors.gray[600], marginTop: 6 }}>
-                            {item.sections.length} sections · {flagged} flagged
+                            {item.sections.length} section{item.sections.length === 1 ? "" : "s"} ·{" "}
+                            {flagged} flagged
                           </Text>
                         </View>
                         <Text style={{ color: colors.primary, fontWeight: "700" }}>
@@ -343,8 +319,8 @@ export default function ResultsScreen() {
             )}
           </View>
         );
-      }}
-    </PatientTabsLayout>
+      })()}
+    </View>
   );
 }
 

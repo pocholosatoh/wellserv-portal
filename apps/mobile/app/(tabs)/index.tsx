@@ -9,7 +9,6 @@ import {
   Image,
   Linking,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { FontAwesome, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSession } from "../../src/providers/SessionProvider";
 import { usePatientProfile } from "@wellserv/data";
@@ -65,7 +64,9 @@ export default function HomeScreen() {
   })();
 
   useEffect(() => {
-    console.log("HOME session:", session);
+    if (__DEV__) {
+      console.log("HOME session:", session);
+    }
   }, [session]);
 
   useEffect(() => {
@@ -135,7 +136,7 @@ export default function HomeScreen() {
 
   if (isLoggedIn && !showDashboard) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }} edges={["top", "left", "right"]}>
+      <View style={{ flex: 1, backgroundColor: "#fff" }}>
         <Stack.Screen
           options={{
             title: "Home",
@@ -184,12 +185,12 @@ export default function HomeScreen() {
             />
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }} edges={["top", "left", "right"]}>
+    <View style={{ flex: 1, backgroundColor: "#fff" }}>
       <Stack.Screen
         options={{
           title: "Home",
@@ -227,6 +228,11 @@ export default function HomeScreen() {
         <Text style={{ color: colors.gray[500], marginBottom: spacing.md }}>
           Patient ID: {patientId ?? "—"}
         </Text>
+        {profileQuery.error && (
+          <Text style={{ color: colors.gray[500], marginBottom: spacing.md }}>
+            We couldn&apos;t load your profile details right now.
+          </Text>
+        )}
 
         <View style={{ flexDirection: "row", columnGap: 12, marginBottom: spacing.lg }}>
           <Link href="/results" asChild>
@@ -243,6 +249,11 @@ export default function HomeScreen() {
                 Latest: {latestResultDate}
               </Text>
               <Text style={{ color: "#fff" }}>Results ready: {resultsReadyMark}</Text>
+              {patientResults.error && (
+                <Text style={{ color: "#fff", marginTop: 6 }}>
+                  We couldn&apos;t load your latest results.
+                </Text>
+              )}
             </TouchableOpacity>
           </Link>
         <Link href="/prescriptions" asChild>
@@ -262,6 +273,11 @@ export default function HomeScreen() {
                 <Text style={{ color: colors.gray[800] }}>
                   From your Doctor:{"\n"}
                   {doctorDisplay}
+                </Text>
+              )}
+              {rxQuery.error && (
+                <Text style={{ color: colors.gray[600], marginTop: 6 }}>
+                  We couldn&apos;t load your prescriptions.
                 </Text>
               )}
             </TouchableOpacity>
@@ -311,6 +327,11 @@ export default function HomeScreen() {
             {followupQuery.isLoading && (
               <Text style={{ color: colors.gray[700] }}>Loading follow-up...</Text>
             )}
+            {followupQuery.error && (
+              <Text style={{ color: colors.gray[600] }}>
+                We couldn&apos;t load your follow-up details.
+              </Text>
+            )}
             {hasFollowup && (
               <>
                 <Text style={{ color: colors.gray[700], marginBottom: 4 }}>
@@ -321,7 +342,7 @@ export default function HomeScreen() {
                 )}
               </>
             )}
-            {!followupQuery.isLoading && !hasFollowup && (
+            {!followupQuery.isLoading && !hasFollowup && !followupQuery.error && (
               <Text style={{ color: colors.gray[600], marginTop: 6 }}>
                 No follow-up scheduled yet.
               </Text>
@@ -374,6 +395,15 @@ export default function HomeScreen() {
               <Text style={{ marginTop: spacing.md, color: colors.gray[500] }}>
                 Loading hubs...
               </Text>
+            ) : hubsQuery.error ? (
+              <View style={{ marginTop: spacing.md }}>
+                <Text style={{ color: colors.gray[500] }}>
+                  We couldn&apos;t load the hubs list.
+                </Text>
+                <TouchableOpacity onPress={() => hubsQuery.refetch()} style={{ marginTop: 6 }}>
+                  <Text style={{ color: colors.primary, fontWeight: "600" }}>Retry</Text>
+                </TouchableOpacity>
+              </View>
             ) : hubs.length ? (
               hubs.map((hub) => (
                 <View
@@ -451,6 +481,6 @@ export default function HomeScreen() {
           © {new Date().getFullYear()} WELLSERV Mobile
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

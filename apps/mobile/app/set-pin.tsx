@@ -1,10 +1,24 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { colors, radii, spacing } from "@wellserv/theme";
-import { PATIENT_ACCESS_CODE } from "../src/lib/env";
+import {
+  ActivityIndicator,
+  GestureResponderEvent,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import * as SecureStore from "expo-secure-store";
+import { colors, fontSizes, radii, spacing } from "@wellserv/theme";
+import { AuthCard } from "../src/components/AuthCard";
 import { getApiBaseUrl } from "../src/lib/api";
 import { apiFetch } from "../src/lib/http";
+
+const PRIVACY_ACCEPTED_KEY = "privacyAccepted";
 
 export default function SetPinScreen() {
   const router = useRouter();
@@ -15,18 +29,44 @@ export default function SetPinScreen() {
   );
 
   const [patientId, setPatientId] = useState(initialPatientId);
-  const [accessCode, setAccessCode] = useState(PATIENT_ACCESS_CODE || "");
+  const [accessCode, setAccessCode] = useState("");
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
 
   useEffect(() => {
     if (initialPatientId && !patientId) {
       setPatientId(initialPatientId);
     }
   }, [initialPatientId, patientId]);
+
+  useEffect(() => {
+    let mounted = true;
+    SecureStore.getItemAsync(PRIVACY_ACCEPTED_KEY)
+      .then((value: string | null) => {
+        if (mounted && value === "true") {
+          setPrivacyAccepted(true);
+        }
+      })
+      .catch(() => null);
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  async function handlePrivacyToggle() {
+    const nextValue = !privacyAccepted;
+    setPrivacyAccepted(nextValue);
+    if (nextValue) {
+      await SecureStore.setItemAsync(PRIVACY_ACCEPTED_KEY, "true");
+    } else {
+      await SecureStore.deleteItemAsync(PRIVACY_ACCEPTED_KEY);
+    }
+  }
 
   async function handleSubmit() {
     setSubmitting(true);
@@ -38,6 +78,9 @@ export default function SetPinScreen() {
       }
       if (!accessCode) {
         throw new Error("Enter the general access code provided by the clinic");
+      }
+      if (!privacyAccepted) {
+        throw new Error("Please accept the Data Privacy Notice to continue");
       }
       if (!pin || !confirmPin) {
         throw new Error("Enter and confirm your PIN");
@@ -81,122 +124,273 @@ export default function SetPinScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
-      <Stack.Screen options={{ title: "Set PIN" }} />
-      <View style={{ flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}>
-        <Text style={{ fontSize: 22, fontWeight: "700", marginBottom: spacing.md, color: colors.primary }}>
-          Create your PIN
-        </Text>
-        <Text style={{ color: colors.gray[600], marginBottom: spacing.lg }}>
-          Enter your Patient ID, the general access code, and choose a 4-digit PIN to sign in securely next time.
-        </Text>
+    <>
+      <Stack.Screen options={{ title: "Create your PIN" }} />
+      <AuthCard
+        title="Create your PIN"
+        subtitle="Enter your Patient ID and General Access Code to set up a 4-digit PIN."
+        footer={
+          <TouchableOpacity
+            onPress={() =>
+              router.replace({
+                pathname: "/login",
+                params: { patient_id: patientId.trim().toUpperCase() },
+              })
+            }
+          >
+            <Text style={styles.linkTextMuted}>Back to login</Text>
+          </TouchableOpacity>
+        }
+      >
+        <View style={styles.field}>
+          <Text style={styles.label}>Patient ID</Text>
+          <TextInput
+            placeholder="Enter your Patient ID"
+            value={patientId}
+            onChangeText={(val) => {
+              setPatientId(val);
+              setError(null);
+            }}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            style={styles.input}
+          />
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>General Access Code</Text>
+          <TextInput
+            placeholder="Enter the code from your clinic"
+            value={accessCode}
+            onChangeText={(val) => {
+              setAccessCode(val);
+              setError(null);
+            }}
+            keyboardType="number-pad"
+            autoCorrect={false}
+            style={styles.input}
+          />
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>4-digit PIN</Text>
+          <TextInput
+            placeholder="Choose a 4-digit PIN"
+            value={pin}
+            onChangeText={(val) => {
+              setPin(val);
+              setError(null);
+            }}
+            secureTextEntry
+            keyboardType="number-pad"
+            maxLength={4}
+            style={styles.input}
+          />
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Confirm PIN</Text>
+          <TextInput
+            placeholder="Re-enter your PIN"
+            value={confirmPin}
+            onChangeText={(val) => {
+              setConfirmPin(val);
+              setError(null);
+            }}
+            secureTextEntry
+            keyboardType="number-pad"
+            maxLength={4}
+            style={styles.input}
+          />
+        </View>
 
-        <TextInput
-          placeholder="Patient ID"
-          value={patientId}
-          onChangeText={(val) => {
-            setPatientId(val);
-            setError(null);
-          }}
-          autoCapitalize="characters"
-          style={{
-            borderWidth: 1,
-            borderColor: colors.gray[300],
-            borderRadius: radii.md,
-            padding: 12,
-            marginBottom: spacing.sm,
-          }}
-        />
-        <TextInput
-          placeholder="General access code"
-          value={accessCode}
-          onChangeText={(val) => {
-            setAccessCode(val);
-            setError(null);
-          }}
-          secureTextEntry
-          style={{
-            borderWidth: 1,
-            borderColor: colors.gray[300],
-            borderRadius: radii.md,
-            padding: 12,
-            marginBottom: spacing.sm,
-          }}
-        />
-        <TextInput
-          placeholder="Choose a 4-digit PIN"
-          value={pin}
-          onChangeText={(val) => {
-            setPin(val);
-            setError(null);
-          }}
-          secureTextEntry
-          keyboardType="number-pad"
-          maxLength={4}
-          style={{
-            borderWidth: 1,
-            borderColor: colors.gray[300],
-            borderRadius: radii.md,
-            padding: 12,
-            marginBottom: spacing.sm,
-          }}
-        />
-        <TextInput
-          placeholder="Confirm PIN"
-          value={confirmPin}
-          onChangeText={(val) => {
-            setConfirmPin(val);
-            setError(null);
-          }}
-          secureTextEntry
-          keyboardType="number-pad"
-          maxLength={4}
-          style={{
-            borderWidth: 1,
-            borderColor: colors.gray[300],
-            borderRadius: radii.md,
-            padding: 12,
-            marginBottom: spacing.md,
-          }}
-        />
+        <Pressable style={styles.consentRow} onPress={handlePrivacyToggle}>
+          <View style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}>
+            {privacyAccepted ? <Text style={styles.checkboxMark}>✓</Text> : null}
+          </View>
+          <Text style={styles.consentText}>
+            I consent to the processing of my personal and health information for identity verification and results
+            release as described in the{" "}
+            <Text
+              style={styles.consentLink}
+              onPress={(event: GestureResponderEvent) => {
+                event.stopPropagation?.();
+                setPrivacyModalOpen(true);
+              }}
+            >
+              Data Privacy Notice
+            </Text>
+            .
+          </Text>
+        </Pressable>
 
-        {error && (
-          <Text style={{ color: "red", marginBottom: spacing.sm }}>
-            {error}
-          </Text>
-        )}
-        {success && (
-          <Text style={{ color: colors.primary, marginBottom: spacing.sm }}>
-            {success}
-          </Text>
-        )}
+        {error && <Text style={styles.errorText}>{error}</Text>}
+        {success && <Text style={styles.successText}>{success}</Text>}
 
         <TouchableOpacity
           onPress={handleSubmit}
-          disabled={submitting}
-          style={{
-            backgroundColor: colors.primary,
-            borderRadius: radii.md,
-            paddingVertical: 14,
-            alignItems: "center",
-            opacity: submitting ? 0.9 : 1,
-          }}
+          disabled={submitting || !privacyAccepted}
+          style={[
+            styles.primaryButton,
+            (submitting || !privacyAccepted) && styles.buttonDisabled,
+          ]}
         >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "600" }}>Save PIN</Text>}
+          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Save PIN</Text>}
         </TouchableOpacity>
+      </AuthCard>
 
-        <TouchableOpacity
-          onPress={() =>
-            router.replace({
-              pathname: "/login",
-              params: { patient_id: patientId.trim().toUpperCase() },
-            })
-          }
-          style={{ marginTop: spacing.lg }}
-        >
-          <Text style={{ color: colors.gray[700], fontWeight: "600" }}>Back to login</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      <Modal
+        visible={privacyModalOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPrivacyModalOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Data Privacy Notice</Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalBody}>
+              <Text style={styles.modalText}>
+                We collect and process your personal and health information to verify your identity and release your
+                results in the Patient Portal.
+              </Text>
+              <Text style={styles.modalText}>
+                Your information may include your Patient ID, access code, and other details you provide in this app.
+                We use this data only for portal access, identity verification, and to deliver your results securely.
+              </Text>
+              <Text style={styles.modalText}>
+                We take reasonable security measures to protect your data. You may contact the clinic if you have
+                questions about how your information is handled.
+              </Text>
+            </ScrollView>
+            <TouchableOpacity style={styles.modalButton} onPress={() => setPrivacyModalOpen(false)}>
+              <Text style={styles.modalButtonText}>I Understand</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
+
+const styles = StyleSheet.create({
+  field: {
+    marginBottom: spacing.md,
+  },
+  label: {
+    fontSize: fontSizes.sm,
+    fontWeight: "600",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: colors.gray[600],
+    marginBottom: spacing.xs,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.gray[300],
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    fontSize: fontSizes.base,
+    backgroundColor: "#fff",
+  },
+  consentRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.gray[400],
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+    marginRight: spacing.sm,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  checkboxMark: {
+    color: "#fff",
+    fontSize: fontSizes.base,
+    fontWeight: "700",
+  },
+  consentText: {
+    flex: 1,
+    fontSize: fontSizes.sm,
+    color: colors.gray[700],
+    lineHeight: 20,
+  },
+  consentLink: {
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: fontSizes.base,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  linkTextMuted: {
+    color: colors.gray[700],
+    fontWeight: "600",
+    fontSize: fontSizes.base,
+  },
+  errorText: {
+    color: "#b42318",
+    marginBottom: spacing.sm,
+    fontSize: fontSizes.sm,
+  },
+  successText: {
+    color: colors.primary,
+    marginBottom: spacing.sm,
+    fontSize: fontSizes.sm,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(17, 24, 39, 0.5)",
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    maxHeight: "80%",
+  },
+  modalTitle: {
+    fontSize: fontSizes.lg,
+    fontWeight: "700",
+    marginBottom: spacing.sm,
+    color: "#111827",
+  },
+  modalBody: {
+    marginBottom: spacing.md,
+  },
+  modalText: {
+    fontSize: fontSizes.base,
+    color: colors.gray[700],
+    marginBottom: spacing.sm,
+    lineHeight: 22,
+  },
+  modalButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: fontSizes.base,
+  },
+});

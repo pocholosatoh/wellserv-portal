@@ -71,21 +71,20 @@ function mapFollowup(row: ApiFollowup): PatientFollowup {
 export function usePatientFollowups() {
   const { session, isLoading } = useSession();
   const patientId = session?.patientId;
+  const endpoint = "/api/mobile/patient/followups";
 
   const query = useQuery<PatientFollowup | null>({
     queryKey: ["followups", patientId],
     enabled: Boolean(patientId) && !isLoading,
     queryFn: async () => {
       if (!patientId) return null;
-      const url = "/api/mobile/patient/followups";
       let res: Response;
       try {
-        res = await apiFetch(url, {
+        res = await apiFetch(endpoint, {
           method: "POST",
           body: JSON.stringify({ patientId }),
         });
       } catch (error) {
-        console.warn("FOLLOW-UPS ERROR:", error);
         throw error;
       }
 
@@ -93,16 +92,20 @@ export function usePatientFollowups() {
       try {
         json = (await res.json()) as ApiResponse;
       } catch (error) {
-        console.warn("FOLLOW-UPS ERROR parsing response:", error);
+        if (__DEV__) {
+          console.warn("[followups] response parse failed", endpoint, res.status);
+        }
       }
 
       if (!res.ok || json.error) {
-        console.warn("FOLLOW-UPS ERROR RESPONSE:", {
-          status: res.status,
-          statusText: res.statusText,
-          body: json,
-        });
-        throw new Error(json.error || "Failed to load follow-ups");
+        if (__DEV__) {
+          console.warn("[followups] request failed", endpoint, res.status);
+        }
+        const err = new Error(json.error || "Failed to load follow-ups") as Error & {
+          status?: number;
+        };
+        err.status = res.status;
+        throw err;
       }
 
       return json.followup ? mapFollowup(json.followup) : null;

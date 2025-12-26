@@ -1,4 +1,13 @@
-import { PropsWithChildren, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  PropsWithChildren,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
@@ -8,7 +17,12 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/env";
 import Constants from "expo-constants";
 import { getApiBaseUrl } from "../lib/api";
 import { apiFetch } from "../lib/http";
-import { SESSION_STORAGE_KEY, setStoredSessionToken } from "../lib/sessionStorage";
+import {
+  SESSION_STORAGE_KEY,
+  clearStoredSession,
+  onSessionExpired,
+  setStoredSessionToken,
+} from "../lib/sessionStorage";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -79,6 +93,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const router = useRouter();
+  const hasHandledExpiry = useRef(false);
 
   useEffect(() => {
     Promise.resolve(storage.getItem(SESSION_STORAGE_KEY))
@@ -93,6 +108,16 @@ export function SessionProvider({ children }: PropsWithChildren) {
       })
       .finally(() => setIsLoading(false));
   }, [storage]);
+
+  useEffect(() => {
+    return onSessionExpired(() => {
+      if (hasHandledExpiry.current) return;
+      hasHandledExpiry.current = true;
+      setSession(null);
+      void clearStoredSession();
+      router.replace("/login");
+    });
+  }, [router]);
 
   useEffect(() => {
     registerPushToken()
@@ -164,6 +189,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
       await storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
       await setStoredSessionToken(token);
       setSession(payload);
+      hasHandledExpiry.current = false;
 
       return { ok: true as const, patientId: payload.patientId };
     },
@@ -187,6 +213,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
     await storage.removeItem(SESSION_STORAGE_KEY);
     await setStoredSessionToken(null);
     setSession(null);
+    hasHandledExpiry.current = true;
     router.replace("/login");
   }, [storage, router, session]);
 

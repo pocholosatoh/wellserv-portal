@@ -116,23 +116,22 @@ function mapPrescription(row: ApiPrescription): MobilePrescription {
 export function usePatientPrescriptions() {
   const { session, isLoading } = useSession();
   const patientId = session?.patientId;
+  const endpoint = "/api/mobile/patient/prescriptions";
 
   return useQuery<MobilePrescription[]>({
     queryKey: ["prescriptions", patientId],
     enabled: Boolean(patientId) && !isLoading,
     queryFn: async () => {
       if (!patientId) return [];
-      console.warn("PRESCRIPTIONS REQUEST URL:", "/api/mobile/patient/prescriptions");
       let res: Response;
       try {
-        res = await apiFetch("/api/mobile/patient/prescriptions", {
+        res = await apiFetch(endpoint, {
           method: "POST",
           body: JSON.stringify({
             patientId,
           }),
         });
       } catch (error) {
-        console.warn("PRESCRIPTIONS ERROR:", error);
         throw error;
       }
 
@@ -140,16 +139,20 @@ export function usePatientPrescriptions() {
       try {
         json = (await res.json()) as ApiResponse;
       } catch (error) {
-        console.warn("PRESCRIPTIONS ERROR parsing response:", error);
+        if (__DEV__) {
+          console.warn("[prescriptions] response parse failed", endpoint, res.status);
+        }
       }
 
       if (!res.ok || json.error) {
-        console.warn("PRESCRIPTIONS ERROR RESPONSE:", {
-          status: res.status,
-          statusText: res.statusText,
-          body: json,
-        });
-        throw new Error(json.error || "Failed to load prescriptions");
+        if (__DEV__) {
+          console.warn("[prescriptions] request failed", endpoint, res.status);
+        }
+        const err = new Error(json.error || "Failed to load prescriptions") as Error & {
+          status?: number;
+        };
+        err.status = res.status;
+        throw err;
       }
 
       return (json.prescriptions ?? []).map(mapPrescription);

@@ -10,7 +10,11 @@ export type Hub = {
 
 export async function fetchHubs(): Promise<Hub[]> {
   const res = await apiFetch("/api/mobile/hubs");
-  if (!res.ok) throw new Error("Failed to load hubs");
+  if (!res.ok) {
+    const err = new Error("Failed to load hubs") as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
   try {
     return ((await res.json()) as Hub[]) ?? [];
   } catch (error) {

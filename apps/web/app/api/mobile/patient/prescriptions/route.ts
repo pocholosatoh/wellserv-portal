@@ -10,7 +10,7 @@ function isAccessAllowed(code: string | undefined | null) {
   const expected =
     process.env.PATIENT_PORTAL_ACCESS_CODE ||
     process.env.PATIENT_ACCESS_CODE;
-  if (!expected) return true;
+  if (!expected) return false;
   return code === expected;
 }
 
@@ -23,19 +23,27 @@ function escapeLikeExact(s: string) {
 // for older clients.
 export async function POST(req: Request) {
   try {
-    const headers = Object.fromEntries(req.headers);
-    console.log("[mobile] prescriptions request", {
-      method: req.method,
-      url: req.url,
-      hasCookie: !!req.headers.get("cookie"),
-      headers,
-    });
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[mobile] prescriptions request", {
+        method: req.method,
+        url: req.url,
+        hasCookie: !!req.headers.get("cookie"),
+      });
+    }
     const actor = await getMobilePatient(req);
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[mobile] prescriptions", { hasActor: !!actor });
+    }
     const body = await req.json().catch(() => ({}));
 
     let patientId: string | null = actor?.patient_id || null;
 
     if (!patientId) {
+      const allowLegacy = process.env.MOBILE_ALLOW_LEGACY_ACCESS === "true";
+      if (!allowLegacy) {
+        return NextResponse.json({ error: "Login required" }, { status: 401 });
+      }
+
       patientId = body?.patientId || body?.patient_id || null;
       if (!patientId) {
         return NextResponse.json({ error: "patientId required" }, { status: 400 });

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { ScrollView, Text, TouchableOpacity, View, ViewStyle, TextStyle } from "react-native";
 import { colors, spacing } from "@wellserv/theme";
 
@@ -17,13 +18,43 @@ const tabs: { key: PatientTabKey; label: string }[] = [
 ];
 
 export function PatientTabsHeader({ activeTab, onTabPress }: PatientTabsHeaderProps) {
+  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollXRef = useRef(0);
+  const containerWidthRef = useRef(0);
+  const contentWidthRef = useRef(0);
+  const tabLayoutRef = useRef<Partial<Record<PatientTabKey, { x: number; width: number }>>>({});
+
+  useEffect(() => {
+    const tabLayout = tabLayoutRef.current[activeTab];
+    if (!scrollRef.current) return;
+    if (!tabLayout) {
+      scrollRef.current.scrollTo({ x: scrollXRef.current, animated: false });
+      return;
+    }
+
+    const maxScroll = Math.max(0, contentWidthRef.current - containerWidthRef.current);
+    const target = Math.min(Math.max(tabLayout.x - spacing.lg, 0), maxScroll);
+    scrollRef.current.scrollTo({ x: target, animated: true });
+  }, [activeTab]);
+
   return (
     <View style={{ backgroundColor: "transparent" }}>
       <ScrollView
+        ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentInsetAdjustmentBehavior="never"
         automaticallyAdjustContentInsets={false}
+        scrollEventThrottle={16}
+        onLayout={(event) => {
+          containerWidthRef.current = event.nativeEvent.layout.width;
+        }}
+        onContentSizeChange={(width) => {
+          contentWidthRef.current = width;
+        }}
+        onScroll={(event) => {
+          scrollXRef.current = event.nativeEvent.contentOffset.x;
+        }}
         style={{
           paddingHorizontal: spacing.lg,
           paddingTop: 0,
@@ -52,6 +83,12 @@ export function PatientTabsHeader({ activeTab, onTabPress }: PatientTabsHeaderPr
             <TouchableOpacity
               key={tab.key}
               style={itemStyle}
+              onLayout={(event) => {
+                tabLayoutRef.current[tab.key] = {
+                  x: event.nativeEvent.layout.x,
+                  width: event.nativeEvent.layout.width,
+                };
+              }}
               onPress={() => onTabPress(tab.key)}
               activeOpacity={0.85}
             >

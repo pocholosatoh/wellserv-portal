@@ -14,7 +14,7 @@ import { getApiBaseUrl } from "../lib/api";
 import { apiFetch } from "../lib/http";
 import { useSession } from "../providers/SessionProvider";
 import { PatientDeliveryInfo, useDeliveryInfo } from "../hooks/useDeliveryInfo";
-import { PatientTabsLayout } from "../components/PatientTabsLayout";
+import { patientTabsContentContainerStyle } from "../components/PatientTabsLayout";
 
 type DeliveryScreenProps = Record<string, never>;
 
@@ -74,31 +74,7 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = () => {
   const [toast, setToast] = useState<ToastState>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mode, setMode] = useState<"register" | "order">("register");
-
-  const handleTabPress = useCallback(
-    (tab: string) => {
-      switch (tab) {
-        case "home":
-          router.replace("/");
-          break;
-        case "results":
-          router.replace("/results");
-          break;
-        case "prescriptions":
-          router.replace("/prescriptions");
-          break;
-        case "followups":
-          router.replace("/followups");
-          break;
-        case "pharmacy":
-          router.replace("/delivery");
-          break;
-        default:
-          break;
-      }
-    },
-    [router]
-  );
+  const contentContainerStyle = patientTabsContentContainerStyle;
 
   useEffect(() => {
     setMode(hasAddress(deliveryQuery.data) ? "order" : "register");
@@ -218,19 +194,17 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = () => {
     };
 
     return (
-      <PatientTabsLayout activeTab="pharmacy" onTabPress={handleTabPress}>
-        {(contentContainerStyle) => (
-          <View
-            style={[
-              { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", padding: spacing.lg },
-              contentContainerStyle,
-            ]}
-          >
-            <Stack.Screen options={{ title: "Medication Delivery" }} />
-            {body()}
-          </View>
-        )}
-      </PatientTabsLayout>
+      <View style={{ flex: 1 }}>
+        <Stack.Screen options={{ title: "Medication Delivery", headerShown: false, headerShadowVisible: false }} />
+        <View
+          style={[
+            { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", padding: spacing.lg },
+            contentContainerStyle,
+          ]}
+        >
+          {body()}
+        </View>
+      </View>
     );
   }
 
@@ -248,88 +222,84 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = () => {
   const patient = deliveryQuery.data;
   if (!patient) {
     return (
-      <PatientTabsLayout activeTab="pharmacy" onTabPress={handleTabPress}>
-        {(contentContainerStyle) => (
-          <View
-            style={[
-              { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", padding: spacing.lg },
-              contentContainerStyle,
-            ]}
-          >
-            <Stack.Screen options={{ title: "Medication Delivery" }} />
-            <Text style={{ color: colors.gray[700], textAlign: "center" }}>
-              Unable to load your delivery information right now.
-            </Text>
-          </View>
-        )}
-      </PatientTabsLayout>
+      <View style={{ flex: 1 }}>
+        <Stack.Screen options={{ title: "Medication Delivery", headerShown: false, headerShadowVisible: false }} />
+        <View
+          style={[
+            { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", padding: spacing.lg },
+            contentContainerStyle,
+          ]}
+        >
+          <Text style={{ color: colors.gray[700], textAlign: "center" }}>
+            Unable to load your delivery information right now.
+          </Text>
+        </View>
+      </View>
     );
   }
 
   return (
-    <PatientTabsLayout activeTab="pharmacy" onTabPress={handleTabPress}>
-      {(contentContainerStyle) => (
-        <View style={{ flex: 1, backgroundColor: "#fff" }}>
-          <Stack.Screen options={{ title: "Medication Delivery" }} />
-          <ScrollView contentContainerStyle={contentContainerStyle}>
-            <View
-              style={{
-                backgroundColor: "#f3f4f6",
-                borderRadius: 22,
-                padding: spacing.lg,
-                borderWidth: 1,
-                borderColor: colors.gray[200],
-                marginBottom: spacing.md,
-              }}
-            >
-              <Text style={{ fontSize: 22, fontWeight: "700", color: colors.gray[900] }}>
-                Medication Delivery
-              </Text>
-              <Text style={{ color: colors.gray[600], marginTop: spacing.xs }}>{headerSubtitle}</Text>
-            </View>
+    <View style={{ flex: 1 }}>
+      <Stack.Screen options={{ title: "Medication Delivery", headerShown: false, headerShadowVisible: false }} />
+      <View style={{ flex: 1, backgroundColor: "#fff" }}>
+        <ScrollView contentContainerStyle={contentContainerStyle}>
+          <View
+            style={{
+              backgroundColor: "#f3f4f6",
+              borderRadius: 22,
+              padding: spacing.lg,
+              borderWidth: 1,
+              borderColor: colors.gray[200],
+              marginBottom: spacing.md,
+            }}
+          >
+            <Text style={{ fontSize: 22, fontWeight: "700", color: colors.gray[900] }}>
+              Medication Delivery
+            </Text>
+            <Text style={{ color: colors.gray[600], marginTop: spacing.xs }}>{headerSubtitle}</Text>
+          </View>
 
-            {mode === "register" ? (
-              <AddressForm
-                patient={patient}
-                onSaved={() => {
-                  handleSaved();
-                }}
-                onError={(message) => showToast(message)}
-              />
-            ) : (
-              <DeliveryOrderScreen
-                patient={patient}
-                onOrderSuccess={() => {
-                  handleOrderSuccess();
-                }}
-                onEditAddress={() => setMode("register")}
-                onError={(message) => showToast(message)}
-              />
-            )}
-          </ScrollView>
-
-          {toast && (
-            <View
-              style={{
-                position: "absolute",
-                left: spacing.lg,
-                right: spacing.lg,
-                bottom: spacing.lg,
-                backgroundColor: "rgba(20,20,20,0.92)",
-                padding: 14,
-                borderRadius: 16,
-                shadowColor: "#000",
-                shadowOpacity: 0.16,
-                shadowRadius: 12,
-                shadowOffset: { width: 0, height: 4 },
+          {mode === "register" ? (
+            <AddressForm
+              patient={patient}
+              onSaved={() => {
+                handleSaved();
               }}
-            >
-              <Text style={{ color: "#fff", textAlign: "center" }}>{toast.message}</Text>
-            </View>
+              onError={(message) => showToast(message)}
+            />
+          ) : (
+            <DeliveryOrderScreen
+              patient={patient}
+              onOrderSuccess={() => {
+                handleOrderSuccess();
+              }}
+              onEditAddress={() => setMode("register")}
+              onError={(message) => showToast(message)}
+            />
           )}
-        </View>
-      )}
-    </PatientTabsLayout>
+        </ScrollView>
+
+        {toast && (
+          <View
+            style={{
+              position: "absolute",
+              left: spacing.lg,
+              right: spacing.lg,
+              bottom: spacing.lg,
+              backgroundColor: "rgba(20,20,20,0.92)",
+              padding: 14,
+              borderRadius: 16,
+              shadowColor: "#000",
+              shadowOpacity: 0.16,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 4 },
+            }}
+          >
+            <Text style={{ color: "#fff", textAlign: "center" }}>{toast.message}</Text>
+          </View>
+        )}
+      </View>
+    </View>
   );
 };
 

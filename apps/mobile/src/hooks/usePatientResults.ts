@@ -11,18 +11,18 @@ export function usePatientResults(options: UsePatientResultsOptions = {}) {
   // Patient identity comes from SessionProvider after login.
   const { session, isLoading } = useSession();
   const patientId = session?.patientId;
+  const endpoint = "/api/mobile/patient-results";
 
   const query = useQuery<PatientResultsResponse>({
     queryKey: ["patient-results", patientId, options.limit],
     enabled: Boolean(patientId) && !isLoading,
     queryFn: async () => {
       if (!patientId) throw new Error("Missing patient");
-      console.warn("LAB RESULTS REQUEST URL:", "/api/mobile/patient-results");
 
       // Call the web app API (mobile variant) so we reuse buildAllReports/adaptReportForUI.
       let res: Response;
       try {
-        res = await apiFetch("/api/mobile/patient-results", {
+        res = await apiFetch(endpoint, {
           method: "POST",
           body: JSON.stringify({
             patientId,
@@ -30,7 +30,6 @@ export function usePatientResults(options: UsePatientResultsOptions = {}) {
           }),
         });
       } catch (error) {
-        console.warn("LAB RESULTS ERROR:", error);
         throw error;
       }
 
@@ -38,16 +37,20 @@ export function usePatientResults(options: UsePatientResultsOptions = {}) {
       try {
         json = (await res.json()) as PatientResultsResponse & { error?: string };
       } catch (error) {
-        console.warn("LAB RESULTS ERROR parsing response:", error);
+        if (__DEV__) {
+          console.warn("[lab results] response parse failed", endpoint, res.status);
+        }
       }
 
       if (!res.ok || json.error) {
-        console.warn("LAB RESULTS ERROR RESPONSE:", {
-          status: res.status,
-          statusText: res.statusText,
-          body: json,
-        });
-        throw new Error(json.error || "Failed to load results");
+        if (__DEV__) {
+          console.warn("[lab results] request failed", endpoint, res.status);
+        }
+        const err = new Error(json.error || "Failed to load results") as Error & {
+          status?: number;
+        };
+        err.status = res.status;
+        throw err;
       }
 
       return json;
