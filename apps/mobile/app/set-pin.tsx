@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   GestureResponderEvent,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +19,7 @@ import { colors, fontSizes, radii, spacing } from "@wellserv/theme";
 import { AuthCard } from "../src/components/AuthCard";
 import { getApiBaseUrl } from "../src/lib/api";
 import { apiFetch } from "../src/lib/http";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const PRIVACY_ACCEPTED_KEY = "privacyAccepted";
 
@@ -98,7 +101,7 @@ export default function SetPinScreen() {
         method: "POST",
         body: JSON.stringify({
           patient_id: patientId.trim().toUpperCase(),
-          general_access_code: accessCode.trim(),
+          general_access_code: accessCode.trim().toLowerCase(),
           pin,
           confirmPin,
         }),
@@ -126,115 +129,130 @@ export default function SetPinScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "Create your PIN" }} />
-      <AuthCard
-        title="Create your PIN"
-        subtitle="Enter your Patient ID and General Access Code to set up a 4-digit PIN."
-        footer={
-          <TouchableOpacity
-            onPress={() =>
-              router.replace({
-                pathname: "/login",
-                params: { patient_id: patientId.trim().toUpperCase() },
-              })
-            }
-          >
-            <Text style={styles.linkTextMuted}>Back to login</Text>
-          </TouchableOpacity>
-        }
-      >
-        <View style={styles.field}>
-          <Text style={styles.label}>Patient ID</Text>
-          <TextInput
-            placeholder="Enter your Patient ID"
-            value={patientId}
-            onChangeText={(val) => {
-              setPatientId(val);
-              setError(null);
-            }}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            style={styles.input}
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>General Access Code</Text>
-          <TextInput
-            placeholder="Enter the code from your clinic"
-            value={accessCode}
-            onChangeText={(val) => {
-              setAccessCode(val);
-              setError(null);
-            }}
-            keyboardType="number-pad"
-            autoCorrect={false}
-            style={styles.input}
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>4-digit PIN</Text>
-          <TextInput
-            placeholder="Choose a 4-digit PIN"
-            value={pin}
-            onChangeText={(val) => {
-              setPin(val);
-              setError(null);
-            }}
-            secureTextEntry
-            keyboardType="number-pad"
-            maxLength={4}
-            style={styles.input}
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>Confirm PIN</Text>
-          <TextInput
-            placeholder="Re-enter your PIN"
-            value={confirmPin}
-            onChangeText={(val) => {
-              setConfirmPin(val);
-              setError(null);
-            }}
-            secureTextEntry
-            keyboardType="number-pad"
-            maxLength={4}
-            style={styles.input}
-          />
-        </View>
-
-        <Pressable style={styles.consentRow} onPress={handlePrivacyToggle}>
-          <View style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}>
-            {privacyAccepted ? <Text style={styles.checkboxMark}>✓</Text> : null}
-          </View>
-          <Text style={styles.consentText}>
-            I consent to the processing of my personal and health information for identity verification and results
-            release as described in the{" "}
-            <Text
-              style={styles.consentLink}
-              onPress={(event: GestureResponderEvent) => {
-                event.stopPropagation?.();
-                setPrivacyModalOpen(true);
-              }}
-            >
-              Data Privacy Notice
-            </Text>
-            .
-          </Text>
-        </Pressable>
-
-        {error && <Text style={styles.errorText}>{error}</Text>}
-        {success && <Text style={styles.successText}>{success}</Text>}
-
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={submitting || !privacyAccepted}
-          style={[
-            styles.primaryButton,
-            (submitting || !privacyAccepted) && styles.buttonDisabled,
-          ]}
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoiding}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Save PIN</Text>}
-        </TouchableOpacity>
-      </AuthCard>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <AuthCard
+              title="Create your PIN"
+              subtitle="Enter your Patient ID and General Access Code to set up a 4-digit PIN."
+              footer={
+                <TouchableOpacity
+                  onPress={() =>
+                    router.replace({
+                      pathname: "/login",
+                      params: { patient_id: patientId.trim().toUpperCase() },
+                    })
+                  }
+                >
+                  <Text style={styles.linkTextMuted}>Back to login</Text>
+                </TouchableOpacity>
+              }
+            >
+              <View style={styles.field}>
+                <Text style={styles.label}>Patient ID</Text>
+                <TextInput
+                  placeholder="Enter your Patient ID"
+                  value={patientId}
+                  onChangeText={(val) => {
+                    setPatientId(val);
+                    setError(null);
+                  }}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>General Access Code</Text>
+                <TextInput
+                  placeholder="Enter the code from your clinic"
+                  value={accessCode}
+                  onChangeText={(val) => {
+                    setAccessCode(val);
+                    setError(null);
+                  }}
+                  keyboardType="default"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>4-digit PIN</Text>
+                <TextInput
+                  placeholder="Choose a 4-digit PIN"
+                  value={pin}
+                  onChangeText={(val) => {
+                    setPin(val);
+                    setError(null);
+                  }}
+                  secureTextEntry
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Confirm PIN</Text>
+                <TextInput
+                  placeholder="Re-enter your PIN"
+                  value={confirmPin}
+                  onChangeText={(val) => {
+                    setConfirmPin(val);
+                    setError(null);
+                  }}
+                  secureTextEntry
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  style={styles.input}
+                />
+              </View>
+
+              <Pressable style={styles.consentRow} onPress={handlePrivacyToggle}>
+                <View style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}>
+                  {privacyAccepted ? <Text style={styles.checkboxMark}>✓</Text> : null}
+                </View>
+                <Text style={styles.consentText}>
+                  I consent to the processing of my personal and health information for identity verification and
+                  results release as described in the{" "}
+                  <Text
+                    style={styles.consentLink}
+                    onPress={(event: GestureResponderEvent) => {
+                      event.stopPropagation?.();
+                      setPrivacyModalOpen(true);
+                    }}
+                  >
+                    Data Privacy Notice
+                  </Text>
+                  .
+                </Text>
+              </Pressable>
+
+              {error && <Text style={styles.errorText}>{error}</Text>}
+              {success && <Text style={styles.successText}>{success}</Text>}
+
+              <TouchableOpacity
+                onPress={handleSubmit}
+                disabled={submitting || !privacyAccepted}
+                style={[styles.primaryButton, (submitting || !privacyAccepted) && styles.buttonDisabled]}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Save PIN</Text>
+                )}
+              </TouchableOpacity>
+            </AuthCard>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
 
       <Modal
         visible={privacyModalOpen}
@@ -270,6 +288,20 @@ export default function SetPinScreen() {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.gray[50],
+  },
+  keyboardAvoiding: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing["2xl"],
+  },
   field: {
     marginBottom: spacing.md,
   },

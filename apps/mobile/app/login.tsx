@@ -1,9 +1,20 @@
 import { Redirect, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSession } from "../src/providers/SessionProvider";
 import { colors, fontSizes, radii, spacing } from "@wellserv/theme";
 import { AuthCard } from "../src/components/AuthCard";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const { session, signIn, isLoading } = useSession();
@@ -47,59 +58,95 @@ export default function LoginScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "Patient Portal" }} />
-      <AuthCard
-        title="Patient Portal"
-        subtitle="Enter your Patient ID and PIN to view your results."
-        footer={
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/set-pin" as any,
-                params: { patient_id: patientId.trim().toUpperCase() },
-              })
-            }
-          >
-            <Text style={styles.linkText}>First time? Set up PIN</Text>
-          </TouchableOpacity>
-        }
-      >
-        <View style={styles.field}>
-          <Text style={styles.label}>Patient ID</Text>
-          <TextInput
-            placeholder="Enter your Patient ID"
-            value={patientId}
-            onChangeText={setPatientId}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            style={styles.input}
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>PIN</Text>
-          <TextInput
-            placeholder="4-digit PIN"
-            value={pin}
-            onChangeText={setPin}
-            secureTextEntry
-            keyboardType="number-pad"
-            maxLength={4}
-            style={styles.input}
-          />
-        </View>
-        {error && <Text style={styles.errorText}>{error}</Text>}
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={submitting}
-          style={[styles.primaryButton, submitting && styles.buttonDisabled]}
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoiding}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Continue</Text>}
-        </TouchableOpacity>
-      </AuthCard>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <AuthCard
+              title="Patient Portal"
+              subtitle="Enter your Patient ID and PIN to view your results."
+              footer={
+                <View style={styles.footerLinks}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: "/set-pin" as any,
+                        params: { patient_id: patientId.trim().toUpperCase() },
+                      })
+                    }
+                  >
+                    <Text style={styles.linkText}>First time? Set up PIN</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.linkSpacing} onPress={() => router.push("/forgot-pin" as any)}>
+                    <Text style={styles.linkText}>Forgot PIN?</Text>
+                  </TouchableOpacity>
+                </View>
+              }
+            >
+              <View style={styles.field}>
+                <Text style={styles.label}>Patient ID</Text>
+                <TextInput
+                  placeholder="Enter your Patient ID"
+                  value={patientId}
+                  onChangeText={setPatientId}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>PIN</Text>
+                <TextInput
+                  placeholder="4-digit PIN"
+                  value={pin}
+                  onChangeText={setPin}
+                  secureTextEntry
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  style={styles.input}
+                />
+              </View>
+              {error && <Text style={styles.errorText}>{error}</Text>}
+              <TouchableOpacity
+                onPress={handleSubmit}
+                disabled={submitting}
+                style={[styles.primaryButton, submitting && styles.buttonDisabled]}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Continue</Text>
+                )}
+              </TouchableOpacity>
+            </AuthCard>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.gray[50],
+  },
+  keyboardAvoiding: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing["2xl"],
+  },
   field: {
     marginBottom: spacing.md,
   },
@@ -138,6 +185,12 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: "600",
     fontSize: fontSizes.base,
+  },
+  footerLinks: {
+    alignItems: "flex-start",
+  },
+  linkSpacing: {
+    marginTop: spacing.sm,
   },
   errorText: {
     color: "#b42318",
