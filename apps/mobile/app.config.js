@@ -56,7 +56,7 @@ requireProdValue(
 
 const config = {
   expo: {
-    name: "Wellserv Patient",
+    name: "WELLSERV Patient",
     slug: "wellserv-patient",
     version: "0.1.0",
     orientation: "portrait",
@@ -73,6 +73,7 @@ const config = {
       bundleIdentifier: "com.wellserv.mobile",
       supportsTablet: true,
       infoPlist: {
+        CFBundleDisplayName: "WELLSERV Patient",
         ITSAppUsesNonExemptEncryption: false,
         NSLocationWhenInUseUsageDescription:
           "We use your location to autofill delivery coordinates.",
@@ -80,6 +81,7 @@ const config = {
     },
     android: {
       package: "com.wellserv.mobile",
+      label: "WELLSERV Patient",
       icon: "./assets/icon.png",
       adaptiveIcon: {
         foregroundImage: "./assets/icon-android-foreground.png",

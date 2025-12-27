@@ -4,7 +4,7 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "development": {
+    "dev": {
       "developmentClient": true,
       "distribution": "internal",
       "env": {
@@ -18,31 +18,22 @@
       "android": { "buildType": "apk" },
       "ios": { "simulator": true }
     },
-    "development-simulator": {
-      "developmentClient": true,
+    "internal": {
       "distribution": "internal",
       "env": {
-        "ADMOB_IOS_APP_ID": "ca-app-pub-3940256099942544~1458002511",
-        "ADMOB_ANDROID_APP_ID": "ca-app-pub-3940256099942544~3347511713",
         "EXPO_PUBLIC_ADMOB_APP_ID_IOS": "ca-app-pub-3940256099942544~1458002511",
         "EXPO_PUBLIC_ADMOB_APP_ID_ANDROID": "ca-app-pub-3940256099942544~3347511713",
         "EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS": "ca-app-pub-3940256099942544/1712485313",
         "EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID": "ca-app-pub-3940256099942544/5224354917"
       },
-      "ios": { "simulator": true }
-    },
-    "preview": {
-      "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_ADMOB_APP_ID_IOS": "ca-app-pub-3940256099942544~1458002511",
-        "EXPO_PUBLIC_ADMOB_APP_ID_ANDROID": "ca-app-pub-3940256099942544~3347511713",
-        "EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS": "ca-app-pub-3940256099942544/1712485313",
-        "EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID": "ca-app-pub-3940256099942544/5224354917"
-      }
+      "android": { "buildType": "aab" },
+      "ios": {}
     },
     "production": {
       "autoIncrement": true,
-      "env": {}
+      "env": {},
+      "android": { "buildType": "aab" },
+      "ios": {}
     }
   },
   "submit": {
