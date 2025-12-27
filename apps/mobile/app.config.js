@@ -56,8 +56,8 @@ requireProdValue(
 
 const config = {
   expo: {
-    name: "Wellserv Mobile",
-    slug: "wellserv-mobile",
+    name: "Wellserv Patient",
+    slug: "wellserv-patient",
     version: "0.1.0",
     orientation: "portrait",
     scheme: "wellserv",
