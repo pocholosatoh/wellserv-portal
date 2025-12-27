@@ -55,9 +55,11 @@ export async function POST(req: Request) {
     }
 
     const patient_id = normalizePatientId(parsed.data.patient_id);
-    const providedAccessCode = String(parsed.data.general_access_code || "").trim();
+    const providedAccessCode = String(parsed.data.general_access_code || "")
+      .trim()
+      .toLowerCase();
 
-    const expected = getGeneralAccessCode();
+    const expected = getGeneralAccessCode().trim().toLowerCase();
     if (!expected) {
       return NextResponse.json({ error: "Server not configured" }, { status: 500 });
     }

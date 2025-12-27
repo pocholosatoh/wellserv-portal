@@ -21,7 +21,8 @@
     "eas:internal:ios": "eas build -p ios --profile internal",
     "eas:prod:android": "eas build -p android --profile production",
     "eas:prod:ios": "eas build -p ios --profile production",
-    "eas:submit:production": "eas submit -p ios --profile production && eas submit -p android --profile production"
+    "eas:submit:ios": "eas submit -p ios --profile production",
+    "eas:submit:android": "eas submit -p android --profile production"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

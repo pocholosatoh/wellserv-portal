@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import { colors, fontSizes, radii, spacing } from "@wellserv/theme";
 import logo from "../../assets/wellserv-logo.png";
 
@@ -12,40 +12,17 @@ type AuthCardProps = {
 
 export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
   return (
-    <View style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.card}>
-          <Image
-            source={logo}
-            style={styles.logo}
-            resizeMode="contain"
-            alt="Wellserv logo"
-          />
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-          <View style={styles.form}>{children}</View>
-          {footer ? <View style={styles.footer}>{footer}</View> : null}
-        </View>
-      </ScrollView>
+    <View style={styles.card}>
+      <Image source={logo} style={styles.logo} resizeMode="contain" alt="Wellserv logo" />
+      <Text style={styles.title}>{title}</Text>
+      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      <View style={styles.form}>{children}</View>
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.gray[50],
-  },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-  },
   card: {
     backgroundColor: "#fff",
     borderRadius: radii.lg,
