@@ -14,7 +14,15 @@
     "preios": "pnpm run ensure-patches",
     "ios": "LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 expo run:ios",
     "lint": "eslint . --max-warnings=0",
-    "typecheck": "tsc --project tsconfig.json --noEmit"
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "eas:dev:android": "eas build -p android --profile dev",
+    "eas:dev:ios": "eas build -p ios --profile dev",
+    "eas:internal:android": "eas build -p android --profile internal",
+    "eas:internal:ios": "eas build -p ios --profile internal",
+    "eas:prod:android": "eas build -p android --profile production",
+    "eas:prod:ios": "eas build -p ios --profile production",
+    "eas:submit:ios": "eas submit -p ios --profile production",
+    "eas:submit:android": "eas submit -p android --profile production"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
