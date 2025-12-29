@@ -31,8 +31,14 @@ pnpm -C apps/mobile eas:prod:android
 pnpm -C apps/mobile eas:prod:ios
 ```
 
+## Sanity Check
+
+- Run `pnpm -C apps/mobile exec eas build:inspect --profile internal --platform android` to validate `eas.json` (if `build:inspect` isn't available, any build will validate the config).
+
 ## Notes
 
 - App display name can change without affecting the app identity. Bundle ID (`ios.bundleIdentifier`) and package name (`android.package`) must remain stable for updates.
 - `dev` and `internal` profiles use AdMob test IDs.
 - `production` requires real values provided via EAS secrets (test IDs are blocked for production builds).
+- For Play Console internal testing, use the `app-bundle` build type to produce an `.aab` file.
+- The EAS schema expects `app-bundle` (not `aab`) in `eas.json` for Android build types.

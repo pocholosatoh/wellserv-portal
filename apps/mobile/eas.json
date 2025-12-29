@@ -26,13 +26,13 @@
         "EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS": "ca-app-pub-3940256099942544/1712485313",
         "EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID": "ca-app-pub-3940256099942544/5224354917"
       },
-      "android": { "buildType": "aab" },
+      "android": { "buildType": "app-bundle" },
       "ios": {}
     },
     "production": {
       "autoIncrement": true,
       "env": {},
-      "android": { "buildType": "aab" },
+      "android": { "buildType": "app-bundle" },
       "ios": {}
     }
   },
