@@ -6,6 +6,7 @@ import { usePatientResults } from "../hooks/usePatientResults";
 import type { Report, ResultItem } from "../../../shared/types/patient-results";
 import icon from "../../assets/icon.png";
 import { patientTabsContentContainerStyle } from "../components/PatientTabsLayout";
+import { OtherLabsTab } from "../components/results/OtherLabsTab";
 import { ResultsAdGateModal } from "../components/ResultsAdGateModal";
 import { hasActiveAdCooldown } from "../lib/ads/adCooldown";
 
@@ -101,11 +102,63 @@ function ResultItemRow({ item }: { item: ResultItem }) {
   );
 }
 
+type ResultsTabKey = "results" | "otherLabs";
+
+const resultsTabs: { key: ResultsTabKey; label: string }[] = [
+  { key: "results", label: "Lab Results" },
+  { key: "otherLabs", label: "Other Labs" },
+];
+
+function ResultsSegmentedControl({
+  activeTab,
+  onChange,
+}: {
+  activeTab: ResultsTabKey;
+  onChange: (next: ResultsTabKey) => void;
+}) {
+  return (
+    <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm }}>
+      <View
+        style={{
+          flexDirection: "row",
+          backgroundColor: colors.gray[100],
+          borderRadius: 12,
+          padding: 4,
+          gap: 6,
+        }}
+      >
+        {resultsTabs.map((tab) => {
+          const isActive = tab.key === activeTab;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              onPress={() => onChange(tab.key)}
+              style={{
+                flex: 1,
+                paddingVertical: 8,
+                borderRadius: 10,
+                backgroundColor: isActive ? colors.primary : "transparent",
+                alignItems: "center",
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={{ color: isActive ? "#fff" : colors.gray[700], fontWeight: "600" }}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export default function ResultsScreen() {
   const { reports, patientOnly, isLoading, isFetching, error, refetch } = usePatientResults();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [adGateVisible, setAdGateVisible] = useState(false);
   const [adGateChecked, setAdGateChecked] = useState(false);
+  const [activeTab, setActiveTab] = useState<ResultsTabKey>("results");
 
   const data = useMemo(() => reports ?? [], [reports]);
 
@@ -138,188 +191,199 @@ export default function ResultsScreen() {
   );
 
   const isEmpty = patientOnly || data.length === 0;
-  const contentContainerStyle = patientTabsContentContainerStyle;
+  const contentContainerStyle = [patientTabsContentContainerStyle, { paddingTop: spacing.sm }];
 
   return (
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ headerShown: false, headerShadowVisible: false, title: "" }} />
-      {(() => {
-        let content: ReactElement;
+      <ResultsSegmentedControl activeTab={activeTab} onChange={setActiveTab} />
+      <View style={{ flex: 1 }}>
+        {(() => {
+          if (activeTab === "otherLabs") {
+            return <OtherLabsTab contentContainerStyle={{ paddingTop: spacing.sm }} />;
+          }
 
-        if (error) {
-          content = (
-            <View
-              style={[
-                { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
-                contentContainerStyle,
-              ]}
-            >
-              <Text style={{ color: colors.gray[600], textAlign: "center", marginBottom: spacing.md }}>
-                Something went wrong loading your lab results.
-                {"\n"}
-                {error}
-              </Text>
-              <TouchableOpacity
-                onPress={() => refetch()}
-                style={{
-                  backgroundColor: colors.primary,
-                  paddingVertical: 12,
-                  paddingHorizontal: 18,
-                  borderRadius: 12,
-                  marginTop: spacing.sm,
-                }}
+          let content: ReactElement;
+
+          if (error) {
+            content = (
+              <View
+                style={[
+                  { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
+                  contentContainerStyle,
+                ]}
               >
-                <Text style={{ color: "#fff", fontWeight: "600" }}>Retry</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        } else if (isLoading && data.length === 0) {
-          content = (
-            <View style={[{ flex: 1 }, contentContainerStyle]}>
-              <View style={{ alignItems: "center", marginBottom: spacing.md }}>
-                <ActivityIndicator color={colors.primary} />
-                <Text style={{ marginTop: spacing.sm, color: colors.gray[500] }}>Loading results…</Text>
-              </View>
-              {Array.from({ length: 3 }).map((_, index) => (
-                <View
-                  key={`results-skeleton-${index}`}
+                <Text style={{ color: colors.gray[600], textAlign: "center", marginBottom: spacing.md }}>
+                  Something went wrong loading your lab results.
+                  {"\n"}
+                  {error}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => refetch()}
                   style={{
-                    backgroundColor: colors.gray[100],
-                    borderRadius: 18,
-                    padding: spacing.md,
-                    marginBottom: spacing.md,
+                    backgroundColor: colors.primary,
+                    paddingVertical: 12,
+                    paddingHorizontal: 18,
+                    borderRadius: 12,
+                    marginTop: spacing.sm,
                   }}
                 >
-                  <View
-                    style={{
-                      height: 16,
-                      backgroundColor: colors.gray[200],
-                      borderRadius: 8,
-                      marginBottom: spacing.sm,
-                      width: "60%",
-                    }}
-                  />
-                  <View
-                    style={{
-                      height: 12,
-                      backgroundColor: colors.gray[200],
-                      borderRadius: 8,
-                      marginBottom: spacing.sm,
-                      width: "40%",
-                    }}
-                  />
-                  <View
-                    style={{
-                      height: 12,
-                      backgroundColor: colors.gray[200],
-                      borderRadius: 8,
-                      width: "50%",
-                    }}
-                  />
+                  <Text style={{ color: "#fff", fontWeight: "600" }}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          } else if (isLoading && data.length === 0) {
+            content = (
+              <View style={[{ flex: 1 }, contentContainerStyle]}>
+                <View style={{ alignItems: "center", marginBottom: spacing.md }}>
+                  <ActivityIndicator color={colors.primary} />
+                  <Text style={{ marginTop: spacing.sm, color: colors.gray[500] }}>
+                    Loading results…
+                  </Text>
                 </View>
-              ))}
-            </View>
-          );
-        } else if (isEmpty) {
-          content = (
-            <View
-              style={[
-                { flex: 1, alignItems: "center", justifyContent: "center" },
-                contentContainerStyle,
-              ]}
-            >
-              <Text style={{ color: colors.gray[500], textAlign: "center" }}>
-                No lab results yet. Your profile is registered but there are no completed lab visits.
-              </Text>
-            </View>
-          );
-        } else {
-          content = (
-            <FlatList
-              data={data}
-              keyExtractor={(item, index) =>
-                item.visit.date_of_test || item.visit.barcode || `visit-${index}`
-              }
-              contentContainerStyle={contentContainerStyle}
-              renderItem={({ item, index }) => {
-                const key = item.visit.date_of_test || item.visit.barcode || `visit-${index}`;
-                const open = expanded[key] ?? index === 0;
-                const flagged = abnormalCount(item);
-                return (
+                {Array.from({ length: 3 }).map((_, index) => (
                   <View
+                    key={`results-skeleton-${index}`}
                     style={{
-                      backgroundColor: colors.gray[50],
+                      backgroundColor: colors.gray[100],
                       borderRadius: 18,
                       padding: spacing.md,
                       marginBottom: spacing.md,
-                      borderWidth: 1,
-                      borderColor: colors.gray[100],
                     }}
                   >
-                    <TouchableOpacity onPress={() => toggle(key)} style={{ paddingVertical: 4 }}>
-                      <View
-                        style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
-                      >
-                        <View style={{ flex: 1, paddingRight: 12 }}>
-                          <Text style={{ fontSize: 16, fontWeight: "700" }}>
-                            {formatDate(item.visit.date_of_test)}
-                          </Text>
-                          <Text style={{ color: colors.gray[500], marginTop: 2 }}>
-                            {item.visit.branch || "Branch not specified"}
-                          </Text>
-                          <Text style={{ color: colors.gray[600], marginTop: 6 }}>
-                            {item.sections.length} section{item.sections.length === 1 ? "" : "s"} ·{" "}
-                            {flagged} flagged
+                    <View
+                      style={{
+                        height: 16,
+                        backgroundColor: colors.gray[200],
+                        borderRadius: 8,
+                        marginBottom: spacing.sm,
+                        width: "60%",
+                      }}
+                    />
+                    <View
+                      style={{
+                        height: 12,
+                        backgroundColor: colors.gray[200],
+                        borderRadius: 8,
+                        marginBottom: spacing.sm,
+                        width: "40%",
+                      }}
+                    />
+                    <View
+                      style={{
+                        height: 12,
+                        backgroundColor: colors.gray[200],
+                        borderRadius: 8,
+                        width: "50%",
+                      }}
+                    />
+                  </View>
+                ))}
+              </View>
+            );
+          } else if (isEmpty) {
+            content = (
+              <View
+                style={[
+                  { flex: 1, alignItems: "center", justifyContent: "center" },
+                  contentContainerStyle,
+                ]}
+              >
+                <Text style={{ color: colors.gray[500], textAlign: "center" }}>
+                  No lab results yet. Your profile is registered but there are no completed lab visits.
+                </Text>
+              </View>
+            );
+          } else {
+            content = (
+              <FlatList
+                data={data}
+                keyExtractor={(item, index) =>
+                  item.visit.date_of_test || item.visit.barcode || `visit-${index}`
+                }
+                contentContainerStyle={contentContainerStyle}
+                renderItem={({ item, index }) => {
+                  const key = item.visit.date_of_test || item.visit.barcode || `visit-${index}`;
+                  const open = expanded[key] ?? index === 0;
+                  const flagged = abnormalCount(item);
+                  return (
+                    <View
+                      style={{
+                        backgroundColor: colors.gray[50],
+                        borderRadius: 18,
+                        padding: spacing.md,
+                        marginBottom: spacing.md,
+                        borderWidth: 1,
+                        borderColor: colors.gray[100],
+                      }}
+                    >
+                      <TouchableOpacity onPress={() => toggle(key)} style={{ paddingVertical: 4 }}>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <View style={{ flex: 1, paddingRight: 12 }}>
+                            <Text style={{ fontSize: 16, fontWeight: "700" }}>
+                              {formatDate(item.visit.date_of_test)}
+                            </Text>
+                            <Text style={{ color: colors.gray[500], marginTop: 2 }}>
+                              {item.visit.branch || "Branch not specified"}
+                            </Text>
+                            <Text style={{ color: colors.gray[600], marginTop: 6 }}>
+                              {item.sections.length} section{item.sections.length === 1 ? "" : "s"} ·{" "}
+                              {flagged} flagged
+                            </Text>
+                          </View>
+                          <Text style={{ color: colors.primary, fontWeight: "700" }}>
+                            {open ? "Hide" : "View"}
                           </Text>
                         </View>
-                        <Text style={{ color: colors.primary, fontWeight: "700" }}>
-                          {open ? "Hide" : "View"}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
+                      </TouchableOpacity>
 
-                    {open && (
-                      <View style={{ marginTop: spacing.sm }}>
-                        {item.sections.map((section) => (
-                          <View
-                            key={section.name}
-                            style={{
-                              paddingVertical: spacing.sm,
-                              borderTopWidth: 1,
-                              borderTopColor: colors.gray[100],
-                            }}
-                          >
-                            <Text style={{ fontWeight: "700", marginBottom: 6 }}>{section.name}</Text>
-                            {section.items.map((it) => (
-                              <ResultItemRow key={it.key || it.label} item={it} />
-                            ))}
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                );
-              }}
-              refreshing={isLoading || isFetching}
-              onRefresh={() => refetch()}
-            />
-          );
-        }
-
-        return (
-          <View style={{ flex: 1 }}>
-            {content}
-            {adGateChecked && adGateVisible && (
-              <ResultsAdGateModal
-                visible={true}
-                onClose={() => {
-                  setTimeout(() => setAdGateVisible(false), 0);
+                      {open && (
+                        <View style={{ marginTop: spacing.sm }}>
+                          {item.sections.map((section) => (
+                            <View
+                              key={section.name}
+                              style={{
+                                paddingVertical: spacing.sm,
+                                borderTopWidth: 1,
+                                borderTopColor: colors.gray[100],
+                              }}
+                            >
+                              <Text style={{ fontWeight: "700", marginBottom: 6 }}>
+                                {section.name}
+                              </Text>
+                              {section.items.map((it) => (
+                                <ResultItemRow key={it.key || it.label} item={it} />
+                              ))}
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
                 }}
+                refreshing={isLoading || isFetching}
+                onRefresh={() => refetch()}
               />
-            )}
-          </View>
-        );
-      })()}
+            );
+          }
+
+          return content;
+        })()}
+        {adGateChecked && adGateVisible && (
+          <ResultsAdGateModal
+            visible={true}
+            onClose={() => {
+              setTimeout(() => setAdGateVisible(false), 0);
+            }}
+          />
+        )}
+      </View>
     </View>
   );
 }

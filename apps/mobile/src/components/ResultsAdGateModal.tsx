@@ -228,7 +228,7 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
           }}
         >
           <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: spacing.sm }}>
-            Support WellServ 💛
+            Support WellServ 💙
           </Text>
           <Text style={{ color: colors.gray[700], marginBottom: spacing.sm }}>
             While your results are loading, please watch this short ad to help support secure patient

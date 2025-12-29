@@ -4,15 +4,46 @@ type ApiFetchInit = RequestInit & {
   timeoutMs?: number;
 };
 
-export async function apiFetch(path: string, init?: ApiFetchInit) {
-  const base = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "";
-  const url = `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+let baseUrlLogged = false;
+let devBaseWarned = false;
 
-  if (__DEV__) console.log("[apiFetch]", init?.method ?? "GET", url);
+function isValidBaseUrl(value: string) {
+  return /^https?:\/\//i.test(value);
+}
+
+export async function apiFetch(path: string, init?: ApiFetchInit) {
+  const devBase = process.env.EXPO_PUBLIC_DEV_API_BASE_URL?.replace(/\/$/, "") || "";
+  const prodBase = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "";
+  const devValid = devBase && isValidBaseUrl(devBase);
+  if (__DEV__ && devBase && !devValid && !devBaseWarned) {
+    devBaseWarned = true;
+    console.warn(
+      "[apiFetch] EXPO_PUBLIC_DEV_API_BASE_URL ignored; must start with http:// or https://"
+    );
+  }
+
+  const base = __DEV__ && devValid ? devBase : prodBase;
+  if (!isValidBaseUrl(base)) {
+    throw new Error(
+      "API base URL missing or invalid. Set EXPO_PUBLIC_API_BASE_URL to a full http(s) URL."
+    );
+  }
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `${base}${normalizedPath}`;
+
+  const method = init?.method?.toUpperCase() ?? "GET";
+  if (__DEV__) console.log("[apiFetch]", method, url);
+  if (__DEV__ && !baseUrlLogged) {
+    baseUrlLogged = true;
+    console.log("[apiFetch] base URL", base || "(empty)");
+  }
 
   const headers = new Headers(init?.headers ?? {});
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
-  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const hasBody = init?.body != null;
+  if (!headers.has("Content-Type") && (hasBody || method !== "GET")) {
+    headers.set("Content-Type", "application/json");
+  }
 
   const token = await getStoredSessionToken();
   if (token && !headers.has("Authorization")) {
