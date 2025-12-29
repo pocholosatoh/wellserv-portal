@@ -14,7 +14,13 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, {
+  runOnUI,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import * as Linking from "expo-linking";
 import { colors, spacing } from "@wellserv/theme";
 import { patientTabsContentContainerStyle } from "../PatientTabsLayout";
@@ -71,6 +77,19 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+const clampWorklet = (value: number, min: number, max: number) => {
+  "worklet";
+  return Math.min(max, Math.max(min, value));
+};
+
+const containWidthWorklet = (ar: number, cw: number, ch: number) => {
+  "worklet";
+  if (!Number.isFinite(ar) || ar <= 0) return 0;
+  if (!Number.isFinite(cw) || !Number.isFinite(ch) || cw <= 0 || ch <= 0) return 0;
+  const containerAR = cw / ch;
+  return ar >= containerAR ? cw : ch * ar;
+};
+
 type ImagePreviewModalProps = {
   uri: string;
   onClose: () => void;
@@ -82,13 +101,29 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
   const minScale = 1;
   const maxScale = 6;
   const scale = useSharedValue(1);
+  const pinchScale = useSharedValue(1);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
-  const rotation = useSharedValue(0);
+  const rotationDeg = useSharedValue(0);
   const savedScale = useSharedValue(1);
   const savedX = useSharedValue(0);
   const savedY = useSharedValue(0);
+  const viewportW = useSharedValue(0);
+  const viewportH = useSharedValue(0);
+  const aspectRatio = useSharedValue(0);
+  const pendingFitWidth = useSharedValue(false);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const width = imgSize?.w ?? 0;
+    const height = imgSize?.h ?? 0;
+    const ratio = width > 0 && height > 0 ? width / height : 0;
+    const nextRatio = Number.isFinite(ratio) ? ratio : 0;
+    runOnUI((nextAr: number) => {
+      "worklet";
+      aspectRatio.value = nextAr;
+    })(nextRatio);
+  }, [aspectRatio, imgSize?.h, imgSize?.w]);
 
   const resetTranslation = useCallback(() => {
     translateX.value = withTiming(0);
@@ -100,16 +135,31 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
   const resetView = useCallback(() => {
     scale.value = withTiming(minScale);
     savedScale.value = minScale;
+    pinchScale.value = 1;
     resetTranslation();
-  }, [minScale, resetTranslation, savedScale, scale]);
+  }, [minScale, pinchScale, resetTranslation, savedScale, scale]);
 
   const pinchGesture = Gesture.Pinch()
     .onUpdate((event) => {
-      scale.value = clamp(savedScale.value * event.scale, minScale, maxScale);
+      if (!event || typeof event.scale !== "number") return;
+      if (!Number.isFinite(event.scale)) return;
+      const nextPinch = clampWorklet(event.scale, 0.5, 6);
+      if (!Number.isFinite(nextPinch)) return;
+      pinchScale.value = nextPinch;
+      const next = savedScale.value * pinchScale.value;
+      if (!Number.isFinite(next)) return;
+      const clamped = clampWorklet(next, minScale, maxScale);
+      if (!Number.isFinite(clamped)) return;
+      scale.value = clamped;
     })
-    .onEnd(() => {
-      savedScale.value = scale.value;
-      if (scale.value <= minScale) {
+    .onFinalize(() => {
+      const nextScale = Number.isFinite(scale.value)
+        ? clampWorklet(scale.value, minScale, maxScale)
+        : minScale;
+      scale.value = nextScale;
+      savedScale.value = nextScale;
+      pinchScale.value = 1;
+      if (nextScale <= minScale) {
         translateX.value = withTiming(0);
         translateY.value = withTiming(0);
         savedX.value = 0;
@@ -119,21 +169,31 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
 
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
-      if (scale.value <= 1) return;
-      translateX.value = savedX.value + event.translationX;
-      translateY.value = savedY.value + event.translationY;
+      const currentScale = Number.isFinite(scale.value) ? scale.value : minScale;
+      if (currentScale <= 1) return;
+      if (!Number.isFinite(event.translationX) || !Number.isFinite(event.translationY)) return;
+      const baseX = Number.isFinite(savedX.value) ? savedX.value : 0;
+      const baseY = Number.isFinite(savedY.value) ? savedY.value : 0;
+      translateX.value = baseX + event.translationX;
+      translateY.value = baseY + event.translationY;
     })
     .onEnd(() => {
-      savedX.value = translateX.value;
-      savedY.value = translateY.value;
+      const nextX = Number.isFinite(translateX.value) ? translateX.value : 0;
+      const nextY = Number.isFinite(translateY.value) ? translateY.value : 0;
+      translateX.value = nextX;
+      translateY.value = nextY;
+      savedX.value = nextX;
+      savedY.value = nextY;
     });
 
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
     .onEnd(() => {
-      const nextScale = scale.value > minScale ? minScale : 2;
+      const currentScale = Number.isFinite(scale.value) ? scale.value : minScale;
+      const nextScale = currentScale > minScale ? minScale : 2;
       scale.value = withTiming(nextScale);
       savedScale.value = nextScale;
+      pinchScale.value = 1;
       if (nextScale === minScale) {
         translateX.value = withTiming(0);
         translateY.value = withTiming(0);
@@ -143,59 +203,107 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
     });
 
   const handleZoom = useCallback(
-    (delta: number) => {
-      const next = clamp(scale.value + delta, minScale, maxScale);
-      scale.value = withTiming(next);
-      savedScale.value = next;
-      if (next <= minScale) {
+    (direction: "in" | "out") => {
+      const baseScale = Number.isFinite(savedScale.value) ? savedScale.value : minScale;
+      const next = direction === "in" ? baseScale * 1.25 : baseScale / 1.25;
+      const clamped = clamp(next, minScale, maxScale);
+      if (!Number.isFinite(clamped)) return;
+      savedScale.value = clamped;
+      scale.value = withTiming(clamped);
+      pinchScale.value = 1;
+      if (clamped <= minScale) {
         translateX.value = withTiming(0);
         translateY.value = withTiming(0);
         savedX.value = 0;
         savedY.value = 0;
       }
     },
-    [maxScale, minScale, savedScale, savedX, savedY, scale, translateX, translateY]
+    [maxScale, minScale, pinchScale, savedScale, savedX, savedY, scale, translateX, translateY]
   );
 
-  const handleReset = resetView;
+  const handleReset = useCallback(() => {
+    pendingFitWidth.value = false;
+    resetView();
+  }, [pendingFitWidth, resetView]);
 
   const handleRotate = useCallback(() => {
-    const nextRotation = rotation.value === 0 ? 90 : 0;
-    rotation.value = withTiming(nextRotation, { duration: 150 });
+    runOnUI((min: number) => {
+      "worklet";
+      const nextRotation = rotationDeg.value === 0 ? 90 : 0;
+      rotationDeg.value = withTiming(nextRotation, { duration: 150 });
+      translateX.value = withTiming(0);
+      translateY.value = withTiming(0);
+      savedX.value = 0;
+      savedY.value = 0;
+      pinchScale.value = 1;
 
-    if (nextRotation === 90) {
-      resetTranslation();
-      let targetScale = 2.5;
-      if (imgSize?.h && containerSize.width > 0) {
-        targetScale = containerSize.width / imgSize.h;
+      if (nextRotation === 90) {
+        pendingFitWidth.value = true;
+        return;
       }
-      const clamped = clamp(targetScale, minScale, maxScale);
-      scale.value = withTiming(clamped);
-      savedScale.value = clamped;
-      return;
-    }
 
-    resetView();
+      pendingFitWidth.value = false;
+      scale.value = withTiming(min);
+      savedScale.value = min;
+    })(minScale);
   }, [
-    containerSize.width,
-    imgSize,
-    maxScale,
     minScale,
-    resetTranslation,
-    resetView,
-    rotation,
-    scale,
+    pendingFitWidth,
+    pinchScale,
+    rotationDeg,
     savedScale,
+    savedX,
+    savedY,
+    scale,
+    translateX,
+    translateY,
+    viewportW,
+    viewportH,
   ]);
 
   const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture, doubleTapGesture);
 
+  useAnimatedReaction<[boolean, number, number, number, number]>(
+    () => [
+      pendingFitWidth.value,
+      rotationDeg.value,
+      viewportW.value,
+      viewportH.value,
+      aspectRatio.value,
+    ],
+    ([pending, rotationValue, viewportWidth, viewportHeight, ar]) => {
+      if (!pending) return;
+      if (rotationValue !== 90) {
+        pendingFitWidth.value = false;
+        return;
+      }
+      if (viewportWidth <= 0 || viewportHeight <= 0) return;
+      if (!Number.isFinite(ar) || ar <= 0) return;
+      const arRot = 1 / ar;
+      if (!Number.isFinite(arRot) || arRot <= 0) return;
+      const baseWRot = containWidthWorklet(arRot, viewportWidth, viewportHeight);
+      if (!Number.isFinite(baseWRot) || baseWRot <= 0) return;
+      const fitWidthScale = viewportWidth / baseWRot;
+      if (!Number.isFinite(fitWidthScale)) return;
+      const clamped = clampWorklet(fitWidthScale, minScale, maxScale);
+      if (!Number.isFinite(clamped)) return;
+      scale.value = withTiming(clamped);
+      savedScale.value = clamped;
+      pinchScale.value = 1;
+      translateX.value = withTiming(0);
+      translateY.value = withTiming(0);
+      savedX.value = 0;
+      savedY.value = 0;
+      pendingFitWidth.value = false;
+    }
+  );
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { scale: scale.value },
-      { rotate: `${rotation.value}deg` },
+      { translateX: Number.isFinite(translateX.value) ? translateX.value : 0 },
+      { translateY: Number.isFinite(translateY.value) ? translateY.value : 0 },
+      { scale: Number.isFinite(scale.value) ? scale.value : minScale },
+      { rotate: `${Number.isFinite(rotationDeg.value) ? rotationDeg.value : 0}deg` },
     ],
   }));
 
@@ -242,7 +350,7 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
               <Text style={{ color: colors.gray[800], fontWeight: "700" }}>Rotate</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => handleZoom(0.5)}
+              onPress={() => handleZoom("in")}
               style={{
                 backgroundColor: "rgba(255,255,255,0.9)",
                 paddingHorizontal: 12,
@@ -255,7 +363,7 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
               <Text style={{ color: colors.gray[800], fontWeight: "700" }}>+</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => handleZoom(-0.5)}
+              onPress={() => handleZoom("out")}
               style={{
                 backgroundColor: "rgba(255,255,255,0.9)",
                 paddingHorizontal: 12,
@@ -291,6 +399,11 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
                 nextHeight !== containerSize.height
               ) {
                 setContainerSize({ width: nextWidth, height: nextHeight });
+                runOnUI((width: number, height: number) => {
+                  "worklet";
+                  viewportW.value = width;
+                  viewportH.value = height;
+                })(nextWidth, nextHeight);
                 resetView();
               }
             }}
