@@ -38,6 +38,9 @@ pnpm -C apps/mobile eas:prod:ios
 ## Notes
 
 - App display name can change without affecting the app identity. Bundle ID (`ios.bundleIdentifier`) and package name (`android.package`) must remain stable for updates.
+- `name` controls the display name shown on device and in store listings.
+- `slug` is the Expo/EAS project identifier and should stay matched to the existing EAS project.
+- We intentionally keep `slug` as `wellserv-mobile` while the display name is `WELLSERV Patient`.
 - `dev` and `internal` profiles use AdMob test IDs.
 - `production` requires real values provided via EAS secrets (test IDs are blocked for production builds).
 - For Play Console internal testing, use the `app-bundle` build type to produce an `.aab` file.
