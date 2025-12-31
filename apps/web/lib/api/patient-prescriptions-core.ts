@@ -76,7 +76,7 @@ export async function getPatientPrescriptions(patient_id: string) {
         active,
         created_at,
         updated_at
-        `
+        `,
     )
     .eq("patient_id", patient_id)
     .eq("status", "signed")
@@ -115,7 +115,7 @@ export async function getPatientPrescriptions(patient_id: string) {
         unit_price,
         created_at,
         updated_at
-        `
+        `,
     )
     .in("prescription_id", ids)
     .order("created_at", { ascending: true });

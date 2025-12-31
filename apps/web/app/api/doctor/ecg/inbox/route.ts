@@ -70,7 +70,7 @@ async function signUrl(pathOrUrl: string, sb: SupabaseClient) {
   const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(pathOrUrl, 60 * 60);
   if (error || !data?.signedUrl) {
     throw new Error(
-      `[sign-error] bucket="${BUCKET}" path="${pathOrUrl}" :: ${error?.message || "Failed to sign ECG strip"}`
+      `[sign-error] bucket="${BUCKET}" path="${pathOrUrl}" :: ${error?.message || "Failed to sign ECG strip"}`,
     );
   }
   return data.signedUrl;
@@ -111,7 +111,9 @@ export async function GET(req: Request) {
     const limit = parseLimit(url.searchParams.get("limit"));
     const from = normalizeDate(url.searchParams.get("from"));
     const to = normalizeDate(url.searchParams.get("to"));
-    const pid = normalizePatientId(url.searchParams.get("pid") || url.searchParams.get("patient_id"));
+    const pid = normalizePatientId(
+      url.searchParams.get("pid") || url.searchParams.get("patient_id"),
+    );
 
     const sb = supabaseAdmin();
     const ecgFilter = [
@@ -156,7 +158,7 @@ export async function GET(req: Request) {
             impression,
             recommendations
           )
-        `
+        `,
       )
       .or(ecgFilter)
       .order("taken_at", { ascending: false })
@@ -181,7 +183,9 @@ export async function GET(req: Request) {
     const items = await Promise.all(
       limited.map(async (row) => {
         const signedUrl = await signUrl(row.url, sb);
-        const rawReport = Array.isArray(row.ecg_reports) ? row.ecg_reports[0] : row.ecg_reports ?? null;
+        const rawReport = Array.isArray(row.ecg_reports)
+          ? row.ecg_reports[0]
+          : (row.ecg_reports ?? null);
         const report = describeReport(rawReport);
 
         return {
@@ -197,7 +201,7 @@ export async function GET(req: Request) {
           content_type: row.content_type,
           report,
         };
-      })
+      }),
     );
 
     const res = NextResponse.json({ items, status });

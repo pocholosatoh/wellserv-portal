@@ -85,7 +85,7 @@ async function signUrl(pathOrUrl: string, sb: SupabaseClient) {
   const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(pathOrUrl, 60 * 60);
   if (error || !data?.signedUrl) {
     throw new Error(
-      `[sign-error] bucket="${BUCKET}" path="${pathOrUrl}" :: ${error?.message || "Failed to sign ECG strip"}`
+      `[sign-error] bucket="${BUCKET}" path="${pathOrUrl}" :: ${error?.message || "Failed to sign ECG strip"}`,
     );
   }
   return data.signedUrl;
@@ -93,7 +93,7 @@ async function signUrl(pathOrUrl: string, sb: SupabaseClient) {
 
 export async function GET(
   _req: Request,
-  context: { params: Promise<{ externalResultId: string }> }
+  context: { params: Promise<{ externalResultId: string }> },
 ) {
   try {
     const doctor = await getDoctorSession().catch(() => null);
@@ -142,26 +142,32 @@ export async function GET(
             impression,
             recommendations
           )
-        `
+        `,
       )
       .eq("id", externalResultId)
       .maybeSingle<RawExternal>();
 
     if (error) throw error;
-    const typeLabel = String(row?.type || "").trim().toUpperCase();
-    const categoryLabel = String(row?.category || "").trim().toUpperCase();
-    const subtypeLabel = String(row?.subtype || "").trim().toUpperCase();
+    const typeLabel = String(row?.type || "")
+      .trim()
+      .toUpperCase();
+    const categoryLabel = String(row?.category || "")
+      .trim()
+      .toUpperCase();
+    const subtypeLabel = String(row?.subtype || "")
+      .trim()
+      .toUpperCase();
     const isEcg =
-      typeLabel.startsWith("ECG") ||
-      categoryLabel === "ECG" ||
-      subtypeLabel.startsWith("ECG");
+      typeLabel.startsWith("ECG") || categoryLabel === "ECG" || subtypeLabel.startsWith("ECG");
 
     if (!row || !isEcg) {
       return NextResponse.json({ error: "ECG strip not found" }, { status: 404 });
     }
 
     const signedUrl = await signUrl(row.url, sb);
-    const rawReport = Array.isArray(row.ecg_reports) ? row.ecg_reports[0] : row.ecg_reports ?? null;
+    const rawReport = Array.isArray(row.ecg_reports)
+      ? row.ecg_reports[0]
+      : (row.ecg_reports ?? null);
     const report = describeReport(rawReport);
 
     const { data: encRows, error: encErr } = await sb

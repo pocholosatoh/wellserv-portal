@@ -8,7 +8,7 @@ import { queryClient } from "../src/lib/queryClient";
 
 console.log(
   "GADApplicationIdentifier",
-  Constants.expoConfig?.ios?.infoPlist?.GADApplicationIdentifier
+  Constants.expoConfig?.ios?.infoPlist?.GADApplicationIdentifier,
 );
 console.log("iOS infoPlist", Constants.expoConfig?.ios?.infoPlist);
 

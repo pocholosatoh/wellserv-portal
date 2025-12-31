@@ -7,7 +7,9 @@ export default function PatientLayout() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}>
+      <View
+        style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}
+      >
         <ActivityIndicator size="large" color="#111827" />
         <Text style={{ marginTop: 12, color: "#111827" }}>Loading...</Text>
       </View>

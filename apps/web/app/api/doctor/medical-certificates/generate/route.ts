@@ -5,10 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getDoctorSession } from "@/lib/doctorSession";
-import {
-  createDefaultPhysicalExam,
-  summarizeVitals,
-} from "@/lib/medicalCertificateSchema";
+import { createDefaultPhysicalExam, summarizeVitals } from "@/lib/medicalCertificateSchema";
 import {
   generateCertificateNo,
   generateQrToken,
@@ -102,7 +99,7 @@ export async function POST(req: Request) {
     if (!patientId || !encounterId || !consultationId) {
       return NextResponse.json(
         { error: "patient_id, encounter_id, and consultation_id are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -117,7 +114,7 @@ export async function POST(req: Request) {
     if (patientRes.error || !patientRes.data) {
       return NextResponse.json(
         { error: patientRes.error?.message || "Patient not found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -134,7 +131,7 @@ export async function POST(req: Request) {
           "branch",
           "doctor_id",
           "doctor_name_at_time",
-        ].join(", ")
+        ].join(", "),
       )
       .eq("id", consultationId)
       .maybeSingle();
@@ -142,14 +139,14 @@ export async function POST(req: Request) {
     if (consultationRes.error || !consultationRes.data) {
       return NextResponse.json(
         { error: consultationRes.error?.message || "Consultation not found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const consultation = consultationRes.data as unknown as ConsultationRow;
     if (consultation.patient_id !== patientId) {
       return NextResponse.json(
         { error: "Consultation does not belong to patient" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -163,7 +160,7 @@ export async function POST(req: Request) {
           "visit_date_local",
           "notes_frontdesk",
           "consult_status",
-        ].join(", ")
+        ].join(", "),
       )
       .eq("id", encounterId)
       .maybeSingle();
@@ -171,15 +168,12 @@ export async function POST(req: Request) {
     if (encounterRes.error || !encounterRes.data) {
       return NextResponse.json(
         { error: encounterRes.error?.message || "Encounter not found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const encounter = encounterRes.data as unknown as EncounterRow;
     if (encounter.patient_id !== patientId) {
-      return NextResponse.json(
-        { error: "Encounter does not belong to patient" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Encounter does not belong to patient" }, { status: 400 });
     }
 
     const doctorProfileRes = await db
@@ -196,7 +190,7 @@ export async function POST(req: Request) {
           "ptr_no",
           "s2_no",
           "signature_image_url",
-        ].join(", ")
+        ].join(", "),
       )
       .eq("doctor_id", doctor.doctorId)
       .maybeSingle();
@@ -204,7 +198,7 @@ export async function POST(req: Request) {
     if (doctorProfileRes.error || !doctorProfileRes.data) {
       return NextResponse.json(
         { error: doctorProfileRes.error?.message || "Doctor profile not found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -226,7 +220,7 @@ export async function POST(req: Request) {
           "weight_kg",
           "height_cm",
           "bmi",
-        ].join(", ")
+        ].join(", "),
       )
       .eq("patient_id", patientId)
       .order("measured_at", { ascending: false })
@@ -364,13 +358,10 @@ export async function POST(req: Request) {
         ok: true,
         certificate: data,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (e: any) {
     console.error("Error generating medical certificate", e);
-    return NextResponse.json(
-      { error: e?.message || "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }

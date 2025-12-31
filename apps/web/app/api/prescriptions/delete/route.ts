@@ -19,14 +19,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body: DeleteBody = await req.json().catch(() => ({} as DeleteBody));
+    const body: DeleteBody = await req.json().catch(() => ({}) as DeleteBody);
     const prescriptionId = (body?.prescriptionId || "").trim();
     const consultationId = (body?.consultationId || "").trim();
 
     if (!prescriptionId && !consultationId) {
       return NextResponse.json(
         { error: "prescriptionId or consultationId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     if (rxStatus !== "draft") {
       return NextResponse.json(
         { error: "Only DRAFT prescriptions can be deleted" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -81,10 +81,7 @@ export async function POST(req: Request) {
     }
 
     // 4) Delete items first (unless you have FK ON DELETE CASCADE)
-    const delItems = await db
-      .from("prescription_items")
-      .delete()
-      .eq("prescription_id", rxId!);
+    const delItems = await db.from("prescription_items").delete().eq("prescription_id", rxId!);
     if (delItems.error) {
       return NextResponse.json({ error: delItems.error.message }, { status: 400 });
     }

@@ -1,22 +1,22 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import { Clock4, MapPin, Phone } from 'lucide-react';
+import { motion } from "framer-motion";
+import { Clock4, MapPin, Phone } from "lucide-react";
 
 const branches = [
   {
-    name: 'San Isidro Branch',
-    address: 'AIA Bldg., Jose Abad Santos Ave., Brgy. Malapit, San Isidro, Nueva Ecija',
-    hours: 'Mon–Sat, 6:30 AM – 3:00 PM',
-    phone: '+639939854927',
-    maps: 'https://maps.app.goo.gl/vo9kyUrNH2z2suv59',
+    name: "San Isidro Branch",
+    address: "AIA Bldg., Jose Abad Santos Ave., Brgy. Malapit, San Isidro, Nueva Ecija",
+    hours: "Mon–Sat, 6:30 AM – 3:00 PM",
+    phone: "+639939854927",
+    maps: "https://maps.app.goo.gl/vo9kyUrNH2z2suv59",
   },
   {
-    name: 'San Leonardo Branch',
-    address: 'JBR Bldg., Maharlika Hwy., Brgy. Diversion, San Leonardo, Nueva Ecija',
-    hours: 'Mon–Sat, 6:30 AM – 3:00 PM',
-    phone: '+639942760253',
-    maps: 'https://maps.app.goo.gl/X9Zqa2pvE6H3t3Lf7',
+    name: "San Leonardo Branch",
+    address: "JBR Bldg., Maharlika Hwy., Brgy. Diversion, San Leonardo, Nueva Ecija",
+    hours: "Mon–Sat, 6:30 AM – 3:00 PM",
+    phone: "+639942760253",
+    maps: "https://maps.app.goo.gl/X9Zqa2pvE6H3t3Lf7",
   },
 ];
 
@@ -27,7 +27,9 @@ export default function Branches() {
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-semibold">Branches</h2>
-          <p className="mt-1 text-sm text-gray-600">Drop by early for the shortest queue. Doors open at 6:30 AM.</p>
+          <p className="mt-1 text-sm text-gray-600">
+            Drop by early for the shortest queue. Doors open at 6:30 AM.
+          </p>
         </div>
         <a href="#book" className="btn-outline rounded-full px-4 py-2 text-sm">
           Book ₱999 Promo
@@ -62,7 +64,7 @@ export default function Branches() {
               <div className="flex items-center justify-between gap-3 pt-2">
                 <a
                   className="inline-flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1 text-sm font-medium text-accent"
-                  href={`tel:${b.phone.replace(/\s/g, '')}`}
+                  href={`tel:${b.phone.replace(/\s/g, "")}`}
                 >
                   <Phone className="h-4 w-4" />
                   {b.phone}

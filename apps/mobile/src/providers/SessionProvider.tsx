@@ -72,9 +72,7 @@ async function registerPushToken(): Promise<string | null> {
     return null;
   }
   const projectId = Constants?.expoConfig?.extra?.eas?.projectId;
-  const token = await Notifications.getExpoPushTokenAsync(
-    projectId ? { projectId } : undefined
-  );
+  const token = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
   return token.data;
 }
 
@@ -193,7 +191,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
       return { ok: true as const, patientId: payload.patientId };
     },
-    [storage]
+    [storage],
   );
 
   const signOut = useCallback(async () => {

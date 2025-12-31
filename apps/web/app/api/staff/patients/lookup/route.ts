@@ -35,6 +35,6 @@ export async function GET(req: Request) {
       contact: data.contact || "",
       address: data.address || "",
       last_updated: data.updated_at || data.last_updated || null,
-    }
+    },
   });
 }

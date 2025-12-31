@@ -40,7 +40,8 @@ export default function SectionAssignmentsClient({
   // Remember last hub for admins to reduce clicks next visit
   useEffect(() => {
     if (role !== "admin") return;
-    const stored = typeof window !== "undefined" ? localStorage.getItem("sectionAssignments:lastHub") : null;
+    const stored =
+      typeof window !== "undefined" ? localStorage.getItem("sectionAssignments:lastHub") : null;
     if (stored) setSelectedHub(stored);
   }, [role]);
 
@@ -113,7 +114,9 @@ export default function SectionAssignmentsClient({
       const updated = buildAssignmentMap(sections, j.assignments || assignments);
       setAssignments(updated);
       setOriginal(updated);
-      setSuccess("Section assignments updated. These assignments will persist until you change them.");
+      setSuccess(
+        "Section assignments updated. These assignments will persist until you change them.",
+      );
     } catch (e: any) {
       setError(e?.message || "Failed to save assignments");
     } finally {
@@ -197,10 +200,16 @@ export default function SectionAssignmentsClient({
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600"
+                >
                   Section
                 </th>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600"
+                >
                   Assigned RMT
                 </th>
               </tr>
@@ -247,9 +256,7 @@ export default function SectionAssignmentsClient({
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
           {!canEdit && (
-            <div className="text-sm text-gray-600">
-              Editing is limited to your current hub.
-            </div>
+            <div className="text-sm text-gray-600">Editing is limited to your current hub.</div>
           )}
           <button
             type="button"

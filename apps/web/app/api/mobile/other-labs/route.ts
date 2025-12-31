@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  fetchOtherLabsForPatient,
-  getOtherLabsBucket,
-  getOtherLabsExpiry,
-} from "@/lib/otherLabs";
+import { fetchOtherLabsForPatient, getOtherLabsBucket, getOtherLabsExpiry } from "@/lib/otherLabs";
 import { getMobilePatient } from "@/lib/mobileAuth";
 
 export const runtime = "nodejs";

@@ -31,14 +31,10 @@ function getRewardedAdUnitId() {
     return envId || TestIds.REWARDED;
   }
   if (!envId) {
-    throw new Error(
-      "Production build cannot run rewarded ads without real AdMob IDs."
-    );
+    throw new Error("Production build cannot run rewarded ads without real AdMob IDs.");
   }
   if (envId.includes(TEST_ADMOB_PUB_ID)) {
-    throw new Error(
-      "Production build cannot run rewarded ads without real AdMob IDs."
-    );
+    throw new Error("Production build cannot run rewarded ads without real AdMob IDs.");
   }
   return envId;
 }

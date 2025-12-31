@@ -41,7 +41,10 @@ export default async function PatientMedCertsPage() {
     .order("issued_at", { ascending: false });
 
   const certs = error ? [] : data || [];
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "").replace(/\/$/, "");
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "").replace(
+    /\/$/,
+    "",
+  );
 
   return (
     <main className="min-h-dvh bg-[#f8fafb] px-4 py-6 sm:px-6">
@@ -52,7 +55,8 @@ export default async function PatientMedCertsPage() {
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Patient Portal</p>
               <h1 className="mt-2 text-2xl font-semibold text-slate-900">Medical Certificates</h1>
               <p className="mt-1 text-sm text-slate-600">
-                All certificates issued for <span className="font-mono text-slate-800">{session.patient_id}</span>
+                All certificates issued for{" "}
+                <span className="font-mono text-slate-800">{session.patient_id}</span>
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -74,7 +78,8 @@ export default async function PatientMedCertsPage() {
 
         <section className="rounded-3xl border border-white/80 bg-white/95 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
           <div className="mb-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-            Need a printed copy? You can request and pick it up at any Wellserv hub—just present a valid ID.
+            Need a printed copy? You can request and pick it up at any Wellserv hub—just present a
+            valid ID.
           </div>
           {error && (
             <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -83,7 +88,9 @@ export default async function PatientMedCertsPage() {
           )}
 
           {!error && certs.length === 0 && (
-            <p className="text-sm text-slate-600">No medical certificates have been issued for your account.</p>
+            <p className="text-sm text-slate-600">
+              No medical certificates have been issued for your account.
+            </p>
           )}
 
           {!error && certs.length > 0 && (
@@ -104,7 +111,8 @@ export default async function PatientMedCertsPage() {
                           Certificate No. {cert.certificate_no || cert.id}
                         </div>
                         <div className="text-xs text-slate-500">
-                          Issued: {formatDate(cert.issued_at)} • Valid until {formatDate(cert.valid_until)}
+                          Issued: {formatDate(cert.issued_at)} • Valid until{" "}
+                          {formatDate(cert.valid_until)}
                         </div>
                       </div>
                       <span className="rounded-full border px-3 py-1 text-[11px] uppercase tracking-wide text-slate-600">
@@ -113,7 +121,8 @@ export default async function PatientMedCertsPage() {
                     </div>
                     {cert.diagnosis_text && (
                       <p className="mt-2 text-sm text-slate-700">
-                        <span className="font-medium text-slate-900">Diagnosis:</span> {cert.diagnosis_text}
+                        <span className="font-medium text-slate-900">Diagnosis:</span>{" "}
+                        {cert.diagnosis_text}
                       </p>
                     )}
                     {verifyPath ? (
@@ -134,7 +143,9 @@ export default async function PatientMedCertsPage() {
                         </Link>
                       </div>
                     ) : (
-                      <p className="mt-3 text-xs text-slate-500">Verification code is unavailable for this certificate.</p>
+                      <p className="mt-3 text-xs text-slate-500">
+                        Verification code is unavailable for this certificate.
+                      </p>
                     )}
                   </li>
                 );

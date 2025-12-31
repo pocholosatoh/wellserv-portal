@@ -9,7 +9,7 @@ type Consult = {
   id: string;
   patient_id: string;
   doctor_id: string | null;
-  visit_at: string;              // ISO
+  visit_at: string; // ISO
   plan_shared: boolean | null;
   prescription_id?: string | null;
   prescription_status?: string | null;
@@ -92,7 +92,9 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
     setRefreshing(true);
     setErr(null);
     try {
-      const res = await fetch(`/api/consultations/list?patient_id=${encodeURIComponent(patientId)}`);
+      const res = await fetch(
+        `/api/consultations/list?patient_id=${encodeURIComponent(patientId)}`,
+      );
       const j = await res.json();
       if (res.ok) setList((j.consultations || []) as Consult[]);
     } catch {
@@ -127,7 +129,6 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
     window.addEventListener("rx:signed", onSigned as any);
     return () => window.removeEventListener("rx:signed", onSigned as any);
   }, [patientId, openId, fetchList]);
-
 
   async function toggleOpen(id: string) {
     if (openId === id) {
@@ -206,7 +207,9 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
                       {(() => {
                         const md = details.notes?.notes_markdown?.trim() || "";
                         const soap = details.notes?.notes_soap || {};
-                        const soapHasContent = ["S","O","A","P"].some((k) => (soap?.[k] || "").trim());
+                        const soapHasContent = ["S", "O", "A", "P"].some((k) =>
+                          (soap?.[k] || "").trim(),
+                        );
 
                         if (!md && !soapHasContent) {
                           return <p className="text-sm text-gray-500">No notes.</p>;
@@ -216,15 +219,19 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
                           <div className="space-y-3">
                             {md && (
                               <div>
-                                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Markdown</div>
+                                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                                  Markdown
+                                </div>
                                 <pre className="whitespace-pre-wrap text-sm">{md}</pre>
                               </div>
                             )}
                             {soapHasContent && (
                               <div>
-                                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">SOAP</div>
+                                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                                  SOAP
+                                </div>
                                 <div className="text-sm space-y-1">
-                                  {(["S","O","A","P"] as const).map((k) => {
+                                  {(["S", "O", "A", "P"] as const).map((k) => {
                                     const val = (soap?.[k] || "").trim();
                                     if (!val) return null;
                                     return (
@@ -256,11 +263,16 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
                           )}
                           {details.rx.items.map((it, i) => (
                             <div key={i}>
-                            {it.generic_name}
-                            {it.brand_name ? <> (<i>{it.brand_name}</i>)</> : null}
-                            {" — "} {it.strength} {it.form}
-                            {it.quantity != null && <span> · Qty {it.quantity}</span>}
-                          </div>
+                              {it.generic_name}
+                              {it.brand_name ? (
+                                <>
+                                  {" "}
+                                  (<i>{it.brand_name}</i>)
+                                </>
+                              ) : null}
+                              {" — "} {it.strength} {it.form}
+                              {it.quantity != null && <span> · Qty {it.quantity}</span>}
+                            </div>
                           ))}
                           {details.rx.notes_for_patient && (
                             <div className="mt-2 text-gray-600">

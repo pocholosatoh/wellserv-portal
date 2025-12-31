@@ -34,7 +34,7 @@ export function getOtherLabsExpiry(sp: URLSearchParams) {
 
 export async function fetchOtherLabsForPatient(
   patientId: string,
-  opts: { expiresIn?: number; bucket?: string } = {}
+  opts: { expiresIn?: number; bucket?: string } = {},
 ): Promise<OtherLabsItem[]> {
   const sb = supabaseAdmin();
   const bucket = opts.bucket || DEFAULT_BUCKET;
@@ -42,7 +42,7 @@ export async function fetchOtherLabsForPatient(
   const { data, error } = await sb
     .from("external_results")
     .select(
-      "id, patient_id, url, content_type, type, provider, taken_at, uploaded_at, uploaded_by, note, category, subtype, impression, reported_at, performer_name, performer_role, performer_license, encounter_id"
+      "id, patient_id, url, content_type, type, provider, taken_at, uploaded_at, uploaded_by, note, category, subtype, impression, reported_at, performer_name, performer_role, performer_license, encounter_id",
     )
     .eq("patient_id", patientId)
     .order("type", { ascending: true })
@@ -55,17 +55,16 @@ export async function fetchOtherLabsForPatient(
   const items = await Promise.all(
     rows.map(async (r) => {
       if (/^https?:\/\//i.test(r.url)) return r;
-      const { data: signed, error: signErr } = await sb
-        .storage
+      const { data: signed, error: signErr } = await sb.storage
         .from(bucket)
         .createSignedUrl(r.url, expiresIn);
       if (signErr || !signed?.signedUrl) {
         throw new Error(
-          `[sign-error] bucket="${bucket}" path="${r.url}" :: ${signErr?.message || "cannot sign"}`
+          `[sign-error] bucket="${bucket}" path="${r.url}" :: ${signErr?.message || "cannot sign"}`,
         );
       }
       return { ...r, url: signed.signedUrl };
-    })
+    }),
   );
 
   return items;

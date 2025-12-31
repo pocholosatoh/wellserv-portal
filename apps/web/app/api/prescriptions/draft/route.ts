@@ -23,12 +23,17 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!draft) {
-    return NextResponse.json({ id: null, items: [], notes_for_patient: null, valid_days: null }, { status: 200 });
+    return NextResponse.json(
+      { id: null, items: [], notes_for_patient: null, valid_days: null },
+      { status: 200 },
+    );
   }
 
   const { data: items, error: itemsErr } = await supabase
     .from("prescription_items")
-    .select("med_id, generic_name, strength, form, brand_name, route, dose_amount, dose_unit, frequency_code, duration_days, quantity, instructions, unit_price")
+    .select(
+      "med_id, generic_name, strength, form, brand_name, route, dose_amount, dose_unit, frequency_code, duration_days, quantity, instructions, unit_price",
+    )
     .eq("prescription_id", draft.id)
     .order("created_at", { ascending: true });
 

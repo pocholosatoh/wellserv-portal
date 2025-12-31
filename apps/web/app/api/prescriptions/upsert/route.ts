@@ -8,7 +8,10 @@ export async function POST(req: NextRequest) {
   const { consultationId, patientId, notesForPatient, items, validDays } = await req.json();
 
   if (!consultationId || !patientId) {
-    return NextResponse.json({ error: "consultationId and patientId are required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "consultationId and patientId are required" },
+      { status: 400 },
+    );
   }
 
   const finalValidDays = normalizeValidDays(validDays, DEFAULT_RX_VALID_DAYS);
@@ -52,7 +55,10 @@ export async function POST(req: NextRequest) {
   }
 
   // replace items
-  const { error: delErr } = await supabase.from("prescription_items").delete().eq("prescription_id", draftId);
+  const { error: delErr } = await supabase
+    .from("prescription_items")
+    .delete()
+    .eq("prescription_id", draftId);
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
 
   if (Array.isArray(items) && items.length) {

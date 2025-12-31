@@ -90,7 +90,7 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = () => {
     () => () => {
       if (toastTimer.current) clearTimeout(toastTimer.current);
     },
-    []
+    [],
   );
 
   const headerSubtitle = useMemo(() => {
@@ -113,7 +113,9 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = () => {
       if (!patientId) {
         return (
           <>
-            <Text style={{ color: colors.gray[700], textAlign: "center", marginBottom: spacing.md }}>
+            <Text
+              style={{ color: colors.gray[700], textAlign: "center", marginBottom: spacing.md }}
+            >
               Please sign in to manage delivery requests.
             </Text>
             <TouchableOpacity
@@ -195,10 +197,18 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = () => {
 
     return (
       <View style={{ flex: 1 }}>
-        <Stack.Screen options={{ title: "Medication Delivery", headerShown: false, headerShadowVisible: false }} />
+        <Stack.Screen
+          options={{ title: "Medication Delivery", headerShown: false, headerShadowVisible: false }}
+        />
         <View
           style={[
-            { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", padding: spacing.lg },
+            {
+              flex: 1,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#fff",
+              padding: spacing.lg,
+            },
             contentContainerStyle,
           ]}
         >
@@ -223,10 +233,18 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = () => {
   if (!patient) {
     return (
       <View style={{ flex: 1 }}>
-        <Stack.Screen options={{ title: "Medication Delivery", headerShown: false, headerShadowVisible: false }} />
+        <Stack.Screen
+          options={{ title: "Medication Delivery", headerShown: false, headerShadowVisible: false }}
+        />
         <View
           style={[
-            { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", padding: spacing.lg },
+            {
+              flex: 1,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#fff",
+              padding: spacing.lg,
+            },
             contentContainerStyle,
           ]}
         >
@@ -240,7 +258,9 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: "Medication Delivery", headerShown: false, headerShadowVisible: false }} />
+      <Stack.Screen
+        options={{ title: "Medication Delivery", headerShown: false, headerShadowVisible: false }}
+      />
       <View style={{ flex: 1, backgroundColor: "#fff" }}>
         <ScrollView contentContainerStyle={contentContainerStyle}>
           <View
@@ -320,7 +340,9 @@ const AddressForm: React.FC<AddressFormProps> = ({ patient, onSaved, onError }) 
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== "granted") {
-        throw new Error("Location permission denied. Please allow access or enter coordinates manually.");
+        throw new Error(
+          "Location permission denied. Please allow access or enter coordinates manually.",
+        );
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const newLat = round6(pos.coords.latitude);
@@ -352,7 +374,12 @@ const AddressForm: React.FC<AddressFormProps> = ({ patient, onSaved, onError }) 
       if (!delivery_address_label || !delivery_address_text) {
         throw new Error("Please fill in your address label and full address.");
       }
-      if (delivery_lat === null || delivery_lng === null || Number.isNaN(delivery_lat) || Number.isNaN(delivery_lng)) {
+      if (
+        delivery_lat === null ||
+        delivery_lng === null ||
+        Number.isNaN(delivery_lat) ||
+        Number.isNaN(delivery_lng)
+      ) {
         throw new Error("Please provide valid latitude and longitude.");
       }
 
@@ -398,7 +425,14 @@ const AddressForm: React.FC<AddressFormProps> = ({ patient, onSaved, onError }) 
         borderColor: colors.gray[200],
       }}
     >
-      <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: spacing.sm, color: colors.gray[900] }}>
+      <Text
+        style={{
+          fontSize: 18,
+          fontWeight: "700",
+          marginBottom: spacing.sm,
+          color: colors.gray[900],
+        }}
+      >
         Register your delivery address
       </Text>
       <Text style={{ color: colors.gray[600], marginBottom: spacing.lg }}>
@@ -596,7 +630,14 @@ const DeliveryOrderScreen: React.FC<DeliveryOrderScreenProps> = ({
         borderColor: colors.gray[200],
       }}
     >
-      <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: spacing.sm, color: colors.gray[900] }}>
+      <Text
+        style={{
+          fontSize: 18,
+          fontWeight: "700",
+          marginBottom: spacing.sm,
+          color: colors.gray[900],
+        }}
+      >
         Saved delivery address
       </Text>
 
@@ -607,9 +648,7 @@ const DeliveryOrderScreen: React.FC<DeliveryOrderScreenProps> = ({
         <Text style={{ color: colors.gray[700], lineHeight: 20 }}>
           {patient.delivery_address_text || "No address saved."}
         </Text>
-        <Text style={{ color: colors.gray[700] }}>
-          Notes: {patient.delivery_notes || "None"}
-        </Text>
+        <Text style={{ color: colors.gray[700] }}>Notes: {patient.delivery_notes || "None"}</Text>
         <Text style={{ color: colors.gray[500], fontSize: 12 }}>
           Lat/Lng: {patient.delivery_lat ?? "-"}, {patient.delivery_lng ?? "-"}
         </Text>

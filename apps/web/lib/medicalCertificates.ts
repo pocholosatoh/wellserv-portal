@@ -20,16 +20,12 @@ export function generateVerificationCode(): string {
 
 export async function signDoctorSignature(
   sb: SupabaseClient,
-  key?: string | null
+  key?: string | null,
 ): Promise<string | null> {
   if (!key) return null;
   if (typeof key !== "string") {
     try {
-      const maybe =
-        (key as any)?.signedUrl ??
-        (key as any)?.url ??
-        (key as any)?.path ??
-        null;
+      const maybe = (key as any)?.signedUrl ?? (key as any)?.url ?? (key as any)?.path ?? null;
       if (maybe && typeof maybe === "string") key = maybe;
     } catch {
       /* ignore */

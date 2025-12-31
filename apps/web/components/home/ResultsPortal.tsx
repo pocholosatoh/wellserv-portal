@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import { FileDown, Laptop, Lock } from 'lucide-react';
+import { motion } from "framer-motion";
+import { FileDown, Laptop, Lock } from "lucide-react";
 
 const perks = [
-  { label: 'View all results anytime', icon: Laptop },
-  { label: 'Download PDF copies anytime', icon: FileDown },
-  { label: 'Secure data with encrypted storage', icon: Lock },
+  { label: "View all results anytime", icon: Laptop },
+  { label: "Download PDF copies anytime", icon: FileDown },
+  { label: "Secure data with encrypted storage", icon: Lock },
 ];
 
 export default function ResultsPortal() {
@@ -23,8 +23,8 @@ export default function ResultsPortal() {
         >
           <h2 className="text-3xl font-semibold md:text-4xl">Get your results online</h2>
           <p className="max-w-prose text-gray-600">
-            Fast, secure, and accessible anywhere. View, download, and share your laboratory results via the WELLSERV
-            Patient Portal.
+            Fast, secure, and accessible anywhere. View, download, and share your laboratory results
+            via the WELLSERV Patient Portal.
           </p>
           <motion.ul
             initial="hidden"

@@ -41,4 +41,3 @@ export default async function ECGReaderPage({ params }: Props) {
     </div>
   );
 }
-

@@ -15,7 +15,9 @@ const RequestSchema = z.object({
 });
 
 function normalizePatientId(raw: unknown) {
-  return String(raw ?? "").trim().toUpperCase();
+  return String(raw ?? "")
+    .trim()
+    .toUpperCase();
 }
 
 function escapeLikeExact(s: string) {
@@ -32,7 +34,19 @@ function getGeneralAccessCode() {
 }
 
 function isTrivialPin(pin: string) {
-  return ["0000", "1111", "1234", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999"].includes(pin);
+  return [
+    "0000",
+    "1111",
+    "1234",
+    "2222",
+    "3333",
+    "4444",
+    "5555",
+    "6666",
+    "7777",
+    "8888",
+    "9999",
+  ].includes(pin);
 }
 
 export async function POST(req: Request) {
@@ -88,7 +102,7 @@ export async function POST(req: Request) {
     if (patient.pin_hash) {
       return NextResponse.json(
         { error: "PIN already set. Please log in instead." },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -121,9 +135,6 @@ export async function POST(req: Request) {
       message: "PIN set successfully. You can now log in with your patient ID and PIN.",
     });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err?.message || "Unable to set PIN" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: err?.message || "Unable to set PIN" }, { status: 400 });
   }
 }

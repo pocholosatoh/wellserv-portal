@@ -27,9 +27,7 @@ export default function StaffPrescriptionsPage() {
     try {
       const target = (idOverride ?? patientId).trim();
       if (!target) throw new Error("Please enter a patient ID.");
-      const url = `/api/staff/prescriptions?patient_id=${encodeURIComponent(
-        target
-      )}`;
+      const url = `/api/staff/prescriptions?patient_id=${encodeURIComponent(target)}`;
       const res = await fetch(url);
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed");
@@ -50,9 +48,7 @@ export default function StaffPrescriptionsPage() {
   async function saveDiscount(rxId: string, form: HTMLFormElement) {
     const fd = new FormData(form);
     const discountType = (fd.get("discountType") as string) || null;
-    const discountValue = fd.get("discountValue")
-      ? Number(fd.get("discountValue"))
-      : null;
+    const discountValue = fd.get("discountValue") ? Number(fd.get("discountValue")) : null;
     const discountExpiresAt = (fd.get("discountExpiresAt") as string) || null;
     const discountAppliedBy = (fd.get("discountAppliedBy") as string) || null;
 
@@ -120,9 +116,7 @@ export default function StaffPrescriptionsPage() {
             }, 0);
 
             const now = new Date();
-            const isActive = r.discount_expires_at
-              ? new Date(r.discount_expires_at) > now
-              : false;
+            const isActive = r.discount_expires_at ? new Date(r.discount_expires_at) > now : false;
 
             let discount = 0;
             if (r.discount_type && r.discount_value != null && isActive) {
@@ -140,17 +134,15 @@ export default function StaffPrescriptionsPage() {
               <div key={r.id} className="border rounded-xl bg-white/95 shadow-sm p-4">
                 <div className="flex items-center justify-between">
                   <div className="font-medium">Prescription</div>
-                  <div className="text-xs text-gray-500">
-                    {fmtManila(r.created_at)}
-                  </div>
+                  <div className="text-xs text-gray-500">{fmtManila(r.created_at)}</div>
                 </div>
                 {(r.valid_until || r.valid_days) && (
                   <div className="mt-1 text-xs text-gray-500">
                     {r.valid_until
                       ? `Valid until ${formatDateOnly(r.valid_until) || "—"}`
                       : r.valid_days
-                      ? `Valid for ${r.valid_days} day${Number(r.valid_days) === 1 ? "" : "s"} from signing`
-                      : "Validity duration not specified"}
+                        ? `Valid for ${r.valid_days} day${Number(r.valid_days) === 1 ? "" : "s"} from signing`
+                        : "Validity duration not specified"}
                     {r.valid_until && r.valid_days ? ` (${r.valid_days} days)` : ""}
                   </div>
                 )}
@@ -166,10 +158,10 @@ export default function StaffPrescriptionsPage() {
                   <ul className="text-sm list-disc pl-6">
                     {rows.map((ln: any) => (
                       <li key={ln.id}>
-                        <span className="font-medium">{ln.generic_name}</span>{" "}
-                        — {ln.strength} {ln.form} · {ln.route || "PO"} ·{" "}
-                        {ln.dose_amount} {ln.dose_unit} {describeFrequency(ln.frequency_code)} ·{" "}
-                        {ln.duration_days} days · Qty {ln.quantity}
+                        <span className="font-medium">{ln.generic_name}</span> — {ln.strength}{" "}
+                        {ln.form} · {ln.route || "PO"} · {ln.dose_amount} {ln.dose_unit}{" "}
+                        {describeFrequency(ln.frequency_code)} · {ln.duration_days} days · Qty{" "}
+                        {ln.quantity}
                         {ln.instructions ? ` — ${ln.instructions}` : ""}
                         {ln.unit_price != null && ln.quantity != null ? (
                           <> — ₱{(ln.unit_price * ln.quantity).toFixed(2)}</>
@@ -184,11 +176,8 @@ export default function StaffPrescriptionsPage() {
                   <div>Subtotal: ₱{subtotal.toFixed(2)}</div>
                   {r.discount_type && r.discount_value != null && (
                     <div>
-                      Discount: −₱{discount.toFixed(2)}{" "}
-                      {isActive ? "" : "(expired)"}
-                      {r.discount_type === "percent"
-                        ? ` (${r.discount_value}%)`
-                        : ""}
+                      Discount: −₱{discount.toFixed(2)} {isActive ? "" : "(expired)"}
+                      {r.discount_type === "percent" ? ` (${r.discount_value}%)` : ""}
                     </div>
                   )}
                   <div className="font-medium">Total: ₱{total.toFixed(2)}</div>
@@ -215,9 +204,7 @@ export default function StaffPrescriptionsPage() {
                   }}
                 >
                   <div>
-                    <label className="block text-xs text-gray-600">
-                      Discount Type
-                    </label>
+                    <label className="block text-xs text-gray-600">Discount Type</label>
                     <select
                       name="discountType"
                       className="w-full border rounded px-2 py-1"
@@ -239,26 +226,20 @@ export default function StaffPrescriptionsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-600">
-                      Expires At
-                    </label>
+                    <label className="block text-xs text-gray-600">Expires At</label>
                     <input
                       name="discountExpiresAt"
                       className="w-full border rounded px-2 py-1"
                       type="datetime-local"
                       defaultValue={
                         r.discount_expires_at
-                          ? new Date(r.discount_expires_at)
-                              .toISOString()
-                              .slice(0, 16)
+                          ? new Date(r.discount_expires_at).toISOString().slice(0, 16)
                           : ""
                       }
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-600">
-                      Applied By (staff)
-                    </label>
+                    <label className="block text-xs text-gray-600">Applied By (staff)</label>
                     <input
                       name="discountAppliedBy"
                       className="w-full border rounded px-2 py-1"

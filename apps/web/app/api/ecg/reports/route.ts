@@ -64,7 +64,7 @@ export async function GET(req: Request) {
     let query = sb
       .from("ecg_reports")
       .select(
-        "id, external_result_id, patient_id, encounter_id, interpreted_at, doctor_id, interpreted_name, interpreted_license, status, rhythm, heart_rate, pr_interval, qrs_duration, qtc, axis, findings, impression, recommendations"
+        "id, external_result_id, patient_id, encounter_id, interpreted_at, doctor_id, interpreted_name, interpreted_license, status, rhythm, heart_rate, pr_interval, qrs_duration, qtc, axis, findings, impression, recommendations",
       )
       .in("external_result_id", ids);
 
@@ -76,9 +76,8 @@ export async function GET(req: Request) {
     if (error) throw error;
 
     const rows: ReportRow[] = Array.isArray(data) ? data : [];
-    const filtered = actor.kind === "patient"
-      ? rows.filter((r) => r.patient_id === actor.patient_id)
-      : rows;
+    const filtered =
+      actor.kind === "patient" ? rows.filter((r) => r.patient_id === actor.patient_id) : rows;
 
     const reports = filtered.map((r) => ({
       id: r.id,

@@ -195,8 +195,8 @@ export default function ECGInboxClient({ accent }: AccentProps) {
               report && report.status === "final"
                 ? `Finalized ${fmtDate(report.interpreted_at)}`
                 : status === "completed"
-                ? "Completed"
-                : "Awaiting interpretation";
+                  ? "Completed"
+                  : "Awaiting interpretation";
             const takenLabel = fmtDate(item.taken_at || item.uploaded_at);
 
             return (
@@ -227,9 +227,7 @@ export default function ECGInboxClient({ accent }: AccentProps) {
                 <div className="flex flex-1 flex-col gap-3 px-4 py-4">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="font-semibold text-slate-900">{item.patient_id}</span>
-                    <span className="text-xs text-slate-500">
-                      Taken {takenLabel}
-                    </span>
+                    <span className="text-xs text-slate-500">Taken {takenLabel}</span>
                   </div>
                   <div className="space-y-1 text-sm text-slate-600">
                     {item.provider && (

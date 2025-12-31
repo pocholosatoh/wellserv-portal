@@ -18,14 +18,20 @@ type StaffContext = {
 const assignSchema = z.record(z.string(), z.string().uuid().nullable());
 
 function normalizeHub(raw?: string | null) {
-  return String(raw || "").trim().toUpperCase();
+  return String(raw || "")
+    .trim()
+    .toUpperCase();
 }
 
 async function getStaffContext(): Promise<StaffContext> {
   const session = await getSession().catch(() => null);
   const c = await cookies();
 
-  const prefix = (session?.staff_role_prefix || c.get("staff_role_prefix")?.value || "").toUpperCase();
+  const prefix = (
+    session?.staff_role_prefix ||
+    c.get("staff_role_prefix")?.value ||
+    ""
+  ).toUpperCase();
   const role = (session?.staff_role || c.get("staff_role")?.value || "").toLowerCase();
   const branch = normalizeHub(session?.staff_branch || c.get("staff_branch")?.value || "");
   const staffId = session?.staff_id || c.get("staff_id")?.value || "";
@@ -59,7 +65,9 @@ export async function GET(req: Request) {
     }
 
     const url = new URL(req.url);
-    const requestedHub = normalizeHub(url.searchParams.get("hub_code") || url.searchParams.get("hub"));
+    const requestedHub = normalizeHub(
+      url.searchParams.get("hub_code") || url.searchParams.get("hub"),
+    );
     const hubCodes = new Set((hubs || []).map((h) => normalizeHub(h.code)));
 
     // RMTs are pinned to their login branch; ADMs can choose.
@@ -80,7 +88,7 @@ export async function GET(req: Request) {
     if (secErr) throw secErr;
 
     const sections = Array.from(
-      new Set((sectionsRows || []).map((r: any) => String(r.section || "").trim()).filter(Boolean))
+      new Set((sectionsRows || []).map((r: any) => String(r.section || "").trim()).filter(Boolean)),
     );
 
     const { data: rmtRows, error: staffErr } = await supa
@@ -159,7 +167,7 @@ export async function POST(req: Request) {
 
     // Validate staff IDs are active RMTs
     const targetStaffIds = Array.from(
-      new Set(Array.from(desiredMap.values()).filter((v): v is string => typeof v === "string"))
+      new Set(Array.from(desiredMap.values()).filter((v): v is string => typeof v === "string")),
     );
     if (targetStaffIds.length) {
       const { data: validRows, error: validErr } = await supa
@@ -199,7 +207,11 @@ export async function POST(req: Request) {
     });
 
     if (!changes.length) {
-      return NextResponse.json({ ok: true, updated: 0, assignments: Object.fromEntries(desiredMap) });
+      return NextResponse.json({
+        ok: true,
+        updated: 0,
+        assignments: Object.fromEntries(desiredMap),
+      });
     }
 
     for (const ch of changes) {

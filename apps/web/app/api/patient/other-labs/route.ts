@@ -40,7 +40,7 @@ export async function GET(req: Request) {
     const { data, error } = await sb
       .from("external_results")
       .select(
-        "id, patient_id, url, content_type, type, provider, taken_at, uploaded_at, uploaded_by, note, category, subtype, impression, reported_at, performer_name, performer_role, performer_license"
+        "id, patient_id, url, content_type, type, provider, taken_at, uploaded_at, uploaded_by, note, category, subtype, impression, reported_at, performer_name, performer_role, performer_license",
       )
       .eq("patient_id", pid)
       .order("type", { ascending: true })
@@ -55,21 +55,23 @@ export async function GET(req: Request) {
     const items = await Promise.all(
       rows.map(async (r) => {
         if (/^https?:\/\//i.test(r.url)) return r; // legacy/public URL
-        const { data: signed, error: signErr } = await sb
-          .storage
+        const { data: signed, error: signErr } = await sb.storage
           .from(BUCKET)
           .createSignedUrl(r.url, expiresIn);
         if (signErr || !signed?.signedUrl) {
           throw new Error(
-            `[sign-error] bucket="${BUCKET}" path="${r.url}" expires=${expiresIn} :: ${signErr?.message || "Failed to create signed URL"}`
+            `[sign-error] bucket="${BUCKET}" path="${r.url}" expires=${expiresIn} :: ${signErr?.message || "Failed to create signed URL"}`,
           );
         }
         return { ...r, url: signed.signedUrl };
-      })
+      }),
     );
 
     if (debug) {
-      const r = NextResponse.json({ debug: { bucket: BUCKET, count: items.length, expiresIn }, items });
+      const r = NextResponse.json({
+        debug: { bucket: BUCKET, count: items.length, expiresIn },
+        items,
+      });
       r.headers.set("x-route-version", "patient/other-labs:v2-signed");
       r.headers.set("x-bucket", BUCKET);
       return r;

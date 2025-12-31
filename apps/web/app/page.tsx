@@ -1,26 +1,26 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import Hero from '@/components/home/Hero';
-import WhyCards from '@/components/home/WhyCards';
-import Promo from '@/components/home/Promo';
-import Testimonials from '@/components/home/Testimonials';
-import Branches from '@/components/home/Branches';
-import ResultsPortal from '@/components/home/ResultsPortal';
-import { Analytics } from '@vercel/analytics/react';
-import FBMessenger from '@/components/FBMessenger';
-import Highlights from '@/components/home/Highlights';
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import Hero from "@/components/home/Hero";
+import WhyCards from "@/components/home/WhyCards";
+import Promo from "@/components/home/Promo";
+import Testimonials from "@/components/home/Testimonials";
+import Branches from "@/components/home/Branches";
+import ResultsPortal from "@/components/home/ResultsPortal";
+import { Analytics } from "@vercel/analytics/react";
+import FBMessenger from "@/components/FBMessenger";
+import Highlights from "@/components/home/Highlights";
 
 export default function HomePage() {
   const [showSticky, setShowSticky] = useState(false); // show after scroll
-  const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || '#44969b';
+  const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
 
   useEffect(() => {
     const onScroll = () => setShowSticky(window.scrollY > 220);
     onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return (
@@ -33,7 +33,7 @@ export default function HomePage() {
           className="relative isolate"
           style={{
             background:
-              'linear-gradient(135deg, rgba(68,150,155,0.12) 0%, rgba(68,150,155,0.05) 45%, rgba(255,255,255,0.0) 100%)',
+              "linear-gradient(135deg, rgba(68,150,155,0.12) 0%, rgba(68,150,155,0.05) 45%, rgba(255,255,255,0.0) 100%)",
           }}
         >
           <header className="section py-3 sm:py-4">
@@ -135,7 +135,10 @@ export default function HomePage() {
         <footer className="section text-sm text-gray-600">
           <div className="border-t pt-6">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-              <p>© {new Date().getFullYear()} WELLSERV® Medical Corporation • DOH Licensed Facilities</p>
+              <p>
+                © {new Date().getFullYear()} WELLSERV® Medical Corporation • DOH Licensed
+                Facilities
+              </p>
               <div className="flex items-center gap-4">
                 <a className="hover:underline" href="/patient/">
                   Results Portal

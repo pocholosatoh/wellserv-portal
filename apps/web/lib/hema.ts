@@ -6,9 +6,9 @@
 export type HemaRowInternal = {
   patient_id: string;
   WBC?: number | "";
-  Lympho?: number | "";   // fraction 0.xx
-  MID?: number | "";      // fraction 0.xx
-  Gran?: number | "";     // fraction 0.xx
+  Lympho?: number | ""; // fraction 0.xx
+  MID?: number | ""; // fraction 0.xx
+  Gran?: number | ""; // fraction 0.xx
   RBC?: number | "";
   Hemoglobin?: number | "";
   Hematocrit?: number | "";
@@ -74,10 +74,7 @@ const CSV_ALIASES = {
 /** -----------------------------
  * Internal key -> Sheet column map (output side)
  * ------------------------------*/
-const COLUMN_MAP: Record<
-  Exclude<keyof HemaRowInternal, "patient_id">,
-  keyof HemaRowSheet
-> = {
+const COLUMN_MAP: Record<Exclude<keyof HemaRowInternal, "patient_id">, keyof HemaRowSheet> = {
   WBC: "hema_wbc",
   Lympho: "hema_lymph",
   MID: "hema_mid",
@@ -94,7 +91,8 @@ const COLUMN_MAP: Record<
 /** -----------------------------
  * Small utilities
  * ------------------------------*/
-function pick(r: Record<string, any>, names: readonly string[]) { // <— accepts readonly array
+function pick(r: Record<string, any>, names: readonly string[]) {
+  // <— accepts readonly array
   for (const n of names) {
     if (n in r && r[n] != null && String(r[n]).trim() !== "") return r[n];
   }
@@ -131,7 +129,7 @@ function percentishToFraction(n: number | null): number | null {
 export function normalizeTrioToFrac(
   lymphIn: any,
   midIn: any,
-  granIn: any
+  granIn: any,
 ): { Lympho: number | ""; MID: number | ""; Gran: number | "" } {
   const toFrac = (v: any): number | null => {
     const n = toNum(v);
@@ -158,8 +156,8 @@ export function normalizeTrioToFrac(
 
   if (count >= 2) {
     // Prefer to preserve L and M, then solve for G
-    const Lr = r2((L ?? 0));
-    const Mr = r2((M ?? 0));
+    const Lr = r2(L ?? 0);
+    const Mr = r2(M ?? 0);
 
     // If G is the missing one OR even if present, we recompute G to force exact sum=1
     let Gr = r2(1 - (Lr + Mr));
@@ -210,7 +208,7 @@ export function sanitizeHemaRows(rows: any[]): HemaRowInternal[] {
       const trio = normalizeTrioToFrac(
         pick(r, CSV_ALIASES.Lympho),
         pick(r, CSV_ALIASES.MID),
-        pick(r, CSV_ALIASES.Gran)
+        pick(r, CSV_ALIASES.Gran),
       );
 
       const obj: HemaRowInternal = {

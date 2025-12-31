@@ -13,7 +13,9 @@ const RequestSchema = z.object({
 });
 
 function normalizePatientId(raw: unknown) {
-  return String(raw ?? "").trim().toUpperCase();
+  return String(raw ?? "")
+    .trim()
+    .toUpperCase();
 }
 
 function isTrivialPin(pin: string) {

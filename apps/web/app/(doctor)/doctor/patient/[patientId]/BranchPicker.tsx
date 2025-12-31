@@ -57,7 +57,9 @@ export default function BranchPicker({
       >
         <option value="">Select…</option>
         {BRANCHES.map((b) => (
-          <option key={b} value={b}>{b}</option>
+          <option key={b} value={b}>
+            {b}
+          </option>
         ))}
       </select>
     </div>

@@ -116,10 +116,9 @@ async function sbReadResultsFlatByPatient(patientId: string): Promise<Row[]> {
   // discover likely key/value columns
   const keyField =
     ["analyte_key", "key", "parameter_key", "param_key", "analyte", "parameter"].find(
-      (k) => k in flat[0]
+      (k) => k in flat[0],
     ) || "analyte_key";
-  const valField =
-    ["value", "result", "val", "res"].find((k) => k in flat[0]) || "value";
+  const valField = ["value", "result", "val", "res"].find((k) => k in flat[0]) || "value";
 
   const groups = new Map<string, Row>();
   for (const r of flat) {
@@ -163,7 +162,7 @@ export async function sbReadPatientById(patientId: string): Promise<Row | null> 
 
 export async function sbListVitalsByPatient(
   patientId: string,
-  opts?: { limit?: number; consultationId?: string; encounterId?: string }
+  opts?: { limit?: number; consultationId?: string; encounterId?: string },
 ): Promise<VitalsSnapshotRow[]> {
   const supabase = getSupabase();
   const pid = escapeLikeExact(String(patientId || "").trim());
@@ -184,7 +183,7 @@ export async function sbListVitalsByPatient(
 
 export async function sbReadLatestVitalsByPatient(
   patientId: string,
-  opts?: { consultationId?: string; encounterId?: string }
+  opts?: { consultationId?: string; encounterId?: string },
 ): Promise<VitalsSnapshotRow | null> {
   const rows = await sbListVitalsByPatient(patientId, { ...opts, limit: 1 });
   return rows[0] ?? null;

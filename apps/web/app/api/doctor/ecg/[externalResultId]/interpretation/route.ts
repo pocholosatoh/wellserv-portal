@@ -35,11 +35,7 @@ function sanitize(value: unknown) {
 function resolveSignatureName(input: string | null, doctor: DoctorSession | null) {
   const provided = sanitize(input);
   if (provided) return provided;
-  return (
-    sanitize(doctor?.display_name) ||
-    sanitize(doctor?.name) ||
-    "Physician"
-  );
+  return sanitize(doctor?.display_name) || sanitize(doctor?.name) || "Physician";
 }
 
 function resolveSignatureLicense(input: string | null, doctor: DoctorSession | null) {
@@ -125,15 +121,9 @@ export async function POST(req: Request, context: RouteContext) {
 
       if (updateExternalResultErr) throw updateExternalResultErr;
 
-      await supa
-        .from("ecg_cases")
-        .update({ status: "signed" })
-        .eq("id", ecgCase.id);
+      await supa.from("ecg_cases").update({ status: "signed" }).eq("id", ecgCase.id);
     } else {
-      await supa
-        .from("ecg_cases")
-        .update({ status: "in_review" })
-        .eq("id", ecgCase.id);
+      await supa.from("ecg_cases").update({ status: "in_review" }).eq("id", ecgCase.id);
     }
 
     return NextResponse.json({ ok: true, id: interpretation.id });

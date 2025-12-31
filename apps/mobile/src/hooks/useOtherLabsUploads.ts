@@ -49,7 +49,7 @@ export function useOtherLabsUploads() {
           console.warn("[other labs] request failed", endpoint, res.status);
         }
         const err = new Error(
-          (json as { error?: string })?.error || "Failed to load other labs"
+          (json as { error?: string })?.error || "Failed to load other labs",
         ) as Error & { status?: number };
         err.status = res.status;
         throw err;

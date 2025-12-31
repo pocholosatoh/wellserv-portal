@@ -14,7 +14,10 @@ import { requireActor } from "@/lib/api-actor";
 */
 function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).format(new Date());
 }
 
@@ -35,10 +38,7 @@ export async function GET(req: Request) {
     }
 
     const db = getSupabase();
-    let q = db
-      .from("consultations")
-      .select("id, visit_at, branch")
-      .eq("patient_id", patientId);
+    let q = db.from("consultations").select("id, visit_at, branch").eq("patient_id", patientId);
 
     if (branchOnly && actor.branch) {
       q = q.eq("branch", actor.branch);
@@ -47,14 +47,11 @@ export async function GET(req: Request) {
     if (scope === "today") {
       const ymd = todayYMD();
       const start = `${ymd}T00:00:00+08:00`;
-      const end   = `${ymd}T23:59:59.999+08:00`;
+      const end = `${ymd}T23:59:59.999+08:00`;
       q = q.gte("visit_at", start).lte("visit_at", end);
     }
 
-    const { data, error } = await q
-      .order("visit_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data, error } = await q.order("visit_at", { ascending: false }).limit(1).maybeSingle();
 
     if (error) throw error;
     return NextResponse.json({ consultation_id: data?.id || null });

@@ -6,15 +6,15 @@ type RxState = "none" | "draft" | "signed";
 
 export default function FinishConsultButton({
   consultationId,
-  encounterId,          // kept so parent can finalize after consent
-  onFinished,           // kept (parent can still reload after full flow)
-  onNeedConsent,        // 👈 NEW: parent opens ConsentModal
+  encounterId, // kept so parent can finalize after consent
+  onFinished, // kept (parent can still reload after full flow)
+  onNeedConsent, // 👈 NEW: parent opens ConsentModal
   encounterLoading = false,
 }: {
   consultationId: string;
   encounterId?: string;
   onFinished?: () => void;
-  onNeedConsent: () => void;   // required for consent-first flow
+  onNeedConsent: () => void; // required for consent-first flow
   encounterLoading?: boolean;
 }) {
   const [rxState, setRxState] = useState<RxState>("none");
@@ -26,7 +26,7 @@ export default function FinishConsultButton({
       setErr(null);
       const r = await fetch(
         `/api/claims/preview?consultation_id=${encodeURIComponent(consultationId)}`,
-        { cache: "no-store" }
+        { cache: "no-store" },
       );
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
@@ -54,9 +54,7 @@ export default function FinishConsultButton({
   if (rxState === "signed") {
     return (
       <div className="px-4 py-3 bg-gray-50 border-t flex items-center justify-between">
-        <div className="text-xs text-gray-500">
-          Prescription signed — consultation is finished.
-        </div>
+        <div className="text-xs text-gray-500">Prescription signed — consultation is finished.</div>
         <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2 py-1 text-xs">
           Finished (Rx signed)
         </span>
@@ -107,12 +105,11 @@ export default function FinishConsultButton({
           Linked to encounter{" "}
           <span className="font-semibold">
             {encounterId.length > 10 ? `…${encounterId.slice(-6)}` : encounterId}
-          </span>. Consent will apply to this encounter.
+          </span>
+          . Consent will apply to this encounter.
         </div>
       ) : encounterLoading ? (
-        <div className="mt-2 text-xs text-gray-500">
-          (Loading encounter… please wait a moment)
-        </div>
+        <div className="mt-2 text-xs text-gray-500">(Loading encounter… please wait a moment)</div>
       ) : (
         <div className="mt-2 text-xs text-red-600">
           Link this consultation to a same-day encounter above to enable finishing.

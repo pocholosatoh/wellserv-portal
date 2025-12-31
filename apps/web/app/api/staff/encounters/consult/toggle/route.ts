@@ -16,7 +16,7 @@ function todayISOin(tz = process.env.APP_TZ || "Asia/Manila") {
 async function nextQueueNumber(
   db: ReturnType<typeof getSupabase>,
   branch: string,
-  visitDate: string
+  visitDate: string,
 ) {
   const { data, error } = await db
     .from("encounters")
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     if (!encounter_id || !branchCode || typeof enable !== "boolean") {
       return NextResponse.json(
         { error: "encounter_id, branch, enable are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (!["SI", "SL"].includes(branchCode)) {
@@ -87,7 +87,10 @@ export async function POST(req: Request) {
         }
 
         const msg = String(error.message || "");
-        if (!/uq_enc_consult_queue_active/i.test(msg) && !/duplicate key value violates unique constraint/i.test(msg)) {
+        if (
+          !/uq_enc_consult_queue_active/i.test(msg) &&
+          !/duplicate key value violates unique constraint/i.test(msg)
+        ) {
           throw new Error(msg);
         }
 

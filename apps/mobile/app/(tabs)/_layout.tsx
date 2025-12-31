@@ -10,6 +10,7 @@ import { useSession } from "../../src/providers/SessionProvider";
 const tabRoutes: Record<PatientTabKey, Href> = {
   home: "/",
   results: "/results",
+  logs: "/logs",
   prescriptions: "/prescriptions",
   followups: "/followups",
   pharmacy: "/delivery",
@@ -17,6 +18,7 @@ const tabRoutes: Record<PatientTabKey, Href> = {
 
 function getActiveTab(pathname: string): PatientTabKey {
   if (pathname.startsWith("/results")) return "results";
+  if (pathname.startsWith("/logs")) return "logs";
   if (pathname.startsWith("/prescriptions")) return "prescriptions";
   if (pathname.startsWith("/followups")) return "followups";
   if (pathname.startsWith("/delivery")) return "pharmacy";
@@ -36,12 +38,14 @@ export default function RootLayout() {
       if (!target || target === pathname) return;
       router.navigate(target);
     },
-    [pathname, router]
+    [pathname, router],
   );
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}>
+      <View
+        style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}
+      >
         <ActivityIndicator size="large" color="#111827" />
         <Text style={{ marginTop: 12, color: "#111827" }}>Loading...</Text>
       </View>

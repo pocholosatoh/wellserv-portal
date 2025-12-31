@@ -37,10 +37,7 @@ export async function GET(req: Request) {
       actor.kind === "patient" ? actor.patient_id : getTargetPatientId(actor, { searchParams });
 
     if (!patient_id) {
-      return NextResponse.json(
-        { error: "patient_id required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "patient_id required" }, { status: 400 });
     }
 
     const json = await getPatientPrescriptions(patient_id);

@@ -198,7 +198,10 @@ export default function StaffMedOrdersPage() {
                       {p.sex && <span>• Sex: {p.sex}</span>}
                       {p.contact_no && (
                         <span className="truncate">
-                          • Contact: <a href={`tel:${p.contact_no}`} className="underline">{p.contact_no}</a>
+                          • Contact:{" "}
+                          <a href={`tel:${p.contact_no}`} className="underline">
+                            {p.contact_no}
+                          </a>
                         </span>
                       )}
                     </div>
@@ -220,7 +223,10 @@ export default function StaffMedOrdersPage() {
                       <button
                         type="button"
                         className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-1"
-                        style={{ backgroundColor: ACCENT, opacity: marking === p.patient_id ? 0.85 : 1 }}
+                        style={{
+                          backgroundColor: ACCENT,
+                          opacity: marking === p.patient_id ? 0.85 : 1,
+                        }}
                         onClick={(e) => {
                           e.stopPropagation();
                           markDelivered(p.patient_id);
@@ -257,7 +263,10 @@ export default function StaffMedOrdersPage() {
                     <div className="text-xs font-mono text-slate-500">{d.patient_id}</div>
                     {d.contact_no && (
                       <div className="text-xs text-slate-600">
-                        Contact: <a href={`tel:${d.contact_no}`} className="underline">{d.contact_no}</a>
+                        Contact:{" "}
+                        <a href={`tel:${d.contact_no}`} className="underline">
+                          {d.contact_no}
+                        </a>
                       </div>
                     )}
                   </div>

@@ -15,7 +15,9 @@ const RequestSchema = z.object({
 });
 
 function normalizePatientId(raw: unknown) {
-  return String(raw ?? "").trim().toUpperCase();
+  return String(raw ?? "")
+    .trim()
+    .toUpperCase();
 }
 
 function escapeLikeExact(s: string) {
@@ -58,7 +60,7 @@ export async function POST(req: Request) {
     if (!patient.pin_hash) {
       return NextResponse.json(
         { ok: false, code: "PIN_REQUIRED", message: "You must set up a PIN before logging in." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -101,9 +103,6 @@ export async function POST(req: Request) {
 
     return res;
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err?.message || "Login failed" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: err?.message || "Login failed" }, { status: 400 });
   }
 }

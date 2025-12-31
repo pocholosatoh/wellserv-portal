@@ -1,11 +1,22 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Upload, Calendar, Building2, Stethoscope, Image as ImageIcon, FileText, ChevronRight, ChevronLeft, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  CheckCircle2,
+  Upload,
+  Calendar,
+  Building2,
+  Stethoscope,
+  Image as ImageIcon,
+  FileText,
+  ChevronRight,
+  ChevronLeft,
+  XCircle,
+} from "lucide-react";
 
-const ACCENT = '#44969b';
+const ACCENT = "#44969b";
 
-type Category = 'imaging' | 'cytology' | 'microbiology' | 'ecg' | 'in_vitro' | 'other';
+type Category = "imaging" | "cytology" | "microbiology" | "ecg" | "in_vitro" | "other";
 
 type PresignMeta = {
   patient_id: string;
@@ -24,52 +35,69 @@ type PresignMeta = {
 type PresignItem = { uploadUrl: string; storagePath: string };
 type PresignResponse = { meta: PresignMeta; items: PresignItem[] };
 
-type Encounter = { id: string; patient_id: string; created_at: string; reason?: string | null; branch?: string | null };
+type Encounter = {
+  id: string;
+  patient_id: string;
+  created_at: string;
+  reason?: string | null;
+  branch?: string | null;
+};
 
 type FileItem = { file: File; preview: string; contentType: string };
 
-const yakapOptions: { label: string; value: Category; subtypes: { label: string; value: string }[]; needsImpression: boolean }[] = [
+const yakapOptions: {
+  label: string;
+  value: Category;
+  subtypes: { label: string; value: string }[];
+  needsImpression: boolean;
+}[] = [
   {
-    label: 'Imaging',
-    value: 'imaging',
+    label: "Imaging",
+    value: "imaging",
     needsImpression: true,
     subtypes: [
-      { label: 'Chest X-Ray (PA)', value: 'CXR_PA' },
-      { label: 'Chest X-Ray (PA + LAT)', value: 'CXR_PA_LAT' },
+      { label: "Chest X-Ray (PA)", value: "CXR_PA" },
+      { label: "Chest X-Ray (PA + LAT)", value: "CXR_PA_LAT" },
     ],
   },
   {
-    label: 'Cytology',
-    value: 'cytology',
+    label: "Cytology",
+    value: "cytology",
     needsImpression: true,
     subtypes: [
-      { label: 'Pap Smear (Conventional)', value: 'PAP_CONVENTIONAL' },
-      { label: 'Pap Smear (LBC)', value: 'PAP_LBC' },
+      { label: "Pap Smear (Conventional)", value: "PAP_CONVENTIONAL" },
+      { label: "Pap Smear (LBC)", value: "PAP_LBC" },
     ],
   },
   {
-    label: 'Microbiology',
-    value: 'microbiology',
+    label: "Microbiology",
+    value: "microbiology",
     needsImpression: true,
-    subtypes: [{ label: 'Sputum Microscopy (DSSM)', value: 'SPUTUM_DSSM' }],
+    subtypes: [{ label: "Sputum Microscopy (DSSM)", value: "SPUTUM_DSSM" }],
   },
   {
-    label: 'ECG',
-    value: 'ecg',
+    label: "ECG",
+    value: "ecg",
     needsImpression: false,
-    subtypes: [{ label: 'ECG — 12 lead', value: 'ECG_12LEAD' }],
+    subtypes: [{ label: "ECG — 12 lead", value: "ECG_12LEAD" }],
   },
   {
-    label: 'In-vitro (External)',
-    value: 'in_vitro',
+    label: "In-vitro (External)",
+    value: "in_vitro",
     needsImpression: false,
     subtypes: [], // free text field instead
   },
 ];
 
-function SectionCard(props: { title: string; icon?: React.ReactNode; children: React.ReactNode; className?: string; actions?: React.ReactNode }) {
+function SectionCard(props: {
+  title: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  actions?: React.ReactNode;
+}) {
   return (
-    <div className={`rounded-2xl border bg-white shadow-sm ${props.className || ''}`}>
+    <div className={`rounded-2xl border bg-white shadow-sm ${props.className || ""}`}>
       <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-slate-800">
           {props.icon}
@@ -83,7 +111,7 @@ function SectionCard(props: { title: string; icon?: React.ReactNode; children: R
 }
 
 function Stepper({ step }: { step: number }) {
-  const steps = ['Patient', 'Encounter', 'Test', 'Files', 'Details', 'Review'];
+  const steps = ["Patient", "Encounter", "Test", "Files", "Details", "Review"];
   return (
     <ol className="mb-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
       {steps.map((s, i) => {
@@ -92,13 +120,17 @@ function Stepper({ step }: { step: number }) {
         return (
           <li key={s} className="flex items-center gap-2">
             <span
-              className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm font-medium ${done ? 'bg-green-50 border-green-200 text-green-700' : active ? 'bg-sky-50 border-sky-200' : 'bg-white border-slate-200 text-slate-500'}`}
-              style={active ? { color: ACCENT, borderColor: ACCENT + '33', backgroundColor: ACCENT + '10' } : {}}
+              className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm font-medium ${done ? "bg-green-50 border-green-200 text-green-700" : active ? "bg-sky-50 border-sky-200" : "bg-white border-slate-200 text-slate-500"}`}
+              style={
+                active
+                  ? { color: ACCENT, borderColor: ACCENT + "33", backgroundColor: ACCENT + "10" }
+                  : {}
+              }
               title={s}
             >
               {done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
             </span>
-            <span className={`text-sm ${active ? 'font-semibold' : 'text-slate-600'}`}>{s}</span>
+            <span className={`text-sm ${active ? "font-semibold" : "text-slate-600"}`}>{s}</span>
             {i < steps.length - 1 && <span className="mx-1 text-slate-300">›</span>}
           </li>
         );
@@ -111,7 +143,7 @@ export default function OtherLabsUploadPage() {
   const [step, setStep] = useState(0);
 
   // STEP 0 — Patient
-  const [patientId, setPatientId] = useState('');
+  const [patientId, setPatientId] = useState("");
   const [patientOk, setPatientOk] = useState<boolean | null>(null);
   const [checkingPatient, setCheckingPatient] = useState(false);
 
@@ -122,22 +154,22 @@ export default function OtherLabsUploadPage() {
   const [creatingEnc, setCreatingEnc] = useState(false);
 
   // STEP 2 — Test selection
-  const [category, setCategory] = useState<Category>('imaging');
+  const [category, setCategory] = useState<Category>("imaging");
   const [subtype, setSubtype] = useState<string | null>(null);
-  const [freeSubtype, setFreeSubtype] = useState(''); // for in_vitro
+  const [freeSubtype, setFreeSubtype] = useState(""); // for in_vitro
 
   // STEP 3 — Files
   const [files, setFiles] = useState<FileItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // STEP 4 — Details
-  const [takenAt, setTakenAt] = useState('');
-  const [provider, setProvider] = useState('');
-  const [impression, setImpression] = useState('');
-  const [perfName, setPerfName] = useState('');
-  const [perfRole, setPerfRole] = useState('');
-  const [perfLicense, setPerfLicense] = useState('');
-  const [note, setNote] = useState('');
+  const [takenAt, setTakenAt] = useState("");
+  const [provider, setProvider] = useState("");
+  const [impression, setImpression] = useState("");
+  const [perfName, setPerfName] = useState("");
+  const [perfRole, setPerfRole] = useState("");
+  const [perfLicense, setPerfLicense] = useState("");
+  const [note, setNote] = useState("");
 
   // STEP 5 — Review
   const [submitting, setSubmitting] = useState(false);
@@ -146,10 +178,10 @@ export default function OtherLabsUploadPage() {
 
   // ---- Helpers
   const chosenOption = yakapOptions.find((o) => o.value === category)!;
-  const requiresImpression = chosenOption.needsImpression && category !== 'ecg';
+  const requiresImpression = chosenOption.needsImpression && category !== "ecg";
 
   const resolvedSubtype = useMemo(() => {
-    if (category === 'in_vitro') {
+    if (category === "in_vitro") {
       return freeSubtype.trim() ? freeSubtype.trim() : null;
     }
     return subtype;
@@ -157,21 +189,21 @@ export default function OtherLabsUploadPage() {
 
   function resetAfterSubmit() {
     setStep(0);
-    setPatientId('');
+    setPatientId("");
     setPatientOk(null);
     setEncounters([]);
     setEncounterId(null);
-    setCategory('imaging');
+    setCategory("imaging");
     setSubtype(null);
-    setFreeSubtype('');
+    setFreeSubtype("");
     setFiles([]);
-    setTakenAt('');
-    setProvider('');
-    setImpression('');
-    setPerfName('');
-    setPerfRole('');
-    setPerfLicense('');
-    setNote('');
+    setTakenAt("");
+    setProvider("");
+    setImpression("");
+    setPerfName("");
+    setPerfRole("");
+    setPerfLicense("");
+    setNote("");
     setResultMsg(null);
     setErrorMsg(null);
   }
@@ -182,7 +214,7 @@ export default function OtherLabsUploadPage() {
     setErrorMsg(null);
     try {
       const pid = patientId.trim().toUpperCase();
-      if (!pid) throw new Error('Enter a Patient ID');
+      if (!pid) throw new Error("Enter a Patient ID");
       // If you have an endpoint to verify existence, call it; for now, assume exists when non-empty
       // const res = await fetch(`/api/patients/exists?patient_id=${encodeURIComponent(pid)}`);
       // const j = await res.json();
@@ -193,7 +225,7 @@ export default function OtherLabsUploadPage() {
       await loadEncounters(pid);
     } catch (e: any) {
       setPatientOk(false);
-      setErrorMsg(e?.message || 'Patient not found');
+      setErrorMsg(e?.message || "Patient not found");
     } finally {
       setCheckingPatient(false);
     }
@@ -204,13 +236,15 @@ export default function OtherLabsUploadPage() {
     setLoadingEnc(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/encounters?patient_id=${encodeURIComponent(pid)}`, { cache: 'no-store' });
+      const res = await fetch(`/api/encounters?patient_id=${encodeURIComponent(pid)}`, {
+        cache: "no-store",
+      });
       const j = await res.json();
-      if (!res.ok) throw new Error(j?.error || 'Failed to load encounters');
+      if (!res.ok) throw new Error(j?.error || "Failed to load encounters");
       setEncounters(j.items || []);
       setEncounterId(j.items?.[0]?.id || null);
     } catch (e: any) {
-      setErrorMsg(e?.message || 'Could not fetch encounters');
+      setErrorMsg(e?.message || "Could not fetch encounters");
     } finally {
       setLoadingEnc(false);
     }
@@ -221,16 +255,16 @@ export default function OtherLabsUploadPage() {
     setErrorMsg(null);
     try {
       const res = await fetch(`/api/encounters/create`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        method: "POST",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ patient_id: patientId }),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j?.error || 'Failed to create encounter');
+      if (!res.ok) throw new Error(j?.error || "Failed to create encounter");
       setEncounterId(j.id);
       await loadEncounters();
     } catch (e: any) {
-      setErrorMsg(e?.message || 'Could not create encounter');
+      setErrorMsg(e?.message || "Could not create encounter");
     } finally {
       setCreatingEnc(false);
     }
@@ -242,10 +276,10 @@ export default function OtherLabsUploadPage() {
     const mapped = f.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
-      contentType: file.type || 'application/octet-stream',
+      contentType: file.type || "application/octet-stream",
     }));
     setFiles((prev) => [...prev, ...mapped]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
   function removeFile(idx: number) {
     setFiles((prev) => prev.filter((_, i) => i !== idx));
@@ -257,25 +291,25 @@ export default function OtherLabsUploadPage() {
     setErrorMsg(null);
     setResultMsg(null);
     try {
-      if (!patientId) throw new Error('Patient ID is required');
-      if (!takenAt) throw new Error('Date taken is required');
-      if (!provider) throw new Error('Provider is required');
-      if (!files.length) throw new Error('Please attach at least one file');
+      if (!patientId) throw new Error("Patient ID is required");
+      if (!takenAt) throw new Error("Date taken is required");
+      if (!provider) throw new Error("Provider is required");
+      if (!files.length) throw new Error("Please attach at least one file");
 
       if (requiresImpression && !impression.trim()) {
-        throw new Error('Impression is required for this test category');
+        throw new Error("Impression is required for this test category");
       }
-      if (category !== 'in_vitro' && !resolvedSubtype) {
-        throw new Error('Please select a subtype');
+      if (category !== "in_vitro" && !resolvedSubtype) {
+        throw new Error("Please select a subtype");
       }
-      if (category === 'in_vitro' && !resolvedSubtype) {
-        throw new Error('Please type the test name for In-vitro');
+      if (category === "in_vitro" && !resolvedSubtype) {
+        throw new Error("Please type the test name for In-vitro");
       }
 
       // 1) PRESIGN
-      const pres = await fetch('/api/staff/uploads/presign', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+      const pres = await fetch("/api/staff/uploads/presign", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           files: files.map((f) => ({ name: f.file.name, contentType: f.contentType })),
           patient_id: patientId,
@@ -292,25 +326,25 @@ export default function OtherLabsUploadPage() {
         }),
       });
       const pjson: PresignResponse | { error: string } = await pres.json();
-      if (!pres.ok) throw new Error((pjson as any)?.error || 'Presign failed');
+      if (!pres.ok) throw new Error((pjson as any)?.error || "Presign failed");
 
       // 2) PUT to signed upload URLs
       await Promise.all(
         (pjson as PresignResponse).items.map((it, idx) =>
           fetch(it.uploadUrl, {
-            method: 'PUT',
+            method: "PUT",
             body: files[idx].file,
-            headers: { 'Content-Type': files[idx].contentType },
+            headers: { "Content-Type": files[idx].contentType },
           }).then((r) => {
-            if (!r.ok) throw new Error('Upload failed for ' + files[idx].file.name);
-          })
-        )
+            if (!r.ok) throw new Error("Upload failed for " + files[idx].file.name);
+          }),
+        ),
       );
 
       // 3) FINALIZE
-      const fin = await fetch('/api/staff/uploads/finalize', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+      const fin = await fetch("/api/staff/uploads/finalize", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           meta: (pjson as PresignResponse).meta,
           items: (pjson as PresignResponse).items.map((it, idx) => ({
@@ -320,12 +354,12 @@ export default function OtherLabsUploadPage() {
         }),
       });
       const fj = await fin.json();
-      if (!fin.ok) throw new Error(fj?.error || 'Finalize failed');
+      if (!fin.ok) throw new Error(fj?.error || "Finalize failed");
 
-      setResultMsg('Upload saved successfully.');
+      setResultMsg("Upload saved successfully.");
       setStep(5);
     } catch (e: any) {
-      setErrorMsg(e?.message || 'Upload failed');
+      setErrorMsg(e?.message || "Upload failed");
     } finally {
       setSubmitting(false);
     }
@@ -337,7 +371,10 @@ export default function OtherLabsUploadPage() {
       <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Attach External Results</h1>
         <div className="text-sm text-slate-600">
-          <span className="inline-block rounded-full px-3 py-1" style={{ backgroundColor: ACCENT + '20', color: ACCENT }}>
+          <span
+            className="inline-block rounded-full px-3 py-1"
+            style={{ backgroundColor: ACCENT + "20", color: ACCENT }}
+          >
             YAKAP-ready
           </span>
         </div>
@@ -374,7 +411,7 @@ export default function OtherLabsUploadPage() {
               onChange={(e) => setPatientId(e.target.value)}
               placeholder="Enter Patient ID (e.g., SATOH010596)"
               className="w-full rounded-lg border px-3 py-2 outline-none focus:ring"
-              style={{ borderColor: ACCENT + '55' }}
+              style={{ borderColor: ACCENT + "55" }}
             />
             <button
               onClick={verifyPatient}
@@ -382,7 +419,7 @@ export default function OtherLabsUploadPage() {
               className="inline-flex w-full items-center justify-center rounded-lg px-4 py-2 text-white sm:w-auto"
               style={{ backgroundColor: ACCENT, opacity: checkingPatient ? 0.7 : 1 }}
             >
-              {checkingPatient ? 'Checking…' : 'Verify & Continue'}
+              {checkingPatient ? "Checking…" : "Verify & Continue"}
               <ChevronRight className="ml-2 h-4 w-4" />
             </button>
           </div>
@@ -433,7 +470,7 @@ export default function OtherLabsUploadPage() {
                 className="w-full rounded-lg px-3 py-1.5 text-sm text-white sm:w-auto"
                 style={{ backgroundColor: ACCENT, opacity: creatingEnc ? 0.7 : 1 }}
               >
-                {creatingEnc ? 'Creating…' : 'Create new encounter'}
+                {creatingEnc ? "Creating…" : "Create new encounter"}
               </button>
             </div>
           </div>
@@ -456,11 +493,13 @@ export default function OtherLabsUploadPage() {
                         <div>
                           <div className="text-sm font-medium">Encounter #{e.id.slice(0, 8)}</div>
                           <div className="text-xs text-slate-600">
-                            {new Date(e.created_at).toLocaleString()} • {e.branch || '—'}
-                            {e.reason ? ` • ${e.reason}` : ''}
+                            {new Date(e.created_at).toLocaleString()} • {e.branch || "—"}
+                            {e.reason ? ` • ${e.reason}` : ""}
                           </div>
                         </div>
-                        {encounterId === e.id && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                        {encounterId === e.id && (
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        )}
                       </div>
                     </label>
                   </li>
@@ -512,7 +551,7 @@ export default function OtherLabsUploadPage() {
                   setSubtype(null);
                 }}
                 className="w-full rounded-lg border px-3 py-2"
-                style={{ borderColor: ACCENT + '55' }}
+                style={{ borderColor: ACCENT + "55" }}
               >
                 {yakapOptions.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -522,11 +561,11 @@ export default function OtherLabsUploadPage() {
               </select>
             </div>
 
-            {category !== 'in_vitro' ? (
+            {category !== "in_vitro" ? (
               <div className="space-y-2">
                 <label className="text-sm font-medium">Subtype</label>
                 <select
-                  value={subtype || ''}
+                  value={subtype || ""}
                   onChange={(e) => setSubtype(e.target.value || null)}
                   className="w-full rounded-lg border px-3 py-2"
                 >
@@ -598,7 +637,9 @@ export default function OtherLabsUploadPage() {
               <Upload className="h-4 w-4" />
               Add files
             </button>
-            <p className="mt-1 text-xs text-slate-500">Accepts images or PDF. You can use the camera on mobile.</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Accepts images or PDF. You can use the camera on mobile.
+            </p>
           </div>
 
           {files.length > 0 && (
@@ -612,7 +653,7 @@ export default function OtherLabsUploadPage() {
                   >
                     <XCircle className="h-5 w-5 text-red-600" />
                   </button>
-                  {f.contentType.includes('pdf') ? (
+                  {f.contentType.includes("pdf") ? (
                     <div className="flex h-32 items-center justify-center">
                       <FileText className="h-8 w-8 text-slate-500" />
                     </div>
@@ -672,9 +713,11 @@ export default function OtherLabsUploadPage() {
               />
             </div>
 
-            {category !== 'ecg' && chosenOption.needsImpression && (
+            {category !== "ecg" && chosenOption.needsImpression && (
               <div className="md:col-span-2 space-y-2">
-                <label className="text-sm font-medium">Impression <span className="text-red-600">*</span></label>
+                <label className="text-sm font-medium">
+                  Impression <span className="text-red-600">*</span>
+                </label>
                 <textarea
                   value={impression}
                   onChange={(e) => setImpression(e.target.value)}
@@ -747,22 +790,40 @@ export default function OtherLabsUploadPage() {
                 className="w-full rounded-lg px-3 py-2 text-sm text-white sm:w-auto"
                 style={{ backgroundColor: ACCENT, opacity: submitting ? 0.7 : 1 }}
               >
-                {submitting ? 'Uploading…' : 'Submit'}
+                {submitting ? "Uploading…" : "Submit"}
               </button>
             </div>
           }
         >
           <ul className="space-y-2 text-sm">
-            <li><strong>Patient:</strong> {patientId}</li>
-            <li><strong>Encounter:</strong> {encounterId ? encounterId : <em>(none)</em>}</li>
-            <li><strong>Category:</strong> {yakapOptions.find((o) => o.value === category)?.label}</li>
-            <li><strong>Subtype:</strong> {resolvedSubtype || <em>(none)</em>}</li>
-            <li><strong>Date taken:</strong> {takenAt || <em>—</em>}</li>
-            <li><strong>Provider:</strong> {provider || <em>—</em>}</li>
-            {category !== 'ecg' && chosenOption.needsImpression && (
-              <li><strong>Impression:</strong> {impression || <em>—</em>}</li>
+            <li>
+              <strong>Patient:</strong> {patientId}
+            </li>
+            <li>
+              <strong>Encounter:</strong> {encounterId ? encounterId : <em>(none)</em>}
+            </li>
+            <li>
+              <strong>Category:</strong> {yakapOptions.find((o) => o.value === category)?.label}
+            </li>
+            <li>
+              <strong>Subtype:</strong> {resolvedSubtype || <em>(none)</em>}
+            </li>
+            <li>
+              <strong>Date taken:</strong> {takenAt || <em>—</em>}
+            </li>
+            <li>
+              <strong>Provider:</strong> {provider || <em>—</em>}
+            </li>
+            {category !== "ecg" && chosenOption.needsImpression && (
+              <li>
+                <strong>Impression:</strong> {impression || <em>—</em>}
+              </li>
             )}
-            {!!files.length && <li><strong>Files:</strong> {files.map((f) => f.file.name).join(', ')}</li>}
+            {!!files.length && (
+              <li>
+                <strong>Files:</strong> {files.map((f) => f.file.name).join(", ")}
+              </li>
+            )}
           </ul>
 
           {resultMsg && (

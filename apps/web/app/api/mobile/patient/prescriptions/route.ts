@@ -7,9 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function isAccessAllowed(code: string | undefined | null) {
-  const expected =
-    process.env.PATIENT_PORTAL_ACCESS_CODE ||
-    process.env.PATIENT_ACCESS_CODE;
+  const expected = process.env.PATIENT_PORTAL_ACCESS_CODE || process.env.PATIENT_ACCESS_CODE;
   if (!expected) return false;
   return code === expected;
 }
@@ -70,7 +68,7 @@ export async function POST(req: Request) {
       if (patientRow?.pin_hash) {
         return NextResponse.json(
           { error: "Please log in with your PIN.", code: "PIN_REQUIRED" },
-          { status: 403 }
+          { status: 403 },
         );
       }
     }

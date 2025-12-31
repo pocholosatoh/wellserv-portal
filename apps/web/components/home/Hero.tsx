@@ -1,17 +1,21 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import { Clock4, HeartPulse, ShieldCheck, Sparkles } from 'lucide-react';
+import { motion } from "framer-motion";
+import { Clock4, HeartPulse, ShieldCheck, Sparkles } from "lucide-react";
 
 const heroHighlights = [
-  { label: 'Same-day results release', icon: Clock4 },
-  { label: 'Board-certified physicians on-site', icon: ShieldCheck },
-  { label: 'Heart & wellness focused care', icon: HeartPulse },
+  { label: "Same-day results release", icon: Clock4 },
+  { label: "Board-certified physicians on-site", icon: ShieldCheck },
+  { label: "Heart & wellness focused care", icon: HeartPulse },
 ];
 
 const statCards = [
-  { value: '35K+', label: 'Patients served', accent: 'from-accent/80 to-sky-200/80' },
-  { value: 'Licensed facility', label: 'DOH Certified', accent: 'from-teal-500/80 to-emerald-200/80' },
+  { value: "35K+", label: "Patients served", accent: "from-accent/80 to-sky-200/80" },
+  {
+    value: "Licensed facility",
+    label: "DOH Certified",
+    accent: "from-teal-500/80 to-emerald-200/80",
+  },
 ];
 
 export default function Hero() {
@@ -34,8 +38,8 @@ export default function Hero() {
             Complete Laboratory Tests — Just <span className="text-accent">₱999</span>
           </h1>
           <p className="max-w-prose text-gray-600">
-            CBC, Urinalysis, FBS, Cholesterol, LDL, HDL, Triglycerides (Lipid Profile), Uric Acid, ALT, Creatinine.
-            Consult fee only ₱350 if package is availed.
+            CBC, Urinalysis, FBS, Cholesterol, LDL, HDL, Triglycerides (Lipid Profile), Uric Acid,
+            ALT, Creatinine. Consult fee only ₱350 if package is availed.
           </p>
           <motion.ul
             initial="hidden"
@@ -91,7 +95,13 @@ export default function Hero() {
                   strokeDasharray="600"
                   strokeDashoffset="600"
                 >
-                  <animate attributeName="stroke-dashoffset" from="600" to="0" dur="2.8s" repeatCount="indefinite" />
+                  <animate
+                    attributeName="stroke-dashoffset"
+                    from="600"
+                    to="0"
+                    dur="2.8s"
+                    repeatCount="indefinite"
+                  />
                 </path>
               </svg>
             </div>
@@ -108,7 +118,9 @@ export default function Hero() {
                 transition={{ duration: 0.45, delay: 0.2 + idx * 0.1 }}
                 className="rounded-2xl bg-white/80 p-4 shadow-md backdrop-blur"
               >
-                <div className={`inline-flex rounded-xl bg-gradient-to-br ${accent} px-3 py-1 text-xs font-semibold text-white`}>
+                <div
+                  className={`inline-flex rounded-xl bg-gradient-to-br ${accent} px-3 py-1 text-xs font-semibold text-white`}
+                >
                   {label}
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-gray-900">{value}</div>

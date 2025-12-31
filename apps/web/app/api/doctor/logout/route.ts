@@ -41,7 +41,15 @@ export async function GET(req: Request) {
   if (wantsJson) {
     const res = NextResponse.json({ ok: true });
     for (const name of COOKIE_NAMES) {
-      res.cookies.set({ name, value: "", path: "/", httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 0 });
+      res.cookies.set({
+        name,
+        value: "",
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 0,
+      });
     }
     return res;
   }

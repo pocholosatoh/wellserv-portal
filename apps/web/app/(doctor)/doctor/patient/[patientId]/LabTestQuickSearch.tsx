@@ -64,18 +64,14 @@ export default function LabTestQuickSearch({ value, onChange }: Props) {
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean),
-    [value]
+    [value],
   );
 
   const filteredTests = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return [];
     return tests
-      .filter(
-        (t) =>
-          t.code.toLowerCase().includes(needle) ||
-          t.name.toLowerCase().includes(needle)
-      )
+      .filter((t) => t.code.toLowerCase().includes(needle) || t.name.toLowerCase().includes(needle))
       .slice(0, 8);
   }, [query, tests]);
 
@@ -83,11 +79,7 @@ export default function LabTestQuickSearch({ value, onChange }: Props) {
     const needle = query.trim().toLowerCase();
     if (!needle) return [];
     return packages
-      .filter(
-        (p) =>
-          p.code.toLowerCase().includes(needle) ||
-          p.name.toLowerCase().includes(needle)
-      )
+      .filter((p) => p.code.toLowerCase().includes(needle) || p.name.toLowerCase().includes(needle))
       .slice(0, 6);
   }, [query, packages]);
 
@@ -122,9 +114,7 @@ export default function LabTestQuickSearch({ value, onChange }: Props) {
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs text-gray-600 mb-1">
-        Expected tests / bring-backs
-      </label>
+      <label className="block text-xs text-gray-600 mb-1">Expected tests / bring-backs</label>
       <input
         type="text"
         value={value}
@@ -155,9 +145,7 @@ export default function LabTestQuickSearch({ value, onChange }: Props) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="w-full border rounded px-2 py-1 text-sm"
-          placeholder={
-            loading ? "Loading tests…" : "Type to search lab catalog (e.g., CBC)"
-          }
+          placeholder={loading ? "Loading tests…" : "Type to search lab catalog (e.g., CBC)"}
           disabled={loading}
         />
         {!!query && (
@@ -231,7 +219,9 @@ export default function LabTestQuickSearch({ value, onChange }: Props) {
               <div className="px-3 py-2 text-[11px] text-amber-700 bg-amber-50/70">
                 Covered by selected packages:{" "}
                 {coverageHints.map((tok) => (
-                  <span key={tok} className="mr-2 font-mono">{tok}</span>
+                  <span key={tok} className="mr-2 font-mono">
+                    {tok}
+                  </span>
                 ))}
               </div>
             )}

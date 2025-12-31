@@ -10,18 +10,16 @@ export type LabRangeMap = Map<string, LabRangeInfo>;
 
 const normalizeNumber = (val: any): number | null => {
   if (val == null) return null;
-  const str = String(val).replace(/[^\d.-]/g, "").trim();
+  const str = String(val)
+    .replace(/[^\d.-]/g, "")
+    .trim();
   if (!str) return null;
   const num = Number(str);
   return Number.isFinite(num) ? num : null;
 };
 
 export function normalizeLabKey(lab: Record<string, any>): string | null {
-  const key =
-    lab.analyte_key ||
-    lab.key ||
-    lab.analyte ||
-    null;
+  const key = lab.analyte_key || lab.key || lab.analyte || null;
   return key ? String(key).trim().toLowerCase() : null;
 }
 
@@ -30,12 +28,7 @@ export async function buildLabRangeMap(db: SupabaseClient): Promise<LabRangeMap>
   if (error) throw error;
   const map: LabRangeMap = new Map();
   for (const row of data || []) {
-    const key =
-      row.analyte_key ||
-      row.key ||
-      row.parameter_key ||
-      row.param_key ||
-      null;
+    const key = row.analyte_key || row.key || row.parameter_key || row.param_key || null;
     if (!key) continue;
     const low = normalizeNumber(row.low);
     const high = normalizeNumber(row.high);
@@ -51,14 +44,9 @@ export async function buildLabRangeMap(db: SupabaseClient): Promise<LabRangeMap>
 
 export function deriveLabFlag(
   lab: Record<string, any>,
-  rangeMap: LabRangeMap
+  rangeMap: LabRangeMap,
 ): "H" | "L" | "A" | null {
-  const rawFlag =
-    lab?.flag ||
-    lab?.flag_status ||
-    lab?.flag_text ||
-    lab?.flag_slug ||
-    null;
+  const rawFlag = lab?.flag || lab?.flag_status || lab?.flag_text || lab?.flag_slug || null;
   if (rawFlag) {
     const f = String(rawFlag).trim().toUpperCase();
     if (f === "H" || f === "L" || f === "A") return f;
@@ -71,9 +59,7 @@ export function deriveLabFlag(
   if (!key) return null;
   const range = rangeMap.get(key);
   if (!range) return null;
-  const valueNum = normalizeNumber(
-    lab.value ?? lab.result ?? lab.val ?? lab.numeric_value ?? null
-  );
+  const valueNum = normalizeNumber(lab.value ?? lab.result ?? lab.val ?? lab.numeric_value ?? null);
   if (valueNum == null) return null;
   if (range.high != null && valueNum > range.high) return "H";
   if (range.low != null && valueNum < range.low) return "L";
@@ -83,16 +69,11 @@ export function deriveLabFlag(
 export function formatLabEntrySummary(
   lab: Record<string, any>,
   flag: "H" | "L" | "A" | null,
-  rangeMap?: LabRangeMap
+  rangeMap?: LabRangeMap,
 ): string | null {
   const key = normalizeLabKey(lab);
   const rangeInfo = key ? rangeMap?.get(key) : null;
-  const labelBase =
-    rangeInfo?.label ||
-    lab.analyte_key ||
-    lab.analyte ||
-    lab.barcode ||
-    "Lab";
+  const labelBase = rangeInfo?.label || lab.analyte_key || lab.analyte || lab.barcode || "Lab";
   const rawValue = lab.value ?? lab.result ?? lab.val ?? lab.numeric_value ?? "";
   let valueStr = String(rawValue ?? "").trim();
   if (!valueStr || valueStr === "-" || valueStr.toLowerCase() === "negative") {

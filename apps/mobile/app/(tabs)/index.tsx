@@ -1,14 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Stack, Link } from "expo-router";
-import {
-  Animated,
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  Linking,
-} from "react-native";
+import { Animated, View, Text, TouchableOpacity, ScrollView, Image, Linking } from "react-native";
 import { FontAwesome, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSession } from "../../src/providers/SessionProvider";
 import { usePatientProfile } from "@wellserv/data";
@@ -244,42 +236,76 @@ export default function HomeScreen() {
                 padding: 16,
               }}
             >
-              <Text style={{ fontWeight: "600", marginBottom: 8, color: "#fff" }}>Results</Text>
-              <Text style={{ color: "#fff", marginBottom: 4 }}>
-                Latest: {latestResultDate}
-              </Text>
-              <Text style={{ color: "#fff" }}>Results ready: {resultsReadyMark}</Text>
-              {patientResults.error && (
-                <Text style={{ color: "#fff", marginTop: 6 }}>
-                  We couldn&apos;t load your latest results.
-                </Text>
-              )}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: spacing.sm,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "600", marginBottom: 8, color: "#fff" }}>Results</Text>
+                  <Text style={{ color: "#fff", marginBottom: 4 }}>Latest: {latestResultDate}</Text>
+                  <Text style={{ color: "#fff" }}>
+                    Results ready for viewing: {resultsReadyMark}
+                  </Text>
+                  {patientResults.error && (
+                    <Text style={{ color: "#fff", marginTop: 6 }}>
+                      We couldn&apos;t load your latest results.
+                    </Text>
+                  )}
+                </View>
+                <MaterialCommunityIcons
+                  name="microscope"
+                  size={28}
+                  color="rgba(255, 255, 255, 0.9)"
+                  style={{ marginTop: 2 }}
+                />
+              </View>
             </TouchableOpacity>
           </Link>
-        <Link href="/prescriptions" asChild>
-          <TouchableOpacity
-            style={{
-              flex: 1,
-              backgroundColor: "#f3f4f6",
+          <Link href="/prescriptions" asChild>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: "#f3f4f6",
                 borderRadius: 18,
                 padding: 16,
               }}
             >
-              <Text style={{ fontWeight: "600", marginBottom: 8 }}>Prescriptions</Text>
-              <Text style={{ color: colors.gray[700], marginBottom: 4 }}>
-                Latest: {latestPrescriptionDate}
-              </Text>
-              {!!doctorDisplay && (
-                <Text style={{ color: colors.gray[800] }}>
-                  From your Doctor:{"\n"}
-                  {doctorDisplay}
-                </Text>
-              )}
-              {rxQuery.error && (
-                <Text style={{ color: colors.gray[600], marginTop: 6 }}>
-                  We couldn&apos;t load your prescriptions.
-                </Text>
-              )}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: spacing.sm,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "600", marginBottom: 8 }}>Prescriptions</Text>
+                  <Text style={{ color: colors.gray[700], marginBottom: 4 }}>
+                    Latest: {latestPrescriptionDate}
+                  </Text>
+                  {!!doctorDisplay && (
+                    <Text style={{ color: colors.gray[800] }}>
+                      From your Doctor:{"\n"}
+                      {doctorDisplay}
+                    </Text>
+                  )}
+                  {rxQuery.error && (
+                    <Text style={{ color: colors.gray[600], marginTop: 6 }}>
+                      We couldn&apos;t load your prescriptions.
+                    </Text>
+                  )}
+                </View>
+                <MaterialCommunityIcons
+                  name="stethoscope"
+                  size={28}
+                  color={colors.primary}
+                  style={{ marginTop: 2 }}
+                />
+              </View>
             </TouchableOpacity>
           </Link>
         </View>
@@ -307,7 +333,34 @@ export default function HomeScreen() {
                 Register your delivery address and request doorstep delivery for your prescriptions.
               </Text>
             </View>
-            <MaterialCommunityIcons name="truck-delivery" size={28} color={colors.primary} />
+            <MaterialCommunityIcons name="pill" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </Link>
+
+        <Link href="/logs" asChild>
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#f3f4f6",
+              borderRadius: 18,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: colors.gray[100],
+              marginBottom: spacing.lg,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.md,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "700", marginBottom: 6, color: colors.gray[900] }}>
+                Logs
+              </Text>
+              <Text style={{ color: colors.gray[700], lineHeight: 18 }}>
+                Record your blood pressure, weight, or glucose readings.
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="clipboard-text" size={28} color={colors.primary} />
           </TouchableOpacity>
         </Link>
 
@@ -323,30 +376,47 @@ export default function HomeScreen() {
               opacity: followupQuery.followup ? 1 : 0.9,
             }}
           >
-            <Text style={{ fontWeight: "700", marginBottom: 8 }}>Follow-ups</Text>
-            {followupQuery.isLoading && (
-              <Text style={{ color: colors.gray[700] }}>Loading follow-up...</Text>
-            )}
-            {followupQuery.error && (
-              <Text style={{ color: colors.gray[600] }}>
-                We couldn&apos;t load your follow-up details.
-              </Text>
-            )}
-            {hasFollowup && (
-              <>
-                <Text style={{ color: colors.gray[700], marginBottom: 4 }}>
-                  Scheduled: {followupDateLabel}
-                </Text>
-                {!!followupBranchLabel && (
-                  <Text style={{ color: colors.gray[700] }}>Branch: {followupBranchLabel}</Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: spacing.md,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: "700", marginBottom: 8 }}>Follow-ups</Text>
+                {followupQuery.isLoading && (
+                  <Text style={{ color: colors.gray[700] }}>Loading follow-up...</Text>
                 )}
-              </>
-            )}
-            {!followupQuery.isLoading && !hasFollowup && !followupQuery.error && (
-              <Text style={{ color: colors.gray[600], marginTop: 6 }}>
-                No follow-up scheduled yet.
-              </Text>
-            )}
+                {followupQuery.error && (
+                  <Text style={{ color: colors.gray[600] }}>
+                    We couldn&apos;t load your follow-up details.
+                  </Text>
+                )}
+                {hasFollowup && (
+                  <>
+                    <Text style={{ color: colors.gray[700], marginBottom: 4 }}>
+                      Scheduled: {followupDateLabel}
+                    </Text>
+                    {!!followupBranchLabel && (
+                      <Text style={{ color: colors.gray[700] }}>Branch: {followupBranchLabel}</Text>
+                    )}
+                  </>
+                )}
+                {!followupQuery.isLoading && !hasFollowup && !followupQuery.error && (
+                  <Text style={{ color: colors.gray[600], marginTop: 6 }}>
+                    No follow-up scheduled yet.
+                  </Text>
+                )}
+              </View>
+              <MaterialCommunityIcons
+                name="calendar-clock"
+                size={28}
+                color={colors.primary}
+                style={{ marginTop: 2 }}
+              />
+            </View>
           </TouchableOpacity>
         </Link>
 
@@ -375,9 +445,7 @@ export default function HomeScreen() {
           }}
           onPress={() => setIsSupportOpen((prev) => !prev)}
         >
-          <Text style={{ fontWeight: "700", color: colors.gray[800] }}>
-            Help & Support
-          </Text>
+          <Text style={{ fontWeight: "700", color: colors.gray[800] }}>Help & Support</Text>
           <Feather
             name={isSupportOpen ? "chevron-up" : "chevron-down"}
             size={18}
@@ -420,9 +488,7 @@ export default function HomeScreen() {
                   <Text style={{ fontWeight: "700", color: colors.gray[900] }}>{hub.name}</Text>
 
                   {hub.address && (
-                    <Text style={{ marginTop: 4, color: colors.gray[700] }}>
-                      {hub.address}
-                    </Text>
+                    <Text style={{ marginTop: 4, color: colors.gray[700] }}>{hub.address}</Text>
                   )}
 
                   {hub.contact && (

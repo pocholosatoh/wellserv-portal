@@ -18,7 +18,7 @@ function hasAddress(row: any) {
       row.delivery_lat !== null &&
       row.delivery_lat !== undefined &&
       row.delivery_lng !== null &&
-      row.delivery_lng !== undefined
+      row.delivery_lng !== undefined,
   );
 }
 
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     const { data: existing, error: existingError } = await supabase
       .from("patients")
       .select(
-        "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at"
+        "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at",
       )
       .eq("patient_id", patientId)
       .maybeSingle();
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     if (!hasAddress(existing)) {
       return NextResponse.json(
         { error: "Please save your delivery address first." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
       .update({ last_delivery_used_at: now })
       .eq("patient_id", patientId)
       .select(
-        "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at"
+        "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at",
       )
       .maybeSingle();
 

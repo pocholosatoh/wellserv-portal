@@ -10,7 +10,7 @@ export async function POST(req: Request) {
 
     // Insert minimal fields (let defaults like created_at run in DB)
     const { data, error } = await supa
-      .from("encounters")            // <— change if you use a different table
+      .from("encounters") // <— change if you use a different table
       .insert({ patient_id })
       .select("id")
       .single();

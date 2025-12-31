@@ -6,7 +6,9 @@ import { getSupabase } from "@/lib/supabase";
 import { requireActor } from "@/lib/api-actor";
 
 function isUuid(v?: string | null) {
-  return !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+  return (
+    !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+  );
 }
 
 const ZERO_UUID = "00000000-0000-0000-0000-000000000000";
@@ -22,16 +24,18 @@ export async function POST(req: Request) {
 
     // Accept both old and new key names from client
     const consultation_id = String(body?.consultation_id || "").trim();
-    const icd10_code = String(body?.icd10_code || body?.code || "").trim().toUpperCase();
+    const icd10_code = String(body?.icd10_code || body?.code || "")
+      .trim()
+      .toUpperCase();
     const icd10_text_snapshot = String(
-      body?.icd10_text_snapshot || body?.title || body?.text || ""
+      body?.icd10_text_snapshot || body?.title || body?.text || "",
     ).trim();
     const makePrimary = !!body?.make_primary;
 
     if (!consultation_id || !icd10_code || !icd10_text_snapshot) {
       return NextResponse.json(
         { error: "consultation_id, icd10_code, icd10_text_snapshot are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -53,7 +57,7 @@ export async function POST(req: Request) {
     if (!patient_id) {
       return NextResponse.json(
         { error: "Consultation has no patient_id. Please contact support." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -73,7 +77,7 @@ export async function POST(req: Request) {
             error:
               "This consultation is not attached to an encounter. Start the consult from the queue/frontdesk encounter so it links correctly.",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 

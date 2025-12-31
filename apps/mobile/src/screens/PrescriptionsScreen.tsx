@@ -1,6 +1,14 @@
 import { useMemo, useState, useCallback } from "react";
 import { useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, FlatList, ScrollView, TouchableOpacity, View, Text, Image } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  ScrollView,
+  TouchableOpacity,
+  View,
+  Text,
+  Image,
+} from "react-native";
 import { Stack } from "expo-router";
 import { usePatientPrescriptions, type MobilePrescription } from "../hooks/usePatientPrescriptions";
 import { colors, spacing } from "@wellserv/theme";
@@ -50,7 +58,9 @@ export default function PrescriptionsScreen() {
           ]}
         >
           <ActivityIndicator color={colors.primary} />
-          <Text style={{ marginTop: spacing.sm, color: colors.gray[500] }}>Loading prescriptions…</Text>
+          <Text style={{ marginTop: spacing.sm, color: colors.gray[500] }}>
+            Loading prescriptions…
+          </Text>
         </View>
       </View>
     );
@@ -116,7 +126,13 @@ export default function PrescriptionsScreen() {
               }}
             >
               <TouchableOpacity onPress={() => toggle(item.date)} style={{ paddingVertical: 4 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
                   <View style={{ flex: 1, paddingRight: 12 }}>
                     <Text style={{ fontSize: 16, fontWeight: "700" }}>
                       {formatPrescriptionDate(item.date)}

@@ -37,7 +37,7 @@ export function useDeliveryInfo() {
           client
             .from("patients")
             .select(
-              "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at"
+              "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at",
             )
             .eq("patient_id", patientId)
             .maybeSingle(),

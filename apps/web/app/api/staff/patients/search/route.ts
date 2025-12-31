@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     .or(`patient_id.ilike.%${q}%,full_name.ilike.%${q}%`)
     .limit(limit);
 
-  const rows = (data || []).map(r => ({
+  const rows = (data || []).map((r) => ({
     patient_id: r.patient_id,
     full_name: r.full_name || "",
     sex: (r.sex || "").toUpperCase(),

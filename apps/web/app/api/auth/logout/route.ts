@@ -4,14 +4,14 @@ import { getSession, clearSession } from "@/lib/session";
 
 function pickDest(req: Request, explicit?: string | null, role?: string | null) {
   if (explicit) {
-    if (explicit === "staff")   return new URL("/staff/login",   req.url);
-    if (explicit === "doctor")  return new URL("/doctor/login",  req.url);
-    if (explicit === "patient") return new URL("/login",         req.url);
+    if (explicit === "staff") return new URL("/staff/login", req.url);
+    if (explicit === "doctor") return new URL("/doctor/login", req.url);
+    if (explicit === "patient") return new URL("/login", req.url);
     return new URL("/login", req.url);
   }
-  if (role === "staff")   return new URL("/staff/login",  req.url);
-  if (role === "doctor")  return new URL("/doctor/login", req.url);
-  if (role === "patient") return new URL("/login",        req.url);
+  if (role === "staff") return new URL("/staff/login", req.url);
+  if (role === "doctor") return new URL("/doctor/login", req.url);
+  if (role === "patient") return new URL("/login", req.url);
   return new URL("/login", req.url);
 }
 
@@ -35,5 +35,9 @@ async function handle(req: Request) {
   return res;
 }
 
-export async function GET(req: Request)  { return handle(req); }
-export async function POST(req: Request) { return handle(req); }
+export async function GET(req: Request) {
+  return handle(req);
+}
+export async function POST(req: Request) {
+  return handle(req);
+}

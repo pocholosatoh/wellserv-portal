@@ -11,6 +11,6 @@ export async function POST() {
       error:
         "Deprecated endpoint. Use /api/prescriptions/sign (finish WITH Rx) or /api/doctor/consultations/finalize (finish WITHOUT Rx).",
     },
-    { status: 410 }
+    { status: 410 },
   );
 }

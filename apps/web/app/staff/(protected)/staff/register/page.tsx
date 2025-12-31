@@ -22,7 +22,8 @@ export default async function StaffRegisterPage() {
       <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-gray-900">Register Staff</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Admin-only. Create staff records with their login code. PIN setup is done separately by the staff member.
+          Admin-only. Create staff records with their login code. PIN setup is done separately by
+          the staff member.
         </p>
       </div>
       <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">

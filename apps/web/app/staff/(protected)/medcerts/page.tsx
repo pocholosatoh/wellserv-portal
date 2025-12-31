@@ -47,7 +47,7 @@ export default async function StaffMedCertsPage({
       const { data, error } = await db
         .from("medical_certificates")
         .select(
-          "id, certificate_no, issued_at, valid_until, doctor_snapshot, status, diagnosis_text"
+          "id, certificate_no, issued_at, valid_until, doctor_snapshot, status, diagnosis_text",
         )
         .eq("patient_id", patientId)
         .order("issued_at", { ascending: false });
@@ -63,7 +63,8 @@ export default async function StaffMedCertsPage({
       <header className="rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-gray-900">Medical Certificates</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Look up previously issued certificates by patient ID. Results show certificates issued in the doctor workspace.
+          Look up previously issued certificates by patient ID. Results show certificates issued in
+          the doctor workspace.
         </p>
       </header>
 
@@ -129,7 +130,8 @@ export default async function StaffMedCertsPage({
                         Certificate No. {cert.certificate_no || "—"}
                       </div>
                       <div className="text-xs text-gray-500">
-                        Issued {formatDate(cert.issued_at)} • Valid until {formatDate(cert.valid_until)}
+                        Issued {formatDate(cert.issued_at)} • Valid until{" "}
+                        {formatDate(cert.valid_until)}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -148,12 +150,15 @@ export default async function StaffMedCertsPage({
                   {cert.doctor_snapshot?.full_name && (
                     <div className="mt-2 text-xs text-gray-600">
                       Doctor: {cert.doctor_snapshot.full_name}
-                      {cert.doctor_snapshot.credentials ? `, ${cert.doctor_snapshot.credentials}` : ""}
+                      {cert.doctor_snapshot.credentials
+                        ? `, ${cert.doctor_snapshot.credentials}`
+                        : ""}
                     </div>
                   )}
                   {cert.diagnosis_text && (
                     <p className="mt-2 text-sm text-gray-700">
-                      <span className="font-medium text-gray-900">Diagnosis:</span> {cert.diagnosis_text}
+                      <span className="font-medium text-gray-900">Diagnosis:</span>{" "}
+                      {cert.diagnosis_text}
                     </p>
                   )}
                 </li>

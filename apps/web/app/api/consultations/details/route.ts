@@ -16,7 +16,8 @@ export async function GET(req: Request) {
     // 1) Consultation snapshot
     const c = await db
       .from("consultations")
-      .select(`
+      .select(
+        `
         id,
         patient_id,
         doctor_id,
@@ -24,7 +25,8 @@ export async function GET(req: Request) {
         plan_shared,
         doctor_name_at_time,
         signing_doctor_name
-      `)
+      `,
+      )
       .eq("id", id)
       .maybeSingle();
 
@@ -32,9 +34,11 @@ export async function GET(req: Request) {
     if (!c.data) return NextResponse.json({ error: "Consultation not found" }, { status: 404 });
 
     // 2) Doctor light profile (NOTE: your PK column is doctor_id, not id)
-    let doctor:
-      | { display_name?: string | null; full_name?: string | null; credentials?: string | null }
-      | null = null;
+    let doctor: {
+      display_name?: string | null;
+      full_name?: string | null;
+      credentials?: string | null;
+    } | null = null;
 
     if (c.data.doctor_id) {
       const d = await db
@@ -94,27 +98,26 @@ export async function GET(req: Request) {
     }
 
     // 5) Rx items (if we found an Rx)
-    let items:
-      | Array<{
-          generic_name: string | null;
-          brand_name: string | null;
-          strength: string | null;
-          form: string | null;
-          route: string | null;
-          dose_amount: number | null;
-          dose_unit: string | null;
-          frequency_code: string | null;
-          duration_days: number | null;
-          quantity: number | null;
-          instructions: string | null;
-          unit_price: number | null;
-        }>
-      | null = null;
+    let items: Array<{
+      generic_name: string | null;
+      brand_name: string | null;
+      strength: string | null;
+      form: string | null;
+      route: string | null;
+      dose_amount: number | null;
+      dose_unit: string | null;
+      frequency_code: string | null;
+      duration_days: number | null;
+      quantity: number | null;
+      instructions: string | null;
+      unit_price: number | null;
+    }> | null = null;
 
     if (rxId) {
       const lines = await db
         .from("prescription_items")
-        .select(`
+        .select(
+          `
           generic_name,
           brand_name,
           strength,
@@ -127,7 +130,8 @@ export async function GET(req: Request) {
           quantity,
           instructions,
           unit_price
-        `)
+        `,
+        )
         .eq("prescription_id", rxId)
         .order("created_at", { ascending: true });
 
@@ -140,7 +144,7 @@ export async function GET(req: Request) {
       patient_id: c.data.patient_id,
       visit_at: c.data.visit_at,
       plan_shared: c.data.plan_shared ?? false,
-      doctor,                               // may be null
+      doctor, // may be null
       doctor_name_at_time: c.data.doctor_name_at_time ?? null, // reliever fallback
       signing_doctor_name: c.data.signing_doctor_name ?? null,
       notes: {

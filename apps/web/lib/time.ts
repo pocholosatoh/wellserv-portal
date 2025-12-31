@@ -51,8 +51,12 @@ function _phParts(d = new Date()) {
     return acc;
   }, {});
   return parts as {
-    year: string; month: string; day: string;
-    hour: string; minute: string; second: string;
+    year: string;
+    month: string;
+    day: string;
+    hour: string;
+    minute: string;
+    second: string;
   };
 }
 

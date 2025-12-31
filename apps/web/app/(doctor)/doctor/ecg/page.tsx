@@ -18,7 +18,8 @@ export default async function DoctorEcgInboxPage() {
   }
 
   const docName =
-    session.display_name || (session.credentials ? `${session.name}, ${session.credentials}` : session.name);
+    session.display_name ||
+    (session.credentials ? `${session.name}, ${session.credentials}` : session.name);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
@@ -27,7 +28,8 @@ export default async function DoctorEcgInboxPage() {
           <p className="text-xs uppercase tracking-wide text-slate-500">Doctor Workflow</p>
           <h1 className="text-2xl font-semibold text-slate-900">ECG Inbox</h1>
           <p className="text-sm text-slate-600 mt-1">
-            Browse uploaded ECG strips, complete required interpretations, and link each report to a patient encounter.
+            Browse uploaded ECG strips, complete required interpretations, and link each report to a
+            patient encounter.
           </p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
@@ -48,8 +50,8 @@ export default async function DoctorEcgInboxPage() {
           className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600"
           style={{ backgroundColor: `${ACCENT}08` }}
         >
-          Reminder: PhilHealth YAKAP claims require every ECG interpretation to reference the patient encounter used
-          during consultation.
+          Reminder: PhilHealth YAKAP claims require every ECG interpretation to reference the
+          patient encounter used during consultation.
         </div>
         <div className="p-4">
           <ECGInboxClient accent={ACCENT} />
@@ -58,4 +60,3 @@ export default async function DoctorEcgInboxPage() {
     </div>
   );
 }
-

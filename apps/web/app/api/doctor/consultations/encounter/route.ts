@@ -27,7 +27,7 @@ export async function GET(req: Request) {
   const { data, error } = await db
     .from("encounters")
     .select(
-      "id, patient_id, branch_code, visit_date_local, status, consult_status, queue_number, for_consult, notes_frontdesk"
+      "id, patient_id, branch_code, visit_date_local, status, consult_status, queue_number, for_consult, notes_frontdesk",
     )
     .eq("patient_id", patientId)
     .eq("branch_code", actor.branch)
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
   if (!patientId || !consultationId) {
     return NextResponse.json(
       { error: "patient_id and consultation_id are required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
     if (insErr || !ins?.id) {
       return NextResponse.json(
         { error: insErr?.message || "Failed to create encounter" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     encounterId = ins.id;
@@ -128,7 +128,7 @@ export async function POST(req: Request) {
     if (enc.visit_date_local !== today) {
       return NextResponse.json(
         { error: "Only today's encounters (Asia/Manila) can be linked" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     existingStatus = enc.consult_status || null;
@@ -154,7 +154,10 @@ export async function POST(req: Request) {
     updated_at: nowIso,
     for_consult: true,
   };
-  if (!existingStatus || ["queued_for_consult", "in_consult", "in-progress"].includes(existingStatus)) {
+  if (
+    !existingStatus ||
+    ["queued_for_consult", "in_consult", "in-progress"].includes(existingStatus)
+  ) {
     encounterPatch.consult_status = "in_consult";
   }
 

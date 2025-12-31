@@ -18,30 +18,28 @@ export default function DiagnosisPanel({
     return c && c.trim() ? c.trim() : null;
   }, [sp]);
 
-  const [cid, setCid] = useState<string | null>(
-    urlCid || initialConsultationId || null
-  );
+  const [cid, setCid] = useState<string | null>(urlCid || initialConsultationId || null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   async function refreshCid() {
     try {
-        setBusy(true);
-        setErr(null);
-        const u = new URL("/api/consultations/resolve-id", window.location.origin);
-        u.searchParams.set("patient_id", patientId);
-        u.searchParams.set("scope", "latest");   // ← not restricted to today
-        // if you ever want branch scoping: u.searchParams.set("branchOnly", "1");
-        const r = await fetch(u.toString(), { cache: "no-store" });
-        const j = await r.json();
-        if (!r.ok || j.error) throw new Error(j?.error || `HTTP ${r.status}`);
-        setCid(j.consultation_id || null);
+      setBusy(true);
+      setErr(null);
+      const u = new URL("/api/consultations/resolve-id", window.location.origin);
+      u.searchParams.set("patient_id", patientId);
+      u.searchParams.set("scope", "latest"); // ← not restricted to today
+      // if you ever want branch scoping: u.searchParams.set("branchOnly", "1");
+      const r = await fetch(u.toString(), { cache: "no-store" });
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j?.error || `HTTP ${r.status}`);
+      setCid(j.consultation_id || null);
     } catch (e: any) {
-        setErr(e?.message || "Failed to resolve consultation.");
+      setErr(e?.message || "Failed to resolve consultation.");
     } finally {
-        setBusy(false);
+      setBusy(false);
     }
-    }
+  }
 
   // If URL param appears later (e.g., navigation), adopt it
   useEffect(() => {

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /* eslint-disable @typescript-eslint/no-require-imports */
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-const rootDir = path.resolve(__dirname, '..');
-const pnpmDir = path.join(rootDir, 'node_modules', '.pnpm');
+const rootDir = path.resolve(__dirname, "..");
+const pnpmDir = path.join(rootDir, "node_modules", ".pnpm");
 
 function patchExpoDevMenu() {
   if (!fs.existsSync(pnpmDir)) {
@@ -79,33 +79,38 @@ public extension Color {
 `;
 
   for (const entry of fs.readdirSync(pnpmDir)) {
-    if (!entry.startsWith('expo-dev-menu@')) continue;
+    if (!entry.startsWith("expo-dev-menu@")) continue;
 
-    const packageDir = path.join(pnpmDir, entry, 'node_modules', 'expo-dev-menu');
+    const packageDir = path.join(pnpmDir, entry, "node_modules", "expo-dev-menu");
     if (!fs.existsSync(packageDir)) continue;
 
-    const swiftDir = path.join(packageDir, 'ios', 'SwiftUI');
+    const swiftDir = path.join(packageDir, "ios", "SwiftUI");
     fs.mkdirSync(swiftDir, { recursive: true });
-    fs.writeFileSync(path.join(swiftDir, 'Color+Expo.swift'), colorFileContents, 'utf8');
+    fs.writeFileSync(path.join(swiftDir, "Color+Expo.swift"), colorFileContents, "utf8");
 
-    const internalModulePath = path.join(packageDir, 'ios', 'Modules', 'DevMenuInternalModule.swift');
+    const internalModulePath = path.join(
+      packageDir,
+      "ios",
+      "Modules",
+      "DevMenuInternalModule.swift",
+    );
     if (fs.existsSync(internalModulePath)) {
-      let internalContents = fs.readFileSync(internalModulePath, 'utf8');
+      let internalContents = fs.readFileSync(internalModulePath, "utf8");
       if (internalContents.includes(constantOriginal)) {
         internalContents = internalContents.replace(constantOriginal, constantReplacement);
-        fs.writeFileSync(internalModulePath, internalContents, 'utf8');
+        fs.writeFileSync(internalModulePath, internalContents, "utf8");
       }
     }
 
-    const podspecPath = path.join(packageDir, 'expo-dev-menu.podspec');
+    const podspecPath = path.join(packageDir, "expo-dev-menu.podspec");
     if (!fs.existsSync(podspecPath)) continue;
-    let podspec = fs.readFileSync(podspecPath, 'utf8');
+    let podspec = fs.readFileSync(podspecPath, "utf8");
     if (!podspec.includes("Color+Expo.swift")) {
       podspec = podspec.replace(
         "    s.source_files   = 'ios/**/*.{h,m,mm,swift}'",
-        "    s.source_files   = 'ios/**/*.{h,m,mm,swift}', 'ios/SwiftUI/Color+Expo.swift'"
+        "    s.source_files   = 'ios/**/*.{h,m,mm,swift}', 'ios/SwiftUI/Color+Expo.swift'",
       );
-      fs.writeFileSync(podspecPath, podspec, 'utf8');
+      fs.writeFileSync(podspecPath, podspec, "utf8");
     }
   }
 }
@@ -114,15 +119,23 @@ function patchExpoDevice() {
   if (!fs.existsSync(pnpmDir)) return;
 
   for (const entry of fs.readdirSync(pnpmDir)) {
-    if (!entry.startsWith('expo-device@')) continue;
-    const filePath = path.join(pnpmDir, entry, 'node_modules', 'expo-device', 'ios', 'UIDevice.swift');
+    if (!entry.startsWith("expo-device@")) continue;
+    const filePath = path.join(
+      pnpmDir,
+      entry,
+      "node_modules",
+      "expo-device",
+      "ios",
+      "UIDevice.swift",
+    );
     if (!fs.existsSync(filePath)) continue;
     const original = "  var isSimulator: Bool {\n    return TARGET_OS_SIMULATOR != 0\n  }\n";
-    let contents = fs.readFileSync(filePath, 'utf8');
+    let contents = fs.readFileSync(filePath, "utf8");
     if (contents.includes(original)) {
-      const replacement = "  var isSimulator: Bool {\n#if targetEnvironment(simulator)\n    return true\n#else\n    return false\n#endif\n  }\n";
+      const replacement =
+        "  var isSimulator: Bool {\n#if targetEnvironment(simulator)\n    return true\n#else\n    return false\n#endif\n  }\n";
       contents = contents.replace(original, replacement);
-      fs.writeFileSync(filePath, contents, 'utf8');
+      fs.writeFileSync(filePath, contents, "utf8");
     }
   }
 }
@@ -185,20 +198,20 @@ public extension Color {
 `;
 
   for (const entry of fs.readdirSync(pnpmDir)) {
-    if (!entry.startsWith('expo-dev-launcher@')) continue;
+    if (!entry.startsWith("expo-dev-launcher@")) continue;
 
-    const packageDir = path.join(pnpmDir, entry, 'node_modules', 'expo-dev-launcher');
+    const packageDir = path.join(pnpmDir, entry, "node_modules", "expo-dev-launcher");
     if (!fs.existsSync(packageDir)) continue;
 
-    const swiftDir = path.join(packageDir, 'ios', 'SwiftUI');
+    const swiftDir = path.join(packageDir, "ios", "SwiftUI");
     fs.mkdirSync(swiftDir, { recursive: true });
-    fs.writeFileSync(path.join(swiftDir, 'Color+Expo.swift'), colorFileContents, 'utf8');
+    fs.writeFileSync(path.join(swiftDir, "Color+Expo.swift"), colorFileContents, "utf8");
 
-    const headerPath = path.join(packageDir, 'ios', 'EXDevLauncherReactNativeFactory.h');
+    const headerPath = path.join(packageDir, "ios", "EXDevLauncherReactNativeFactory.h");
     if (!fs.existsSync(headerPath)) continue;
 
-    let headerContents = fs.readFileSync(headerPath, 'utf8');
-    if (headerContents.includes('EX_HAS_RCT_JS_RUNTIME_CONFIGURATOR')) {
+    let headerContents = fs.readFileSync(headerPath, "utf8");
+    if (headerContents.includes("EX_HAS_RCT_JS_RUNTIME_CONFIGURATOR")) {
       continue;
     }
 
@@ -225,172 +238,179 @@ public extension Color {
     }
 
     headerContents = headerContents.replace(
-      '    RCTJSRuntimeConfiguratorProtocol,\n',
-      '#if EX_HAS_RCT_JS_RUNTIME_CONFIGURATOR\n    RCTJSRuntimeConfiguratorProtocol,\n#endif\n'
+      "    RCTJSRuntimeConfiguratorProtocol,\n",
+      "#if EX_HAS_RCT_JS_RUNTIME_CONFIGURATOR\n    RCTJSRuntimeConfiguratorProtocol,\n#endif\n",
     );
 
-    fs.writeFileSync(headerPath, headerContents, 'utf8');
+    fs.writeFileSync(headerPath, headerContents, "utf8");
 
-    const podspecPath = path.join(packageDir, 'expo-dev-launcher.podspec');
+    const podspecPath = path.join(packageDir, "expo-dev-launcher.podspec");
     if (fs.existsSync(podspecPath)) {
-      let podspec = fs.readFileSync(podspecPath, 'utf8');
+      let podspec = fs.readFileSync(podspecPath, "utf8");
       if (!podspec.includes("ios/SwiftUI/Color+Expo.swift")) {
         podspec = podspec.replace(
           "  s.source_files   = 'ios/**/*.{h,m,mm,swift}'",
-          "  s.source_files   = 'ios/**/*.{h,m,mm,swift}', 'ios/SwiftUI/Color+Expo.swift'"
+          "  s.source_files   = 'ios/**/*.{h,m,mm,swift}', 'ios/SwiftUI/Color+Expo.swift'",
         );
-        fs.writeFileSync(podspecPath, podspec, 'utf8');
+        fs.writeFileSync(podspecPath, podspec, "utf8");
       }
     }
 
     const reactDelegateHandlerPath = path.join(
       packageDir,
-      'ios',
-      'ReactDelegateHandler',
-      'ExpoDevLauncherReactDelegateHandler.swift'
+      "ios",
+      "ReactDelegateHandler",
+      "ExpoDevLauncherReactDelegateHandler.swift",
     );
 
     if (fs.existsSync(reactDelegateHandlerPath)) {
-      let handlerContents = fs.readFileSync(reactDelegateHandlerPath, 'utf8');
+      let handlerContents = fs.readFileSync(reactDelegateHandlerPath, "utf8");
 
-      if (!handlerContents.includes('import React')) {
+      if (!handlerContents.includes("import React")) {
         handlerContents = handlerContents.replace(
-          'import EXUpdatesInterface\n\n@objc',
-          'import EXUpdatesInterface\nimport React\n\n@objc'
+          "import EXUpdatesInterface\n\n@objc",
+          "import EXUpdatesInterface\nimport React\n\n@objc",
         );
       }
 
       const appDelegateOriginal = [
-        '    let appDelegate = (UIApplication.shared.delegate as? (any ReactNativeFactoryProvider)) ??',
+        "    let appDelegate = (UIApplication.shared.delegate as? (any ReactNativeFactoryProvider)) ??",
         '    (UIApplication.shared.delegate?.responds(to: Selector(("_expoAppDelegate"))) ?? false ?',
         '    ((UIApplication.shared.delegate as? NSObject)?.value(forKey: "_expoAppDelegate") as? (any ReactNativeFactoryProvider)) : nil)',
-        '    let reactDelegate = self.reactDelegate',
-        '',
-        '    guard let reactNativeFactory = appDelegate?.factory as? RCTReactNativeFactory ?? reactDelegate?.reactNativeFactory as? RCTReactNativeFactory else {',
+        "    let reactDelegate = self.reactDelegate",
+        "",
+        "    guard let reactNativeFactory = appDelegate?.factory as? RCTReactNativeFactory ?? reactDelegate?.reactNativeFactory as? RCTReactNativeFactory else {",
         '      fatalError("UIApplication.shared.delegate must be an ExpoAppDelegate or EXAppDelegateWrapper")',
-        '    }',
-        '    self.reactNativeFactory = reactNativeFactory',
-        ''
-      ].join('\n');
+        "    }",
+        "    self.reactNativeFactory = reactNativeFactory",
+        "",
+      ].join("\n");
 
       const appDelegateReplacement = [
-        '    let appDelegate = (UIApplication.shared.delegate as? RCTAppDelegate) ??',
+        "    let appDelegate = (UIApplication.shared.delegate as? RCTAppDelegate) ??",
         '    (UIApplication.shared.delegate?.responds(to: Selector(("_expoAppDelegate"))) ?? false ?',
         '    ((UIApplication.shared.delegate as? NSObject)?.value(forKey: "_expoAppDelegate") as? RCTAppDelegate) : nil)',
-        '    let reactDelegate = self.reactDelegate',
-        '',
-        '    guard let resolvedAppDelegate = appDelegate else {',
+        "    let reactDelegate = self.reactDelegate",
+        "",
+        "    guard let resolvedAppDelegate = appDelegate else {",
         '      fatalError("UIApplication.shared.delegate must be an ExpoAppDelegate or EXAppDelegateWrapper")',
-        '    }',
-        '',
-        '    let reactNativeFactory = resolvedAppDelegate.reactNativeFactory',
-        '    self.reactNativeFactory = reactNativeFactory',
-        ''
-      ].join('\n');
+        "    }",
+        "",
+        "    let reactNativeFactory = resolvedAppDelegate.reactNativeFactory",
+        "    self.reactNativeFactory = reactNativeFactory",
+        "",
+      ].join("\n");
 
       if (handlerContents.includes(appDelegateOriginal)) {
         handlerContents = handlerContents.replace(appDelegateOriginal, appDelegateReplacement);
       }
 
       const recreateOriginal = [
-        '      if let appDelegate = appDelegate {',
-        '        return appDelegate.recreateRootView(',
-        '          withBundleURL: withBundleURL,',
-        '          moduleName: moduleName,',
-        '          initialProps: initialProps,',
-        '          launchOptions: launchOptions',
-        '        )',
-        '      }',
-        '      if let factory = reactDelegate?.reactNativeFactory {',
-        '        return factory.recreateRootView(',
-        '          withBundleURL: withBundleURL,',
-        '          moduleName: moduleName,',
-        '          initialProps: initialProps,',
-        '          launchOptions: launchOptions',
-        '        )',
-        '      }',
-        '',
+        "      if let appDelegate = appDelegate {",
+        "        return appDelegate.recreateRootView(",
+        "          withBundleURL: withBundleURL,",
+        "          moduleName: moduleName,",
+        "          initialProps: initialProps,",
+        "          launchOptions: launchOptions",
+        "        )",
+        "      }",
+        "      if let factory = reactDelegate?.reactNativeFactory {",
+        "        return factory.recreateRootView(",
+        "          withBundleURL: withBundleURL,",
+        "          moduleName: moduleName,",
+        "          initialProps: initialProps,",
+        "          launchOptions: launchOptions",
+        "        )",
+        "      }",
+        "",
         '      fatalError("UIApplication.shared.delegate must be an ExpoAppDelegate or EXAppDelegateWrapper")',
-        ''
-      ].join('\n');
+        "",
+      ].join("\n");
 
       const recreateReplacement = [
-        '      return resolvedAppDelegate.recreateRootView(',
-        '        withBundleURL: withBundleURL,',
-        '        moduleName: moduleName,',
-        '        initialProps: initialProps,',
-        '        launchOptions: launchOptions',
-        '      )',
-        ''
-      ].join('\n');
+        "      return resolvedAppDelegate.recreateRootView(",
+        "        withBundleURL: withBundleURL,",
+        "        moduleName: moduleName,",
+        "        initialProps: initialProps,",
+        "        launchOptions: launchOptions",
+        "      )",
+        "",
+      ].join("\n");
 
       if (handlerContents.includes(recreateOriginal)) {
         handlerContents = handlerContents.replace(recreateOriginal, recreateReplacement);
       }
 
-      const bridgeOriginal = '    developmentClientController.appBridge = RCTBridge.current()\n';
-      const bridgeReplacement = '    developmentClientController.appBridge = self.reactNativeFactory?.bridge\n';
+      const bridgeOriginal = "    developmentClientController.appBridge = RCTBridge.current()\n";
+      const bridgeReplacement =
+        "    developmentClientController.appBridge = self.reactNativeFactory?.bridge\n";
       if (handlerContents.includes(bridgeOriginal)) {
         handlerContents = handlerContents.replace(bridgeOriginal, bridgeReplacement);
       }
 
-      const debugGuard = '    if !EXAppDefines.APP_DEBUG {\n      return nil\n    }\n\n';
+      const debugGuard = "    if !EXAppDefines.APP_DEBUG {\n      return nil\n    }\n\n";
       if (handlerContents.includes(debugGuard)) {
-        handlerContents = handlerContents.replace(debugGuard, '');
+        handlerContents = handlerContents.replace(debugGuard, "");
       }
 
-      fs.writeFileSync(reactDelegateHandlerPath, handlerContents, 'utf8');
+      fs.writeFileSync(reactDelegateHandlerPath, handlerContents, "utf8");
     }
 
     const devServerFiles = [
-      path.join(packageDir, 'ios', 'SwiftUI', 'DevServersView.swift'),
-      path.join(packageDir, 'ios', 'SwiftUI', 'DevServerInfoModal.swift')
+      path.join(packageDir, "ios", "SwiftUI", "DevServersView.swift"),
+      path.join(packageDir, "ios", "SwiftUI", "DevServerInfoModal.swift"),
     ];
 
     for (const swiftPath of devServerFiles) {
       if (!fs.existsSync(swiftPath)) continue;
-      let contents = fs.readFileSync(swiftPath, 'utf8');
-      const target = 'Color.expoSystemGray4';
+      let contents = fs.readFileSync(swiftPath, "utf8");
+      const target = "Color.expoSystemGray4";
       if (contents.includes(target)) {
-        contents = contents.split(target).join('Color(UIColor.systemGray4)');
-        fs.writeFileSync(swiftPath, contents, 'utf8');
+        contents = contents.split(target).join("Color(UIColor.systemGray4)");
+        fs.writeFileSync(swiftPath, contents, "utf8");
       }
     }
 
-    const controllerPath = path.join(packageDir, 'ios', 'EXDevLauncherController.m');
+    const controllerPath = path.join(packageDir, "ios", "EXDevLauncherController.m");
     if (fs.existsSync(controllerPath)) {
-      let controllerContents = fs.readFileSync(controllerPath, 'utf8');
+      let controllerContents = fs.readFileSync(controllerPath, "utf8");
       const initLine =
-        '    self.reactNativeFactory = [[EXDevLauncherReactNativeFactory alloc] initWithDelegate:self releaseLevel:[self getReactNativeReleaseLevel]];';
+        "    self.reactNativeFactory = [[EXDevLauncherReactNativeFactory alloc] initWithDelegate:self releaseLevel:[self getReactNativeReleaseLevel]];";
       if (controllerContents.includes(initLine)) {
-        controllerContents = controllerContents.split(initLine).join(
-          '    self.reactNativeFactory = [[EXDevLauncherReactNativeFactory alloc] initWithDelegate:self];'
-        );
+        controllerContents = controllerContents
+          .split(initLine)
+          .join(
+            "    self.reactNativeFactory = [[EXDevLauncherReactNativeFactory alloc] initWithDelegate:self];",
+          );
       }
 
-      const methodStartToken = '-(RCTReleaseLevel)getReactNativeReleaseLevel';
-      const methodEndToken = '\n-(void)copyToClipboard';
+      const methodStartToken = "-(RCTReleaseLevel)getReactNativeReleaseLevel";
+      const methodEndToken = "\n-(void)copyToClipboard";
       const methodStartIndex = controllerContents.indexOf(methodStartToken);
       if (methodStartIndex !== -1) {
         const methodEndIndex = controllerContents.indexOf(methodEndToken, methodStartIndex);
         if (methodEndIndex !== -1) {
           controllerContents =
-            controllerContents.slice(0, methodStartIndex) + controllerContents.slice(methodEndIndex);
+            controllerContents.slice(0, methodStartIndex) +
+            controllerContents.slice(methodEndIndex);
         }
       }
 
-      if (!controllerContents.includes('pendingAutoSetupWindow')) {
+      if (!controllerContents.includes("pendingAutoSetupWindow")) {
         controllerContents = controllerContents.replace(
-          '@property (nonatomic, weak) UIWindow *window;\n@property (nonatomic, weak) ExpoDevLauncherReactDelegateHandler * delegate;',
-          '@property (nonatomic, weak) UIWindow *window;\n@property (nonatomic, weak) UIWindow *pendingAutoSetupWindow;\n@property (nonatomic, weak) ExpoDevLauncherReactDelegateHandler * delegate;'
+          "@property (nonatomic, weak) UIWindow *window;\n@property (nonatomic, weak) ExpoDevLauncherReactDelegateHandler * delegate;",
+          "@property (nonatomic, weak) UIWindow *window;\n@property (nonatomic, weak) UIWindow *pendingAutoSetupWindow;\n@property (nonatomic, weak) ExpoDevLauncherReactDelegateHandler * delegate;",
         );
       }
 
-      const prepareSnippet = '  EXDevLauncherBundleURLProviderInterceptor.isInstalled = true;\n';
-      if (controllerContents.includes(prepareSnippet) && !controllerContents.includes('_pendingAutoSetupWindow != nil && delegate != nil')) {
+      const prepareSnippet = "  EXDevLauncherBundleURLProviderInterceptor.isInstalled = true;\n";
+      if (
+        controllerContents.includes(prepareSnippet) &&
+        !controllerContents.includes("_pendingAutoSetupWindow != nil && delegate != nil")
+      ) {
         controllerContents = controllerContents.replace(
           prepareSnippet,
-          '  EXDevLauncherBundleURLProviderInterceptor.isInstalled = true;\n  if (_pendingAutoSetupWindow != nil && delegate != nil) {\n    UIWindow *window = _pendingAutoSetupWindow;\n    _pendingAutoSetupWindow = nil;\n    [self startWithWindow:window delegate:delegate launchOptions:_launchOptions];\n  }\n'
+          "  EXDevLauncherBundleURLProviderInterceptor.isInstalled = true;\n  if (_pendingAutoSetupWindow != nil && delegate != nil) {\n    UIWindow *window = _pendingAutoSetupWindow;\n    _pendingAutoSetupWindow = nil;\n    [self startWithWindow:window delegate:delegate launchOptions:_launchOptions];\n  }\n",
         );
       }
 
@@ -413,10 +433,13 @@ public extension Color {
 }
 `;
       if (controllerContents.includes(autoSetupStartOriginal)) {
-        controllerContents = controllerContents.replace(autoSetupStartOriginal, autoSetupStartReplacement);
+        controllerContents = controllerContents.replace(
+          autoSetupStartOriginal,
+          autoSetupStartReplacement,
+        );
       }
 
-      fs.writeFileSync(controllerPath, controllerContents, 'utf8');
+      fs.writeFileSync(controllerPath, controllerContents, "utf8");
     }
   }
 }
@@ -425,42 +448,42 @@ function patchRNSafeAreaContext() {
   if (!fs.existsSync(pnpmDir)) return;
 
   for (const entry of fs.readdirSync(pnpmDir)) {
-    if (!entry.startsWith('react-native-safe-area-context@')) continue;
+    if (!entry.startsWith("react-native-safe-area-context@")) continue;
 
     const modulePath = path.join(
       pnpmDir,
       entry,
-      'node_modules',
-      'react-native-safe-area-context',
-      'common',
-      'cpp',
-      'react',
-      'renderer',
-      'components',
-      'safeareacontext',
-      'RNCSafeAreaViewShadowNode.cpp'
+      "node_modules",
+      "react-native-safe-area-context",
+      "common",
+      "cpp",
+      "react",
+      "renderer",
+      "components",
+      "safeareacontext",
+      "RNCSafeAreaViewShadowNode.cpp",
     );
 
     if (!fs.existsSync(modulePath)) {
       continue;
     }
 
-    let contents = fs.readFileSync(modulePath, 'utf8');
+    let contents = fs.readFileSync(modulePath, "utf8");
     contents = contents
-      .replace(/edge\.unit\(\) != Unit::Undefined/g, '!edge.isUndefined()')
-      .replace(/axis\.unit\(\) != Unit::Undefined/g, '!axis.isUndefined()');
-    fs.writeFileSync(modulePath, contents, 'utf8');
+      .replace(/edge\.unit\(\) != Unit::Undefined/g, "!edge.isUndefined()")
+      .replace(/axis\.unit\(\) != Unit::Undefined/g, "!axis.isUndefined()");
+    fs.writeFileSync(modulePath, contents, "utf8");
   }
 }
 
 function patchRNScreens() {
   if (!fs.existsSync(pnpmDir)) return;
 
-  const propsImport = '#import <react/renderer/components/rnscreens/Props.h>';
+  const propsImport = "#import <react/renderer/components/rnscreens/Props.h>";
   const propsGuardedImport = `#if __has_include(<react/renderer/components/rnscreens/Props.h>)
 #import <react/renderer/components/rnscreens/Props.h>
 #endif`;
-  const namespaceAlias = 'namespace react = facebook::react;';
+  const namespaceAlias = "namespace react = facebook::react;";
   const namespaceGuardedAlias = `#if __has_include(<react/renderer/components/rnscreens/Props.h>)
 namespace react = facebook::react;
 #else
@@ -609,42 +632,48 @@ namespace rnscreens::conversion {
 `;
 
   for (const entry of fs.readdirSync(pnpmDir)) {
-    if (!entry.startsWith('react-native-screens@')) continue;
+    if (!entry.startsWith("react-native-screens@")) continue;
 
     const headerPath = path.join(
       pnpmDir,
       entry,
-      'node_modules',
-      'react-native-screens',
-      'ios',
-      'RNSSearchBar.h'
+      "node_modules",
+      "react-native-screens",
+      "ios",
+      "RNSSearchBar.h",
     );
 
     if (!fs.existsSync(headerPath)) continue;
 
-    let contents = fs.readFileSync(headerPath, 'utf8');
-    if (!contents.includes('__has_include(<react/renderer/components/rnscreens/RCTComponentViewHelpers.h>)')) {
+    let contents = fs.readFileSync(headerPath, "utf8");
+    if (
+      !contents.includes(
+        "__has_include(<react/renderer/components/rnscreens/RCTComponentViewHelpers.h>)",
+      )
+    ) {
       contents = contents.replace(
-        '#import <react/renderer/components/rnscreens/RCTComponentViewHelpers.h>',
-        '#if __has_include(<react/renderer/components/rnscreens/RCTComponentViewHelpers.h>)\n#import <react/renderer/components/rnscreens/RCTComponentViewHelpers.h>\n#endif'
+        "#import <react/renderer/components/rnscreens/RCTComponentViewHelpers.h>",
+        "#if __has_include(<react/renderer/components/rnscreens/RCTComponentViewHelpers.h>)\n#import <react/renderer/components/rnscreens/RCTComponentViewHelpers.h>\n#endif",
       );
-      fs.writeFileSync(headerPath, contents, 'utf8');
+      fs.writeFileSync(headerPath, contents, "utf8");
     }
 
     const conversionsHeader = path.join(
       pnpmDir,
       entry,
-      'node_modules',
-      'react-native-screens',
-      'ios',
-      'conversion',
-      'RNSConversions.h'
+      "node_modules",
+      "react-native-screens",
+      "ios",
+      "conversion",
+      "RNSConversions.h",
     );
 
     if (fs.existsSync(conversionsHeader)) {
-      let conversions = fs.readFileSync(conversionsHeader, 'utf8');
+      let conversions = fs.readFileSync(conversionsHeader, "utf8");
       let updated = false;
-      if (!conversions.includes('#if __has_include(<react/renderer/components/rnscreens/Props.h>)')) {
+      if (
+        !conversions.includes("#if __has_include(<react/renderer/components/rnscreens/Props.h>)")
+      ) {
         conversions = conversions.replace(propsImport, propsGuardedImport);
         conversions = conversions.replace(namespaceAlias, namespaceGuardedAlias);
         updated = true;
@@ -656,23 +685,23 @@ namespace rnscreens::conversion {
       }
 
       if (updated) {
-        fs.writeFileSync(conversionsHeader, conversions, 'utf8');
+        fs.writeFileSync(conversionsHeader, conversions, "utf8");
       }
     }
 
     const conversionsFabric = path.join(
       pnpmDir,
       entry,
-      'node_modules',
-      'react-native-screens',
-      'ios',
-      'conversion',
-      'RNSConversions-Fabric.mm'
+      "node_modules",
+      "react-native-screens",
+      "ios",
+      "conversion",
+      "RNSConversions-Fabric.mm",
     );
 
     if (fs.existsSync(conversionsFabric)) {
-      let fabric = fs.readFileSync(conversionsFabric, 'utf8');
-      if (!fabric.includes('__has_include(<folly/dynamic.h>)')) {
+      let fabric = fs.readFileSync(conversionsFabric, "utf8");
+      if (!fabric.includes("__has_include(<folly/dynamic.h>)")) {
         const replacement = `#import "RNSConversions.h"
 
 #if __has_include(<folly/dynamic.h>)
@@ -686,11 +715,11 @@ id RNSConvertFollyDynamicToId(const folly::dynamic &dyn)
 `;
         fabric = fabric.replace(
           '#import "RNSConversions.h"\n\nnamespace rnscreens::conversion {\n\n// copied from FollyConvert.mm\nid RNSConvertFollyDynamicToId(const folly::dynamic &dyn)\n{\n',
-          replacement
+          replacement,
         );
 
         fabric = fabric.replace(
-          '}; // namespace rnscreens::conversion\n',
+          "}; // namespace rnscreens::conversion\n",
           `}; // namespace rnscreens::conversion
 
 #else
@@ -709,9 +738,9 @@ id RNSConvertFollyDynamicToId(const folly::dynamic &)
 }; // namespace rnscreens::conversion
 
 #endif
-`
+`,
         );
-        fs.writeFileSync(conversionsFabric, fabric, 'utf8');
+        fs.writeFileSync(conversionsFabric, fabric, "utf8");
       }
     }
   }
@@ -721,40 +750,40 @@ function patchExpoModulesCore() {
   if (!fs.existsSync(pnpmDir)) return;
 
   for (const entry of fs.readdirSync(pnpmDir)) {
-    if (!entry.startsWith('expo-modules-core@')) continue;
+    if (!entry.startsWith("expo-modules-core@")) continue;
 
     const filePath = path.join(
       pnpmDir,
       entry,
-      'node_modules',
-      'expo-modules-core',
-      'ios',
-      'JSI',
-      'EXJSIConversions.mm'
+      "node_modules",
+      "expo-modules-core",
+      "ios",
+      "JSI",
+      "EXJSIConversions.mm",
     );
 
     if (!fs.existsSync(filePath)) continue;
 
-    let contents = fs.readFileSync(filePath, 'utf8');
+    let contents = fs.readFileSync(filePath, "utf8");
     const needle =
-      '  // Using cStringUsingEncoding should be fine as long as we provide the length.\n' +
-      '  return jsi::String::createFromUtf16(runtime, (const char16_t *)[value cStringUsingEncoding:NSUTF16StringEncoding], length);\n';
+      "  // Using cStringUsingEncoding should be fine as long as we provide the length.\n" +
+      "  return jsi::String::createFromUtf16(runtime, (const char16_t *)[value cStringUsingEncoding:NSUTF16StringEncoding], length);\n";
 
     if (contents.includes(needle)) {
       const replacement = [
-        '  // Older React Native versions don\'t expose createFromUtf16 on jsi::String,',
-        '  // so we fall back to creating from UTF-8 and keep the explicit length.',
-        '  NSData *utf8Data = [value dataUsingEncoding:NSUTF8StringEncoding];',
-        '  if (utf8Data != nil) {',
-        '    return jsi::String::createFromUtf8(',
-        '        runtime,',
-        '        reinterpret_cast<const uint8_t *>(utf8Data.bytes),',
-        '        utf8Data.length);',
-        '  }',
-        '  return jsi::String::createFromUtf8(runtime, "");\n'
-      ].join('\n');
+        "  // Older React Native versions don't expose createFromUtf16 on jsi::String,",
+        "  // so we fall back to creating from UTF-8 and keep the explicit length.",
+        "  NSData *utf8Data = [value dataUsingEncoding:NSUTF8StringEncoding];",
+        "  if (utf8Data != nil) {",
+        "    return jsi::String::createFromUtf8(",
+        "        runtime,",
+        "        reinterpret_cast<const uint8_t *>(utf8Data.bytes),",
+        "        utf8Data.length);",
+        "  }",
+        '  return jsi::String::createFromUtf8(runtime, "");\n',
+      ].join("\n");
       contents = contents.replace(needle, replacement);
-      fs.writeFileSync(filePath, contents, 'utf8');
+      fs.writeFileSync(filePath, contents, "utf8");
     }
   }
 }
@@ -763,21 +792,21 @@ function patchExpoReactNativeFactory() {
   if (!fs.existsSync(pnpmDir)) return;
 
   for (const entry of fs.readdirSync(pnpmDir)) {
-    if (!entry.startsWith('expo@')) continue;
+    if (!entry.startsWith("expo@")) continue;
 
     const filePath = path.join(
       pnpmDir,
       entry,
-      'node_modules',
-      'expo',
-      'ios',
-      'AppDelegates',
-      'ExpoReactNativeFactory.swift'
+      "node_modules",
+      "expo",
+      "ios",
+      "AppDelegates",
+      "ExpoReactNativeFactory.swift",
     );
 
     if (!fs.existsSync(filePath)) continue;
 
-    let contents = fs.readFileSync(filePath, 'utf8');
+    let contents = fs.readFileSync(filePath, "utf8");
 
     const releaseBlock = `  // TODO: Remove check when react-native-macos 0.81 is released
   #if !os(macOS)
@@ -818,7 +847,10 @@ function patchExpoReactNativeFactory() {
     }
     const initBlockOriginal = `  @objc public override init(delegate: any RCTReactNativeFactoryDelegate) {\n    super.init(delegate: delegate)\n  }\n`;
     const initBlockReplacement = `  @objc public override init(delegate: any RCTReactNativeFactoryDelegate) {\n    super.init(delegate: delegate)\n  }\n\n  @objc public override init(\n    delegate: any RCTReactNativeFactoryDelegate,\n    releaseLevel: RCTReleaseLevel\n  ) {\n    super.init(delegate: delegate, releaseLevel: releaseLevel)\n  }\n`;
-    if (!contents.includes('releaseLevel: RCTReleaseLevel') && contents.includes(initBlockOriginal)) {
+    if (
+      !contents.includes("releaseLevel: RCTReleaseLevel") &&
+      contents.includes(initBlockOriginal)
+    ) {
       contents = contents.replace(initBlockOriginal, initBlockReplacement);
       updated = true;
     }
@@ -828,13 +860,13 @@ function patchExpoReactNativeFactory() {
     }
 
     if (updated) {
-      fs.writeFileSync(filePath, contents, 'utf8');
+      fs.writeFileSync(filePath, contents, "utf8");
     }
   }
 }
 
 function main() {
-  if (!fs.existsSync(path.join(rootDir, 'node_modules'))) {
+  if (!fs.existsSync(path.join(rootDir, "node_modules"))) {
     return;
   }
 
@@ -849,26 +881,25 @@ function main() {
 
 main();
 
-
 function patchExpoDevLauncher() {
   if (!fs.existsSync(pnpmDir)) return;
 
   for (const entry of fs.readdirSync(pnpmDir)) {
-    if (!entry.startsWith('expo-dev-launcher@')) continue;
+    if (!entry.startsWith("expo-dev-launcher@")) continue;
 
     const filePath = path.join(
       pnpmDir,
       entry,
-      'node_modules',
-      'expo-dev-launcher',
-      'ios',
-      'ReactDelegateHandler',
-      'ExpoDevLauncherReactDelegateHandler.swift'
+      "node_modules",
+      "expo-dev-launcher",
+      "ios",
+      "ReactDelegateHandler",
+      "ExpoDevLauncherReactDelegateHandler.swift",
     );
 
     if (!fs.existsSync(filePath)) continue;
 
-    let contents = fs.readFileSync(filePath, 'utf8');
+    let contents = fs.readFileSync(filePath, "utf8");
 
     const methodOriginal = `  public func devLauncherController(_ developmentClientController: EXDevLauncherController, didStartWithSuccess success: Bool) {
     let appDelegate = (UIApplication.shared.delegate as? RCTAppDelegate) ??
@@ -965,7 +996,7 @@ function patchExpoDevLauncher() {
 `;
 
     let updated = false;
-    if (!contents.includes('possibleDelegates') && contents.includes(methodOriginal)) {
+    if (!contents.includes("possibleDelegates") && contents.includes(methodOriginal)) {
       contents = contents.replace(methodOriginal, methodReplacement);
       updated = true;
     }
@@ -975,7 +1006,7 @@ function patchExpoDevLauncher() {
     }
 
     if (updated) {
-      fs.writeFileSync(filePath, contents, 'utf8');
+      fs.writeFileSync(filePath, contents, "utf8");
     }
   }
 }

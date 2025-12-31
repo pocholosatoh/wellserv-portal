@@ -9,11 +9,7 @@ import SectionAssignmentReminder from "../_components/SectionAssignmentReminder"
 
 export const dynamic = "force-dynamic";
 
-export default async function StaffProtectedLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export default async function StaffProtectedLayout({ children }: { children: ReactNode }) {
   const s = await getSession();
   if (!s || s.role !== "staff") {
     redirect("/staff/login");
@@ -27,8 +23,7 @@ export default async function StaffProtectedLayout({
   const staffRolePrefix = c.get("staff_role_prefix")?.value || s.staff_role_prefix || "";
 
   const initials = staffInitials || null;
-  const branchLabel =
-    staffBranch === "ALL" ? "ALL BRANCHES" : (staffBranch || "").toUpperCase();
+  const branchLabel = staffBranch === "ALL" ? "ALL BRANCHES" : (staffBranch || "").toUpperCase();
 
   const canSeeReception = staffRole === "reception" || staffRole === "admin";
   const canSeeRmt = staffRole === "rmt" || staffRole === "admin";

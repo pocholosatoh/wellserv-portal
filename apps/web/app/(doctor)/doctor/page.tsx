@@ -12,9 +12,7 @@ import { readTodayEncounters } from "@/lib/todayEncounters";
 
 const ACCENT = "#44969b";
 
-type SearchParams =
-  | { [key: string]: string | string[] | undefined }
-  | undefined;
+type SearchParams = { [key: string]: string | string[] | undefined } | undefined;
 
 type Props = {
   searchParams?: Promise<SearchParams>; // Next 15: async
@@ -57,13 +55,11 @@ function StatusPill({ status }: { status?: string | null }) {
     s === "done"
       ? "bg-emerald-100 text-emerald-800"
       : s === "in-progress"
-      ? "bg-blue-100 text-blue-800"
-      : "bg-amber-100 text-amber-800";
-  const label =
-    s === "done" ? "Done" : s === "in-progress" ? "In progress" : s ? s : "—";
+        ? "bg-blue-100 text-blue-800"
+        : "bg-amber-100 text-amber-800";
+  const label = s === "done" ? "Done" : s === "in-progress" ? "In progress" : s ? s : "—";
   return <span className={`px-2 py-0.5 rounded text-xs ${cls}`}>{label}</span>;
 }
-
 
 export default async function DoctorHome({ searchParams }: Props) {
   // Guard
@@ -96,9 +92,10 @@ export default async function DoctorHome({ searchParams }: Props) {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("meds")
-    .select<"id, generic_name, strength, form, is_active", Med>(
-      "id, generic_name, strength, form, is_active"
-    )
+    .select<
+      "id, generic_name, strength, form, is_active",
+      Med
+    >("id, generic_name, strength, form, is_active")
     .eq("is_active", true)
     .order("generic_name", { ascending: true });
 
@@ -106,7 +103,6 @@ export default async function DoctorHome({ searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-8">
-      
       {/* ================= HERO ================= */}
       <div className="flex flex-col items-center justify-center text-center gap-3">
         <Image src="/wellserv-logo.png" alt="WellServ" width={300} height={140} priority />
@@ -134,7 +130,8 @@ export default async function DoctorHome({ searchParams }: Props) {
           <div>
             <h2 className="text-lg font-semibold text-gray-900">ECG Inbox</h2>
             <p className="text-sm text-gray-600">
-              Review pending ECG strips, finalize interpretations, and ensure encounters are linked for PhilHealth YAKAP.
+              Review pending ECG strips, finalize interpretations, and ensure encounters are linked
+              for PhilHealth YAKAP.
             </p>
           </div>
           <Link
@@ -152,7 +149,8 @@ export default async function DoctorHome({ searchParams }: Props) {
           <div>
             <h3 className="font-medium text-gray-800">Consult Queue — {branch}</h3>
             <p className="text-xs text-gray-500 mt-1">
-              Patients queued for today. Open a patient to start the consultation inside the workspace.
+              Patients queued for today. Open a patient to start the consultation inside the
+              workspace.
             </p>
           </div>
           <form action={`/doctor?ts=${Date.now()}`}>
@@ -196,8 +194,6 @@ export default async function DoctorHome({ searchParams }: Props) {
               Switch to {branch === "SI" ? "SL" : "SI"}
             </button>
           </form>
-
-
         </div>
 
         <div className="p-6">
@@ -265,7 +261,6 @@ export default async function DoctorHome({ searchParams }: Props) {
           </div>
         </div>
       </section>
-
 
       {/* ================= QUICK SEARCH ================= */}
       <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">

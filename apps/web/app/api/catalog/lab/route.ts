@@ -22,20 +22,20 @@ export async function GET() {
       .select("package_code, test_code");
     if (ie) throw ie;
 
-    const tests = (testsRaw || []).map(r => ({
+    const tests = (testsRaw || []).map((r) => ({
       code: r.test_code,
       name: r.display_name,
       price: r.default_price ?? null,
     }));
 
-    const packages = (packsRaw || []).map(r => ({
+    const packages = (packsRaw || []).map((r) => ({
       code: r.package_code,
       name: r.display_name,
       price: r.package_price ?? null,
     }));
 
     const packageMap: Record<string, string[]> = {};
-    (itemsRaw || []).forEach(r => {
+    (itemsRaw || []).forEach((r) => {
       const k = String(r.package_code || "").toUpperCase();
       if (!k) return;
       if (!packageMap[k]) packageMap[k] = [];

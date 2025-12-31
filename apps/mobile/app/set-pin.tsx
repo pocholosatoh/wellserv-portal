@@ -28,7 +28,7 @@ export default function SetPinScreen() {
   const params = useLocalSearchParams<{ patient_id?: string }>();
   const initialPatientId = useMemo(
     () => (params?.patient_id ? String(params.patient_id).toUpperCase() : ""),
-    [params?.patient_id]
+    [params?.patient_id],
   );
 
   const [patientId, setPatientId] = useState(initialPatientId);
@@ -220,8 +220,8 @@ export default function SetPinScreen() {
                   {privacyAccepted ? <Text style={styles.checkboxMark}>✓</Text> : null}
                 </View>
                 <Text style={styles.consentText}>
-                  I consent to the processing of my personal and health information for identity verification and
-                  results release as described in the{" "}
+                  I consent to the processing of my personal and health information for identity
+                  verification and results release as described in the{" "}
                   <Text
                     style={styles.consentLink}
                     onPress={(event: GestureResponderEvent) => {
@@ -241,7 +241,10 @@ export default function SetPinScreen() {
               <TouchableOpacity
                 onPress={handleSubmit}
                 disabled={submitting || !privacyAccepted}
-                style={[styles.primaryButton, (submitting || !privacyAccepted) && styles.buttonDisabled]}
+                style={[
+                  styles.primaryButton,
+                  (submitting || !privacyAccepted) && styles.buttonDisabled,
+                ]}
               >
                 {submitting ? (
                   <ActivityIndicator color="#fff" />
@@ -265,16 +268,17 @@ export default function SetPinScreen() {
             <Text style={styles.modalTitle}>Data Privacy Notice</Text>
             <ScrollView showsVerticalScrollIndicator={false} style={styles.modalBody}>
               <Text style={styles.modalText}>
-                We collect and process your personal and health information to verify your identity and release your
-                results in the Patient Portal.
+                We collect and process your personal and health information to verify your identity
+                and release your results in the Patient Portal.
               </Text>
               <Text style={styles.modalText}>
-                Your information may include your Patient ID, access code, and other details you provide in this app.
-                We use this data only for portal access, identity verification, and to deliver your results securely.
+                Your information may include your Patient ID, access code, and other details you
+                provide in this app. We use this data only for portal access, identity verification,
+                and to deliver your results securely.
               </Text>
               <Text style={styles.modalText}>
-                We take reasonable security measures to protect your data. You may contact the clinic if you have
-                questions about how your information is handled.
+                We take reasonable security measures to protect your data. You may contact the
+                clinic if you have questions about how your information is handled.
               </Text>
             </ScrollView>
             <TouchableOpacity style={styles.modalButton} onPress={() => setPrivacyModalOpen(false)}>

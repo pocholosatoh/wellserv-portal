@@ -29,7 +29,7 @@ export interface Patient {
   full_name?: string;
   sex?: Sex;
   age?: number | string;
-  birthday?: string;     // ISO date (YYYY-MM-DD) preferred
+  birthday?: string; // ISO date (YYYY-MM-DD) preferred
   contact?: string;
   address?: string;
   email?: string;
@@ -59,26 +59,26 @@ export interface Patient {
 }
 
 export interface Visit {
-  date_of_test: string;   // ISO date (YYYY-MM-DD)
+  date_of_test: string; // ISO date (YYYY-MM-DD)
   barcode?: string;
   branch?: string;
   notes?: string;
 }
 
 export interface ReportItem {
-  key: string;            // analyte key (e.g., "hema_wbc")
-  label: string;          // display name (e.g., "WBC")
+  key: string; // analyte key (e.g., "hema_wbc")
+  label: string; // display name (e.g., "WBC")
   unit?: string;
   value?: number | string | null;
   ref_low?: number | string | null;
   ref_high?: number | string | null;
-  flag?: "L" | "H" | "A" | "N" | null;  // Low/High/Abnormal/Normal (use what you have)
+  flag?: "L" | "H" | "A" | "N" | null; // Low/High/Abnormal/Normal (use what you have)
   method?: string | null;
   remarks?: string | null;
 }
 
 export interface ReportSection {
-  name: string;           // e.g., "Hematology"
+  name: string; // e.g., "Hematology"
   items: ReportItem[];
 }
 
@@ -106,7 +106,11 @@ export interface DataProvider {
 
   getReport(opts: { patient_id: string; visitDate?: string }): Promise<Report | null>;
 
-  searchPatients(opts: { query: string; limit?: number; offset?: number }): Promise<SearchPatientsResult>;
+  searchPatients(opts: {
+    query: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<SearchPatientsResult>;
 
   getConfig?(): Promise<Config>;
 }

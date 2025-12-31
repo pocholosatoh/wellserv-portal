@@ -10,13 +10,15 @@ export const dynamic = "force-dynamic";
 
 function logRequest(method: "GET" | "POST", patient_id: string, reports: any[]) {
   try {
-    console.log(JSON.stringify({
-      route: "patient-results",
-      method,
-      patient_id,
-      count: reports.length,
-      dates: reports.map(r => r?.visit?.date_of_test).filter(Boolean),
-    }));
+    console.log(
+      JSON.stringify({
+        route: "patient-results",
+        method,
+        patient_id,
+        count: reports.length,
+        dates: reports.map((r) => r?.visit?.date_of_test).filter(Boolean),
+      }),
+    );
   } catch {}
 }
 /* --------------- handlers --------------- */
@@ -27,8 +29,8 @@ export async function POST(req: Request) {
     if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
-    const visitDate  = body?.visitDate ? String(body.visitDate) : undefined;
-    const limit      = body?.limit != null ? Number(body.limit) : undefined;
+    const visitDate = body?.visitDate ? String(body.visitDate) : undefined;
+    const limit = body?.limit != null ? Number(body.limit) : undefined;
 
     // Make patient_id a definite string before use
     let patient_id: string | null = null;
@@ -63,9 +65,9 @@ export async function GET(req: Request) {
     if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
-    const visitDate  = (searchParams.get("date") ?? undefined) || undefined;
+    const visitDate = (searchParams.get("date") ?? undefined) || undefined;
     const limitParam = searchParams.get("limit");
-    const limit      = limitParam != null ? Number(limitParam) : undefined;
+    const limit = limitParam != null ? Number(limitParam) : undefined;
 
     let patient_id: string | null = null;
 
@@ -83,7 +85,7 @@ export async function GET(req: Request) {
     const pid = patient_id as string; // TS-safe now
     const json = await buildAllReports(pid, limit, visitDate);
     logRequest("GET", pid, json.reports);
-    return NextResponse.json(json, { status: 200 }); 
+    return NextResponse.json(json, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }

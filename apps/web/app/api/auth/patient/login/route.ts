@@ -11,13 +11,17 @@ type PatientRow = {
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   // accept either env name; prefer SERVICE_ROLE if present
-  process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
 export const dynamic = "force-dynamic";
 
 function normalizePatientId(raw: unknown) {
-  return String(raw ?? "").trim().toUpperCase();
+  return String(raw ?? "")
+    .trim()
+    .toUpperCase();
 }
 
 function escapeLikeExact(s: string) {
@@ -33,7 +37,9 @@ async function findPatientRecord(pid: string, signal?: AbortSignal): Promise<Pat
     .select("patient_id, full_name")
     .eq("patient_id", pid)
     .limit(1);
-  const { data: patient, error: patientError } = await (signal ? patientQuery.abortSignal(signal) : patientQuery).maybeSingle();
+  const { data: patient, error: patientError } = await (
+    signal ? patientQuery.abortSignal(signal) : patientQuery
+  ).maybeSingle();
 
   if (patientError) throw patientError;
   if (patient) return patient;
@@ -44,7 +50,9 @@ async function findPatientRecord(pid: string, signal?: AbortSignal): Promise<Pat
     .select("patient_id, full_name")
     .ilike("patient_id", pattern)
     .limit(1);
-  const { data: patientCi, error: patientCiError } = await (signal ? patientCiQuery.abortSignal(signal) : patientCiQuery).maybeSingle();
+  const { data: patientCi, error: patientCiError } = await (
+    signal ? patientCiQuery.abortSignal(signal) : patientCiQuery
+  ).maybeSingle();
 
   if (patientCiError) throw patientCiError;
   if (patientCi) return patientCi;
@@ -56,7 +64,9 @@ async function findPatientRecord(pid: string, signal?: AbortSignal): Promise<Pat
     .eq("patient_id", pid)
     .order("date_of_test", { ascending: false })
     .limit(1);
-  const { data: visitRow, error: visitError } = await (signal ? visitQuery.abortSignal(signal) : visitQuery).maybeSingle();
+  const { data: visitRow, error: visitError } = await (
+    signal ? visitQuery.abortSignal(signal) : visitQuery
+  ).maybeSingle();
 
   if (visitError) throw visitError;
   if (visitRow) {
@@ -73,7 +83,9 @@ async function findPatientRecord(pid: string, signal?: AbortSignal): Promise<Pat
     .ilike("patient_id", pattern)
     .order("date_of_test", { ascending: false })
     .limit(1);
-  const { data: legacyVisitRow, error: legacyVisitError } = await (signal ? legacyVisitQuery.abortSignal(signal) : legacyVisitQuery).maybeSingle();
+  const { data: legacyVisitRow, error: legacyVisitError } = await (
+    signal ? legacyVisitQuery.abortSignal(signal) : legacyVisitQuery
+  ).maybeSingle();
 
   if (legacyVisitError) throw legacyVisitError;
   if (legacyVisitRow) {
@@ -136,7 +148,7 @@ export async function POST(req: Request) {
     const aborted = e?.name === "AbortError";
     return NextResponse.json(
       { error: aborted ? "Login timed out, please try again." : e?.message || "Login failed" },
-      { status: aborted ? 504 : 400 }
+      { status: aborted ? 504 : 400 },
     );
   } finally {
     if (timeout) clearTimeout(timeout);

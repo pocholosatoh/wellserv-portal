@@ -73,7 +73,21 @@ export default function SetPinFormClient() {
 
   function validatePinInputs() {
     if (!/^[0-9]{4}$/.test(pin.trim())) return "PIN must be exactly 4 digits.";
-    if (["0000", "1234", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999"].includes(pin.trim())) {
+    if (
+      [
+        "0000",
+        "1234",
+        "1111",
+        "2222",
+        "3333",
+        "4444",
+        "5555",
+        "6666",
+        "7777",
+        "8888",
+        "9999",
+      ].includes(pin.trim())
+    ) {
       return "Please avoid obvious PINs like 0000 or 1234.";
     }
     if (pin.trim() !== confirmPin.trim()) return "PIN entries must match.";

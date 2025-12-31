@@ -3,9 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 function supa() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY; // legacy env name fallback
+  const key = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY; // legacy env name fallback
   if (!url) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
   if (!key) throw new Error("Missing SUPABASE_SERVICE_ROLE");
   return createClient(url, key, { auth: { persistSession: false } });
@@ -25,7 +23,10 @@ function mmddyyyyToISO(s?: string): string | null {
 
 function todayISOin(tz = process.env.APP_TZ || "Asia/Manila"): string {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).format(new Date());
 }
 
@@ -39,9 +40,9 @@ export async function POST(req: Request) {
     const branch_code = up(body?.branch_code);
     const policy = String(body?.policy || "today-same-branch");
 
-    const pid  = up(patient?.patient_id || body?.patient_id);
-    const name = up(patient?.full_name   || body?.full_name);
-    const sex  = up(patient?.sex         || body?.sex);
+    const pid = up(patient?.patient_id || body?.patient_id);
+    const name = up(patient?.full_name || body?.full_name);
+    const sex = up(patient?.sex || body?.sex);
     const bdayISO = mmddyyyyToISO(patient?.birthday_mmddyyyy || body?.birthday_mmddyyyy);
     const contact = patient?.contact ?? body?.contact ?? null;
     const address = patient?.address ?? body?.address ?? null;
@@ -49,30 +50,28 @@ export async function POST(req: Request) {
     if (!branch_code || !pid) {
       return NextResponse.json(
         { ok: false, error: "Missing branch_code or patient_id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // ── 1) Always try to upsert if we have minimally sufficient fields.
     //     This creates new patients and updates old ones in one shot.
     if (name && sex && bdayISO) {
-      const { error: upErr } = await db
-        .from("patients")
-        .upsert(
-          {
-            patient_id: pid,
-            full_name: name,
-            sex,
-            birthday: bdayISO,
-            contact,
-            address,
-          },
-          { onConflict: "patient_id" }
-        );
+      const { error: upErr } = await db.from("patients").upsert(
+        {
+          patient_id: pid,
+          full_name: name,
+          sex,
+          birthday: bdayISO,
+          contact,
+          address,
+        },
+        { onConflict: "patient_id" },
+      );
       if (upErr) {
         return NextResponse.json(
           { ok: false, stage: "patients_upsert", error: upErr.message },
-          { status: 500 }
+          { status: 500 },
         );
       }
     } else {
@@ -85,7 +84,7 @@ export async function POST(req: Request) {
       if (selErr) {
         return NextResponse.json(
           { ok: false, stage: "patients_select", error: selErr.message },
-          { status: 500 }
+          { status: 500 },
         );
       }
       if (!exists) {
@@ -96,7 +95,7 @@ export async function POST(req: Request) {
             error:
               "New patient needs full fields: patient{ patient_id, full_name, sex, birthday_mmddyyyy, contact?, address? }",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
       // Else: existing patient; proceed (no changes)
@@ -118,7 +117,7 @@ export async function POST(req: Request) {
       if (findErr) {
         return NextResponse.json(
           { ok: false, stage: "encounters_lookup", error: findErr.message },
-          { status: 500 }
+          { status: 500 },
         );
       }
       if (found?.id) encounter_id = found.id;
@@ -148,7 +147,7 @@ export async function POST(req: Request) {
           : undefined;
         return NextResponse.json(
           { ok: false, stage: "encounters_insert", error: insErr.message, hint: fkHint },
-          { status: 500 }
+          { status: 500 },
         );
       }
       encounter_id = ins?.id || null;
@@ -157,16 +156,13 @@ export async function POST(req: Request) {
     if (!encounter_id) {
       return NextResponse.json(
         { ok: false, stage: "encounters_none", error: "No encounter_id produced" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     return NextResponse.json({ ok: true, encounter_id });
   } catch (err: any) {
     console.error("[create-or-get] fatal", err);
-    return NextResponse.json(
-      { ok: false, error: err?.message || "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: err?.message || "Server error" }, { status: 500 });
   }
 }

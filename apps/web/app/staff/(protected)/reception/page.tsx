@@ -27,16 +27,20 @@ function toMMDDYY(mmddyyyy: string): string {
   const yy = String(m[3]).slice(-2);
   return `${mm}${dd}${yy}`;
 }
-function up(s?: string) { return (s || "").toUpperCase(); }
+function up(s?: string) {
+  return (s || "").toUpperCase();
+}
 function getCookie(name: string) {
   const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
   return m ? decodeURIComponent(m[2]) : "";
 }
 
 function flagOn(name: string) {
-  return (typeof window !== "undefined" ? (window as any)?.__env__?.[name] : undefined)
-    ?? (typeof process !== "undefined" ? (process.env as any)?.[name] : undefined)
-    ?? (getCookie(name) || "");
+  return (
+    (typeof window !== "undefined" ? (window as any)?.__env__?.[name] : undefined) ??
+    (typeof process !== "undefined" ? (process.env as any)?.[name] : undefined) ??
+    (getCookie(name) || "")
+  );
 }
 
 /** Price helpers on client (for live display only; server recomputes for truth) */
@@ -164,7 +168,7 @@ export default function Reception() {
       setBranch(b as "SI" | "SL");
       setBranchLocked(true);
     } else {
-      setBranch("");      // require selection
+      setBranch(""); // require selection
       setBranchLocked(false);
     }
 
@@ -199,7 +203,9 @@ export default function Reception() {
     const run = async () => {
       if (!pid || pid.length < 6) return;
       try {
-        const res = await fetch(`/api/staff/patients/lookup?patient_id=${pid}`, { signal: ctrl.signal });
+        const res = await fetch(`/api/staff/patients/lookup?patient_id=${pid}`, {
+          signal: ctrl.signal,
+        });
         const j = await res.json();
         if (res.ok && j?.found) {
           const full = String(j.patient.full_name || "");
@@ -219,14 +225,20 @@ export default function Reception() {
       } catch {}
     };
     const t = setTimeout(run, 600);
-    return () => { clearTimeout(t); ctrl.abort(); };
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
   }, [pid]);
 
   // Live pricing preview
   const liveTotals = useMemo(() => {
     if (!catalog) return { auto: 0, final: Math.max(0, Number(manualAdd || 0)) };
-    const tokens = (requested || "").split(",").map(s => s.trim()).filter(Boolean);
-    const tokenUpper = new Set(tokens.map(t => t.toUpperCase()));
+    const tokens = (requested || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const tokenUpper = new Set(tokens.map((t) => t.toUpperCase()));
 
     const packPrice = new Map<string, number>();
     for (const p of catalog.packages) packPrice.set(p.code.toUpperCase(), Number(p.price || 0));
@@ -265,7 +277,9 @@ export default function Reception() {
 
   async function loadConsultQueue(b: "SI" | "SL") {
     try {
-      const res = await fetch(`/api/staff/encounters/today?branch=${b}&consultOnly=1`, { cache: "no-store" });
+      const res = await fetch(`/api/staff/encounters/today?branch=${b}&consultOnly=1`, {
+        cache: "no-store",
+      });
       const j = await res.json();
       if (res.ok) setConsultList(j.rows || []);
     } catch {}
@@ -296,7 +310,7 @@ export default function Reception() {
     const tmp = arr[idx];
     arr[idx] = arr[swapWith];
     arr[swapWith] = tmp;
-    return arr.map(x => x.id);
+    return arr.map((x) => x.id);
   }
 
   async function reorderConsult(ids: string[]) {
@@ -354,7 +368,6 @@ export default function Reception() {
     const sendEncounter =
       String(flagOn("NEXT_PUBLIC_RECEPTION_WRITE_ENCOUNTER_ID")).toLowerCase() === "true";
 
-
     try {
       let encounter_id: string | undefined;
 
@@ -402,9 +415,15 @@ export default function Reception() {
       if (j.sheet_status === "ok") {
         alert("✅ Saved. Running sheet updated successfully.");
       } else if (j.sheet_status === "skipped") {
-        alert("⚠️ Saved, but NOT appended to the running sheet.\n" + (j.sheet_reason || "Sheets append was skipped by the server."));
+        alert(
+          "⚠️ Saved, but NOT appended to the running sheet.\n" +
+            (j.sheet_reason || "Sheets append was skipped by the server."),
+        );
       } else if (j.sheet_status === "failed") {
-        alert("❌ Saved, but running sheet APPEND FAILED.\n" + (j.sheet_error || "See server logs for details."));
+        alert(
+          "❌ Saved, but running sheet APPEND FAILED.\n" +
+            (j.sheet_error || "See server logs for details."),
+        );
       }
 
       // Reset form (same as today)
@@ -445,7 +464,9 @@ export default function Reception() {
   return (
     <main className="mx-auto max-w-4xl p-3 md:p-4 space-y-6">
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <h1 className="text-xl md:text-2xl font-semibold">Reception {branch ? `— ${branch}` : ""}</h1>
+        <h1 className="text-xl md:text-2xl font-semibold">
+          Reception {branch ? `— ${branch}` : ""}
+        </h1>
         <button
           className="w-full rounded border px-3 py-2 text-sm hover:bg-gray-50 md:text-base sm:w-auto"
           onClick={() => setOpenForm((x) => !x)}
@@ -467,7 +488,9 @@ export default function Reception() {
               className="border rounded px-2 py-2 w-full"
               required
             >
-              <option value="" disabled>Select branch…</option>
+              <option value="" disabled>
+                Select branch…
+              </option>
               <option value="SI">San Isidro (SI)</option>
               <option value="SL">San Leonardo (SL)</option>
             </select>
@@ -480,11 +503,21 @@ export default function Reception() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label className="space-y-1">
               <span className="text-sm">Surname</span>
-              <input value={surname} onChange={(e)=>setSurname(e.target.value)} className="border rounded px-2 py-2 w-full" required />
+              <input
+                value={surname}
+                onChange={(e) => setSurname(e.target.value)}
+                className="border rounded px-2 py-2 w-full"
+                required
+              />
             </label>
             <label className="space-y-1">
               <span className="text-sm">First name</span>
-              <input value={firstname} onChange={(e)=>setFirstname(e.target.value)} className="border rounded px-2 py-2 w-full" required />
+              <input
+                value={firstname}
+                onChange={(e) => setFirstname(e.target.value)}
+                className="border rounded px-2 py-2 w-full"
+                required
+              />
             </label>
           </div>
 
@@ -498,7 +531,11 @@ export default function Reception() {
 
             <label className="space-y-1">
               <span className="text-sm">Sex</span>
-              <select value={sex} onChange={(e)=>setSex(e.target.value as any)} className="border rounded px-2 py-2 w-full">
+              <select
+                value={sex}
+                onChange={(e) => setSex(e.target.value as any)}
+                className="border rounded px-2 py-2 w-full"
+              >
                 <option value="M">M</option>
                 <option value="F">F</option>
               </select>
@@ -508,7 +545,7 @@ export default function Reception() {
               <span className="text-sm">Birthday (MM/DD/YYYY)</span>
               <input
                 value={birthday}
-                onChange={(e)=>setBirthday(maskMMDDYYYY(e.target.value))}
+                onChange={(e) => setBirthday(maskMMDDYYYY(e.target.value))}
                 className="border rounded px-2 py-2 w-full"
                 inputMode="numeric"
                 maxLength={10}
@@ -522,11 +559,19 @@ export default function Reception() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label className="space-y-1">
               <span className="text-sm">Contact (mobile)</span>
-              <input value={contact} onChange={(e)=>setContact(e.target.value)} className="border rounded px-2 py-2 w-full" />
+              <input
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+                className="border rounded px-2 py-2 w-full"
+              />
             </label>
             <label className="space-y-1">
               <span className="text-sm">Address (city only)</span>
-              <input value={address} onChange={(e)=>setAddress(e.target.value)} className="border rounded px-2 py-2 w-full" />
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="border rounded px-2 py-2 w-full"
+              />
             </label>
           </div>
 
@@ -539,11 +584,15 @@ export default function Reception() {
           {/* PhilHealth + Queue */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={yakap} onChange={(e)=>setYakap(e.target.checked)} />
+              <input type="checkbox" checked={yakap} onChange={(e) => setYakap(e.target.checked)} />
               PhilHealth (YAKAP)
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={queueNow} onChange={(e)=>setQueueNow(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={queueNow}
+                onChange={(e) => setQueueNow(e.target.checked)}
+              />
               Queue now for extraction
             </label>
           </div>
@@ -561,7 +610,7 @@ export default function Reception() {
                 step="0.01"
                 min={0}
                 value={manualAdd}
-                onChange={(e)=>setManualAdd(Number(e.target.value))}
+                onChange={(e) => setManualAdd(Number(e.target.value))}
                 className="border rounded px-2 py-2 w-full"
                 placeholder="0.00"
               />
@@ -637,7 +686,11 @@ export default function Reception() {
                 </tr>
               ))}
               {list.length === 0 && (
-                <tr><td className="py-6 text-gray-500" colSpan={6}>No patients yet today.</td></tr>
+                <tr>
+                  <td className="py-6 text-gray-500" colSpan={6}>
+                    No patients yet today.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -680,8 +733,12 @@ export default function Reception() {
                   <td className="py-2 pr-3">{r.contact || "-"}</td>
                   <td className="py-2 pr-3">
                     {r.yakap_flag ? (
-                      <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs">PhilHealth</span>
-                    ) : ("-")}
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs">
+                        PhilHealth
+                      </span>
+                    ) : (
+                      "-"
+                    )}
                   </td>
                   <td className="py-2 pr-3">{r.consult_status || "-"}</td>
                   <td className="py-2 pr-3">
@@ -738,7 +795,9 @@ export default function Reception() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Edit Encounter</h3>
-              <button onClick={() => setEditOpen(false)} className="text-gray-500">✕</button>
+              <button onClick={() => setEditOpen(false)} className="text-gray-500">
+                ✕
+              </button>
             </div>
 
             <label className="space-y-1 block">
@@ -746,7 +805,7 @@ export default function Reception() {
               <input
                 className="border rounded px-2 py-2 w-full"
                 value={editCsv}
-                onChange={(e)=>setEditCsv(e.target.value)}
+                onChange={(e) => setEditCsv(e.target.value)}
                 placeholder="e.g., CBC, FBS, COMP"
               />
             </label>
@@ -759,7 +818,7 @@ export default function Reception() {
                 min={0}
                 className="border rounded px-2 py-2 w-full"
                 value={editManual}
-                onChange={(e)=>setEditManual(Number(e.target.value))}
+                onChange={(e) => setEditManual(Number(e.target.value))}
               />
             </label>
 
@@ -776,9 +835,10 @@ export default function Reception() {
               </label>
             </div>
 
-
             <div className="flex justify-end gap-2">
-              <button onClick={()=>setEditOpen(false)} className="border rounded px-3 py-2">Cancel</button>
+              <button onClick={() => setEditOpen(false)} className="border rounded px-3 py-2">
+                Cancel
+              </button>
               <button
                 onClick={saveEdit}
                 className="rounded px-4 py-2 bg-accent text-white disabled:opacity-60"

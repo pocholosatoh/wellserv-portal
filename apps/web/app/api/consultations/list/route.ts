@@ -32,7 +32,7 @@ export async function GET(req: Request) {
         visit_at,
         plan_shared,
         doctor_name_at_time
-      `
+      `,
       )
       .eq("patient_id", patientId)
       .order("visit_at", { ascending: false });
@@ -44,9 +44,7 @@ export async function GET(req: Request) {
     const rows = cons.data || [];
 
     // Attach doctor light profiles (by doctor_id, using your doctors.doctor_id PK)
-    const doctorIds = Array.from(
-      new Set(rows.map((r) => r.doctor_id).filter(Boolean))
-    ) as string[];
+    const doctorIds = Array.from(new Set(rows.map((r) => r.doctor_id).filter(Boolean))) as string[];
 
     let doctorMap: Record<
       string,
@@ -77,7 +75,7 @@ export async function GET(req: Request) {
       visit_at: r.visit_at,
       plan_shared: r.plan_shared ?? false,
       doctor_name_at_time: r.doctor_name_at_time ?? null,
-      doctor: r.doctor_id ? doctorMap[r.doctor_id] ?? null : null,
+      doctor: r.doctor_id ? (doctorMap[r.doctor_id] ?? null) : null,
     }));
 
     return NextResponse.json({ consultations });

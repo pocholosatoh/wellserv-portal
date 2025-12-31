@@ -44,7 +44,7 @@ export default function DoctorLoginPage() {
   const [reliefName, setReliefName] = useState("");
   const [reliefCreds, setReliefCreds] = useState("");
   const [reliefLicense, setReliefLicense] = useState("");
-  const [reliefPhic, setReliefPhic] = useState("");     // NEW
+  const [reliefPhic, setReliefPhic] = useState(""); // NEW
   const [reliefPass, setReliefPass] = useState("");
   const [reliefLoading, setReliefLoading] = useState(false);
   const [reliefErr, setReliefErr] = useState<string | null>(null);
@@ -212,7 +212,9 @@ export default function DoctorLoginPage() {
               disabled={reliefLoading}
               type="submit"
             >
-              {reliefLoading ? "Continuing…" : "Continue as Reliever - Choose the correct branch above"}
+              {reliefLoading
+                ? "Continuing…"
+                : "Continue as Reliever - Choose the correct branch above"}
             </button>
           </form>
         </div>

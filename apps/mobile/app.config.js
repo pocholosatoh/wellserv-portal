@@ -30,28 +30,28 @@ const iosAppId = requireNonTestProdValue(
   resolveAppId(
     process.env.ADMOB_IOS_APP_ID,
     process.env.EXPO_PUBLIC_ADMOB_APP_ID_IOS,
-    IOS_TEST_APP_ID
+    IOS_TEST_APP_ID,
   ),
-  IOS_TEST_APP_ID
+  IOS_TEST_APP_ID,
 );
 const androidAppId = requireNonTestProdValue(
   "ADMOB_ANDROID_APP_ID",
   resolveAppId(
     process.env.ADMOB_ANDROID_APP_ID,
     process.env.EXPO_PUBLIC_ADMOB_APP_ID_ANDROID,
-    ANDROID_TEST_APP_ID
+    ANDROID_TEST_APP_ID,
   ),
-  ANDROID_TEST_APP_ID
+  ANDROID_TEST_APP_ID,
 );
 
 requireProdValue("EXPO_PUBLIC_API_BASE_URL", process.env.EXPO_PUBLIC_API_BASE_URL);
 requireProdValue(
   "EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS",
-  process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS
+  process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS,
 );
 requireProdValue(
   "EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID",
-  process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID
+  process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID,
 );
 
 const config = {

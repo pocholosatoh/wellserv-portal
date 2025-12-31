@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     if (!branch || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json(
         { error: "branch and non-empty ids[] are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (!["SI", "SL"].includes(String(branch).toUpperCase())) {

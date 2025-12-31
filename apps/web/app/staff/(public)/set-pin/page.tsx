@@ -11,8 +11,8 @@ export default function SetPinPage() {
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold text-slate-800 sm:text-3xl">Set Your PIN</h1>
           <p className="text-sm text-slate-600 sm:text-base">
-            First-time staff setup requires your login code and birthday. A 4-digit PIN will be used for
-            future logins.
+            First-time staff setup requires your login code and birthday. A 4-digit PIN will be used
+            for future logins.
           </p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white/95 p-5 shadow-lg sm:p-6">

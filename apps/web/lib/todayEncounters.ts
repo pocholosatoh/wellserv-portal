@@ -46,15 +46,15 @@ export async function readTodayEncounters({
   let query = supabase
     .from("encounters")
     .select(
-      "id, patient_id, branch_code, status, priority, notes_frontdesk, visit_date_local, total_price, is_philhealth_claim, yakap_flag, consult_status, queue_number, for_consult"
+      "id, patient_id, branch_code, status, priority, notes_frontdesk, visit_date_local, total_price, is_philhealth_claim, yakap_flag, consult_status, queue_number, for_consult",
     )
     .eq("branch_code", branch)
     .eq("visit_date_local", today);
 
   if (consultOnly) {
     const states = includeDone
-      // include legacy "in-progress" in case older rows still use it
-      ? ["queued_for_consult", "in_consult", "in-progress", "done"]
+      ? // include legacy "in-progress" in case older rows still use it
+        ["queued_for_consult", "in_consult", "in-progress", "done"]
       : ["queued_for_consult", "in_consult", "in-progress"];
     query = query
       .in("consult_status", states)
@@ -88,7 +88,7 @@ export async function readTodayEncounters({
         full_name: p.full_name || "",
         contact: p.contact || null,
       },
-    ])
+    ]),
   );
 
   const list = consultOnly

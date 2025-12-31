@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Papa, { ParseResult } from "papaparse";
-import { BRANCHES } from "@/lib/branches";  // <-- only key + label used on client
+import { BRANCHES } from "@/lib/branches"; // <-- only key + label used on client
 
 type Row = Record<string, any>;
 
@@ -58,7 +58,7 @@ function Panel({ label, sheetKey }: { label: string; sheetKey: string }) {
       }),
     });
 
-    const data = await res.json().catch(() => ({} as any));
+    const data = await res.json().catch(() => ({}) as any);
 
     if (!res.ok || !data?.ok) {
       const mh = Array.isArray(data?.missingHeaders)

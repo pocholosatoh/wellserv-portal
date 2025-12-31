@@ -45,7 +45,8 @@ export default function SectionAssignmentReminder({ rolePrefix }: { rolePrefix?:
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
         <h2 className="text-xl font-semibold text-gray-900">Reminder</h2>
         <p className="mt-2 text-sm text-gray-700">
-          Please review your Section Assignments to make sure your current sections and branch are correct.
+          Please review your Section Assignments to make sure your current sections and branch are
+          correct.
         </p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <button

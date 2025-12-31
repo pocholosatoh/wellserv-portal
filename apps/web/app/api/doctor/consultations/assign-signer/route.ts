@@ -20,7 +20,10 @@ export async function POST(req: Request) {
 
     const { consultation_id, signing_doctor_id } = (await req.json().catch(() => ({}))) as Body;
     if (!consultation_id || !signing_doctor_id) {
-      return NextResponse.json({ error: "consultation_id and signing_doctor_id are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "consultation_id and signing_doctor_id are required" },
+        { status: 400 },
+      );
     }
 
     const db = getSupabase();
@@ -32,10 +35,11 @@ export async function POST(req: Request) {
       .eq("doctor_id", signing_doctor_id)
       .maybeSingle();
     if (dErr) return NextResponse.json({ error: dErr.message }, { status: 400 });
-    if (!doc || doc.active === false) return NextResponse.json({ error: "Doctor not found or inactive" }, { status: 400 });
+    if (!doc || doc.active === false)
+      return NextResponse.json({ error: "Doctor not found or inactive" }, { status: 400 });
 
     const baseName = doc.display_name || doc.full_name || "";
-    const display  = doc.credentials ? `${baseName}, ${doc.credentials}` : baseName;
+    const display = doc.credentials ? `${baseName}, ${doc.credentials}` : baseName;
 
     // Snapshot onto the consultation
     const { error: uErr } = await db

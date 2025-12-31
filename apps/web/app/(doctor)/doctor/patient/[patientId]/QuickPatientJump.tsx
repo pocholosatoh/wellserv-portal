@@ -9,7 +9,7 @@ export default function QuickPatientJump({ accent = "#44969b" }: { accent?: stri
     e.preventDefault();
     const v = value.trim();
     if (!v) return;
-    const up = v.toUpperCase();                 // ✅ normalize
+    const up = v.toUpperCase(); // ✅ normalize
     window.location.assign(`/doctor/patient/${encodeURIComponent(up)}`);
   }
 

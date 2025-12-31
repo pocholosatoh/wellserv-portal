@@ -11,8 +11,8 @@ export async function POST(req: Request) {
       id,
       requested_tests_csv,
       price_manual_add = 0,
-      yakap_flag,             // boolean | undefined
-      is_philhealth_claim,    // boolean | undefined
+      yakap_flag, // boolean | undefined
+      is_philhealth_claim, // boolean | undefined
     } = body || {};
 
     if (!id) return NextResponse.json({ error: "missing id" }, { status: 400 });
@@ -69,12 +69,12 @@ export async function POST(req: Request) {
 
     const testPrice = new Map<string, number>();
     (tests || []).forEach((t) =>
-      testPrice.set(String(t.test_code).toUpperCase(), Number(t.default_price || 0))
+      testPrice.set(String(t.test_code).toUpperCase(), Number(t.default_price || 0)),
     );
 
     const packPrice = new Map<string, number>();
     (packs || []).forEach((p) =>
-      packPrice.set(String(p.package_code).toUpperCase(), Number(p.package_price || 0))
+      packPrice.set(String(p.package_code).toUpperCase(), Number(p.package_price || 0)),
     );
 
     const packMembers: Record<string, Set<string>> = {};
@@ -116,17 +116,22 @@ export async function POST(req: Request) {
     if (upErr) throw upErr;
 
     // Replace manual order_items
-    const { error: delErr } = await db.from("order_items").delete().match({ encounter_id: id, kind: "manual" });
+    const { error: delErr } = await db
+      .from("order_items")
+      .delete()
+      .match({ encounter_id: id, kind: "manual" });
     if (delErr) throw delErr;
 
     if (expanded.length) {
-      const { error: insErr } = await db.from("order_items").insert([{
-        encounter_id: id,
-        kind: "manual",
-        code_or_name: expanded.join(", "),
-        qty: 1,
-        source: "admin-edit",
-      }]);
+      const { error: insErr } = await db.from("order_items").insert([
+        {
+          encounter_id: id,
+          kind: "manual",
+          code_or_name: expanded.join(", "),
+          qty: 1,
+          source: "admin-edit",
+        },
+      ]);
       if (insErr) throw insErr;
     }
 

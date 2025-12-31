@@ -17,8 +17,7 @@ export async function GET(req: Request) {
     }
 
     const db = getSupabase();
-    const sel =
-      "id, consultation_id, icd10_code, icd10_text_snapshot, is_primary";
+    const sel = "id, consultation_id, icd10_code, icd10_text_snapshot, is_primary";
 
     const { data, error } = await db
       .from("consultation_diagnoses")

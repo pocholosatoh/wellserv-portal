@@ -26,7 +26,11 @@ const StaffSchema = z.object({
 async function requireAdmin() {
   const session = await getSession().catch(() => null);
   const c = await cookies();
-  const prefix = (session?.staff_role_prefix || c.get("staff_role_prefix")?.value || "").toUpperCase();
+  const prefix = (
+    session?.staff_role_prefix ||
+    c.get("staff_role_prefix")?.value ||
+    ""
+  ).toUpperCase();
   const staffRole = (session?.staff_role || c.get("staff_role")?.value || "").toLowerCase();
   const staffId = session?.staff_id || c.get("staff_id")?.value || "";
   const isAdmin = prefix === "ADM" || staffRole === "admin";
@@ -77,8 +81,14 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     if (err?.issues?.length) {
-      return NextResponse.json({ error: err.issues[0]?.message || "Invalid input" }, { status: 400 });
+      return NextResponse.json(
+        { error: err.issues[0]?.message || "Invalid input" },
+        { status: 400 },
+      );
     }
-    return NextResponse.json({ error: err?.message || "Unable to register staff" }, { status: 400 });
+    return NextResponse.json(
+      { error: err?.message || "Unable to register staff" },
+      { status: 400 },
+    );
   }
 }

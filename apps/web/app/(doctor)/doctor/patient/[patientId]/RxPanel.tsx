@@ -16,7 +16,7 @@ type Line = {
   generic_name?: string;
   strength?: string;
   form?: string;
-  brand_name?: string;        // optional, persisted in prescription_items.brand_name
+  brand_name?: string; // optional, persisted in prescription_items.brand_name
   route?: string;
   dose_amount?: number;
   dose_unit?: string;
@@ -31,8 +31,15 @@ const ROUTES = ["PO", "IM", "IV", "SC", "Topical", "Inhale"];
 const UNITS = ["tab", "cap", "mL", "puff"];
 const FREQS = ["OD", "BID", "TID", "QID", "HS", "PRN"];
 const FREQ_PER_DAY: Record<string, number> = {
-  OD: 1, QD: 1, QAM: 1, QPM: 1,
-  BID: 2, TID: 3, QID: 4, HS: 1, PRN: 0,
+  OD: 1,
+  QD: 1,
+  QAM: 1,
+  QPM: 1,
+  BID: 2,
+  TID: 3,
+  QID: 4,
+  HS: 1,
+  PRN: 0,
 };
 
 export default function RxPanel({
@@ -62,25 +69,19 @@ export default function RxPanel({
   const [rxId, setRxId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Enhanced sign control logic
-  const canSign =
-    Boolean(rxId) &&
-    !lockedSigned &&
-    !isDirty &&
-    saving !== "saving" &&
-    !signing; // remove if you don't have `signing` state
+  const canSign = Boolean(rxId) && !lockedSigned && !isDirty && saving !== "saving" && !signing; // remove if you don't have `signing` state
 
-  const signTitle =
-    !rxId
-      ? "Create or load a draft before signing."
-      : lockedSigned
+  const signTitle = !rxId
+    ? "Create or load a draft before signing."
+    : lockedSigned
       ? "Already signed — create a revision to make changes."
       : isDirty
-      ? "Save the draft first, then sign."
-      : saving === "saving"
-      ? "Saving draft…"
-      : signing
-      ? "Signing…"
-      : "Sign this prescription";
+        ? "Save the draft first, then sign."
+        : saving === "saving"
+          ? "Saving draft…"
+          : signing
+            ? "Signing…"
+            : "Sign this prescription";
 
   const validityPreviewDate = useMemo(() => {
     if (lockedSigned && signedValidUntil) {
@@ -104,7 +105,6 @@ export default function RxPanel({
     });
   }, [validityPreviewDate]);
 
-
   // If parent provides a consultation id
   useEffect(() => {
     if (cidProp != null) setConsultationId(cidProp);
@@ -115,7 +115,9 @@ export default function RxPanel({
     if (!consultationId) return;
 
     // Try draft first
-    const res = await fetch(`/api/prescriptions/draft?consultation_id=${encodeURIComponent(consultationId)}`);
+    const res = await fetch(
+      `/api/prescriptions/draft?consultation_id=${encodeURIComponent(consultationId)}`,
+    );
     const j = await res.json().catch(() => ({}));
 
     if (res.ok && j?.id) {
@@ -136,8 +138,8 @@ export default function RxPanel({
     const rx = dj?.details?.rx || dj?.details?.prescription;
 
     if (dres.ok && rx?.id && rx?.status === "signed") {
-      setLockedSigned(true);     // 🔒 this drives the banner
-      setRxId(null);             // no draft selected
+      setLockedSigned(true); // 🔒 this drives the banner
+      setRxId(null); // no draft selected
       setItems(Array.isArray(rx.items) ? rx.items : []);
       setNotesForPatient(rx.notes_for_patient ?? "");
       setValidDays(rx.valid_days ?? DEFAULT_RX_VALID_DAYS);
@@ -166,7 +168,10 @@ export default function RxPanel({
   // Search meds from pharmacy table
   useEffect(() => {
     const t = setTimeout(async () => {
-      if (!search.trim()) { setResults([]); return; }
+      if (!search.trim()) {
+        setResults([]);
+        return;
+      }
       const res = await fetch(`/api/meds/search?q=${encodeURIComponent(search.trim())}`);
       const json = await res.json();
       if (res.ok) setResults(json.items || []);
@@ -177,13 +182,16 @@ export default function RxPanel({
   // Add from pharmacy — prevent duplicates (generic+strength+form)
   function addMed(m: Med) {
     const exists = items.some(
-      it =>
+      (it) =>
         it.generic_name?.toLowerCase() === (m.generic_name ?? "").toLowerCase() &&
         it.strength === m.strength &&
-        it.form === m.form
+        it.form === m.form,
     );
-    if (exists) { alert("This medication is already in the list."); return; }
-    setItems(prev => [
+    if (exists) {
+      alert("This medication is already in the list.");
+      return;
+    }
+    setItems((prev) => [
       {
         med_id: m.id,
         generic_name: m.generic_name ?? "",
@@ -202,8 +210,8 @@ export default function RxPanel({
       ...prev,
     ]);
     setSearch("");
-    setResults([])
-    setIsDirty(true);;
+    setResults([]);
+    setIsDirty(true);
   }
 
   // Add custom (not in DB)
@@ -214,13 +222,16 @@ export default function RxPanel({
     const strength = (parts[1] || "").trim();
     const form = (parts[2] || "").trim();
     const exists = items.some(
-      it =>
+      (it) =>
         it.generic_name?.toLowerCase() === generic.toLowerCase() &&
         it.strength === strength &&
-        it.form === form
+        it.form === form,
     );
-    if (exists) { alert("This medication is already in the list."); return; }
-    setItems(prev => [
+    if (exists) {
+      alert("This medication is already in the list.");
+      return;
+    }
+    setItems((prev) => [
       {
         med_id: null,
         generic_name: generic,
@@ -244,13 +255,11 @@ export default function RxPanel({
   }
 
   function updateLine(i: number, patch: Partial<Line>) {
-    setItems(prev =>
-      prev.map((ln, idx) => (idx === i ? mergeLineWithAutoQty(ln, patch) : ln))
-    );
+    setItems((prev) => prev.map((ln, idx) => (idx === i ? mergeLineWithAutoQty(ln, patch) : ln)));
     setIsDirty(true);
   }
   function removeLine(i: number) {
-    setItems(prev => prev.filter((_, idx) => idx !== i));
+    setItems((prev) => prev.filter((_, idx) => idx !== i));
     setIsDirty(true);
   }
 
@@ -330,7 +339,7 @@ export default function RxPanel({
       } else {
         // Otherwise, fall back to fetching the draft endpoint
         const dr = await fetch(
-          `/api/prescriptions/draft?consultation_id=${encodeURIComponent(consultationId)}`
+          `/api/prescriptions/draft?consultation_id=${encodeURIComponent(consultationId)}`,
         );
         const dj = await dr.json().catch(() => ({}));
         if (dr.ok && dj?.id) {
@@ -360,12 +369,12 @@ export default function RxPanel({
     // 🔒 If we're on a signed Rx, ask first
     if (lockedSigned) {
       const proceed = window.confirm(
-        "A signed prescription already exists for today. Create a revision?"
+        "A signed prescription already exists for today. Create a revision?",
       );
       if (!proceed) return;
 
       // ✅ Create revision and switch to new draft
-      const newId = await startRevision();     // ← uses the improved function
+      const newId = await startRevision(); // ← uses the improved function
       if (!newId) return;
 
       // 👇 then reattempt save silently on the new draft
@@ -431,7 +440,6 @@ export default function RxPanel({
     setIsDirty(false);
   }
 
-
   async function signRx() {
     if (signing) return; // prevent double-clicks
     setSigning(true);
@@ -483,9 +491,7 @@ export default function RxPanel({
       await loadCurrentDraft();
 
       // Let other widgets (like PastConsultations) refresh themselves
-      window.dispatchEvent(
-        new CustomEvent("rx:signed", { detail: { consultationId } })
-      );
+      window.dispatchEvent(new CustomEvent("rx:signed", { detail: { consultationId } }));
     } catch (e: any) {
       setError(e?.message || "Failed to sign prescription");
     } finally {
@@ -493,342 +499,314 @@ export default function RxPanel({
     }
   }
 
-
-
   return (
-  <div className="space-y-4">
-    {error && <div className="text-sm text-red-600">{error}</div>}
+    <div className="space-y-4">
+      {error && <div className="text-sm text-red-600">{error}</div>}
 
-    <div className="flex items-center gap-2">
-      <span className="ml-auto text-xs text-gray-500">
-        {saving === "saving" ? "Saving…" : saving === "saved" ? "Saved" : null}
-      </span>
-    </div>
-
-    {/* Banner when viewing a signed Rx (no draft yet) */}
-    {lockedSigned && (
-      <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-        Prescription already <b>signed</b> for this consultation. To make changes,
-        create a <b>Revision</b>.
-        <button
-          type="button"
-          onClick={startRevision}
-          disabled={reviseBusy}
-          className="ml-3 inline-flex items-center rounded border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
-        >
-          Create Revision
-        </button>
+      <div className="flex items-center gap-2">
+        <span className="ml-auto text-xs text-gray-500">
+          {saving === "saving" ? "Saving…" : saving === "saved" ? "Saved" : null}
+        </span>
       </div>
-    )}
 
-    {/* Everything below becomes read-only when lockedSigned = true */}
-    <fieldset
-      disabled={lockedSigned}
-      className={lockedSigned ? "opacity-60 pointer-events-none" : ""}
-    >
-      {/* Search + results */}
-      <div>
-        <label className="block text-sm mb-1">
-          Add medicine from pharmacy list. If preferred medication is not available:
-          input [Generic Name, strength, form] → &ldquo;Add Custom&rdquo;
-        </label>
-        <div className="flex gap-2">
-          <input
-            className="flex-1 border rounded-lg px-3 py-2"
-            placeholder="Search meds… (generic, strength, form)"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      {/* Banner when viewing a signed Rx (no draft yet) */}
+      {lockedSigned && (
+        <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          Prescription already <b>signed</b> for this consultation. To make changes, create a{" "}
+          <b>Revision</b>.
           <button
             type="button"
-            className="px-3 py-2 border rounded text-sm"
-            onClick={() => addFreeMed()}
+            onClick={startRevision}
+            disabled={reviseBusy}
+            className="ml-3 inline-flex items-center rounded border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
           >
-            Add Custom
+            Create Revision
           </button>
         </div>
-        {!!results.length && (
-          <div className="border rounded-lg mt-2 max-h-48 overflow-auto">
-            {results.map((m) => (
-              <button
-                type="button"
-                key={m.id}
-                className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-0"
-                onClick={() => addMed(m)}
-              >
-                <div className="text-sm">
-                  <b>{m.generic_name}</b> — {m.strength} {m.form}
-                  {m.price != null && (
-                    <span className="text-gray-500"> · ₱{m.price}</span>
+      )}
+
+      {/* Everything below becomes read-only when lockedSigned = true */}
+      <fieldset
+        disabled={lockedSigned}
+        className={lockedSigned ? "opacity-60 pointer-events-none" : ""}
+      >
+        {/* Search + results */}
+        <div>
+          <label className="block text-sm mb-1">
+            Add medicine from pharmacy list. If preferred medication is not available: input
+            [Generic Name, strength, form] → &ldquo;Add Custom&rdquo;
+          </label>
+          <div className="flex gap-2">
+            <input
+              className="flex-1 border rounded-lg px-3 py-2"
+              placeholder="Search meds… (generic, strength, form)"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <button
+              type="button"
+              className="px-3 py-2 border rounded text-sm"
+              onClick={() => addFreeMed()}
+            >
+              Add Custom
+            </button>
+          </div>
+          {!!results.length && (
+            <div className="border rounded-lg mt-2 max-h-48 overflow-auto">
+              {results.map((m) => (
+                <button
+                  type="button"
+                  key={m.id}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-0"
+                  onClick={() => addMed(m)}
+                >
+                  <div className="text-sm">
+                    <b>{m.generic_name}</b> — {m.strength} {m.form}
+                    {m.price != null && <span className="text-gray-500"> · ₱{m.price}</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Lines */}
+        <div className="space-y-5 mt-3">
+          {items.map((ln, i) => (
+            <div key={i} className="border rounded-xl p-3">
+              {/* Header */}
+              <div className="flex items-center gap-2 text-sm">
+                <div className="font-medium">
+                  {ln.generic_name} — {ln.strength} {ln.form}
+                  {ln.brand_name && <span className="text-gray-500"> ({ln.brand_name})</span>}
+                  {ln.unit_price != null && (
+                    <span className="text-gray-500"> · Unit ₱{ln.unit_price}</span>
                   )}
                 </div>
+                <button
+                  className="ml-auto text-xs text-red-600 underline"
+                  onClick={() => removeLine(i)}
+                  type="button"
+                >
+                  Remove
+                </button>
+              </div>
+
+              {/* Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 text-sm">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Brand (optional)</label>
+                  <input
+                    className="w-full border rounded px-2 py-1"
+                    value={ln.brand_name || ""}
+                    onChange={(e) => updateLine(i, { brand_name: e.target.value })}
+                    placeholder="e.g., Norvasc"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Route</label>
+                  <select
+                    className="w-full border rounded px-2 py-1"
+                    value={ln.route || "PO"}
+                    onChange={(e) => updateLine(i, { route: e.target.value })}
+                  >
+                    {ROUTES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Dose amount</label>
+                  <input
+                    className="w-full border rounded px-2 py-1"
+                    type="number"
+                    step="0.5"
+                    value={ln.dose_amount ?? 1}
+                    onChange={(e) => updateLine(i, { dose_amount: Number(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Dose unit</label>
+                  <select
+                    className="w-full border rounded px-2 py-1"
+                    value={ln.dose_unit || "tab"}
+                    onChange={(e) => updateLine(i, { dose_unit: e.target.value })}
+                  >
+                    {UNITS.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Frequency</label>
+                  <select
+                    className="w-full border rounded px-2 py-1"
+                    value={ln.frequency_code || "BID"}
+                    onChange={(e) => updateLine(i, { frequency_code: e.target.value })}
+                  >
+                    {FREQS.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {["OD", "BID", "TID", "QID", "HS", "PRN"].map((code) => (
+                      <button
+                        key={code}
+                        type="button"
+                        className="text-[11px] px-2 py-1 rounded border"
+                        onClick={() => updateLine(i, { frequency_code: code })}
+                      >
+                        {code}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Duration (days)</label>
+                  <input
+                    className="w-full border rounded px-2 py-1"
+                    type="number"
+                    min={1}
+                    value={ln.duration_days ?? 7}
+                    onChange={(e) => updateLine(i, { duration_days: Number(e.target.value) })}
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {[3, 5, 7, 14, 30].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        className="text-[11px] px-2 py-1 rounded border"
+                        onClick={() => updateLine(i, { duration_days: d })}
+                      >
+                        {d}d
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Quantity</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="border rounded px-2 py-1 w-28"
+                      type="number"
+                      min={1}
+                      value={ln.quantity ?? 14}
+                      onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })}
+                    />
+                    <button
+                      className="text-xs underline text-gray-700"
+                      type="button"
+                      onClick={() => {
+                        const q = calcSuggestedQty(ln);
+                        if (q != null) updateLine(i, { quantity: q });
+                      }}
+                    >
+                      Calc
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {ln.unit_price != null && ln.quantity != null && (
+                <div className="text-right text-sm mt-2">
+                  Line total: ₱{(ln.unit_price * ln.quantity).toFixed(2)}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Shared instructions */}
+        <div className="mt-4">
+          <label className="block text-sm mb-1">Shared instructions for patient</label>
+          <textarea
+            className="w-full border rounded p-2 text-sm"
+            value={notesForPatient}
+            onChange={(e) => {
+              setNotesForPatient(e.target.value);
+              setIsDirty(true);
+            }}
+            placeholder="Diet, lifestyle, follow-up, special instructions…"
+          />
+        </div>
+
+        {/* Validity */}
+        <div className="mt-4">
+          <label className="block text-sm mb-1">Prescription validity (days)</label>
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              className="w-28 border rounded px-2 py-1"
+              type="number"
+              min={1}
+              max={365}
+              value={validDays}
+              onChange={(e) => updateValidDaysInput(Number(e.target.value))}
+            />
+            <div className="text-xs text-gray-500">
+              {lockedSigned && signedValidUntil
+                ? `Signed Rx valid until ${validityPreviewLabel ?? "—"}.`
+                : validityPreviewLabel
+                  ? `Will be valid until ${validityPreviewLabel}.`
+                  : "Enter number of days to auto-compute expiry."}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1 mt-1 text-xs">
+            {[7, 14, 30, 60, 90].map((d) => (
+              <button
+                key={d}
+                type="button"
+                className="rounded border px-2 py-1"
+                onClick={() => updateValidDaysInput(d)}
+              >
+                {d}d
               </button>
             ))}
           </div>
-        )}
-      </div>
-
-      {/* Lines */}
-      <div className="space-y-5 mt-3">
-        {items.map((ln, i) => (
-          <div key={i} className="border rounded-xl p-3">
-            {/* Header */}
-            <div className="flex items-center gap-2 text-sm">
-              <div className="font-medium">
-                {ln.generic_name} — {ln.strength} {ln.form}
-                {ln.brand_name && (
-                  <span className="text-gray-500"> ({ln.brand_name})</span>
-                )}
-                {ln.unit_price != null && (
-                  <span className="text-gray-500"> · Unit ₱{ln.unit_price}</span>
-                )}
-              </div>
-              <button
-                className="ml-auto text-xs text-red-600 underline"
-                onClick={() => removeLine(i)}
-                type="button"
-              >
-                Remove
-              </button>
-            </div>
-
-            {/* Fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 text-sm">
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Brand (optional)
-                </label>
-                <input
-                  className="w-full border rounded px-2 py-1"
-                  value={ln.brand_name || ""}
-                  onChange={(e) => updateLine(i, { brand_name: e.target.value })}
-                  placeholder="e.g., Norvasc"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Route</label>
-                <select
-                  className="w-full border rounded px-2 py-1"
-                  value={ln.route || "PO"}
-                  onChange={(e) => updateLine(i, { route: e.target.value })}
-                >
-                  {ROUTES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Dose amount
-                </label>
-                <input
-                  className="w-full border rounded px-2 py-1"
-                  type="number"
-                  step="0.5"
-                  value={ln.dose_amount ?? 1}
-                  onChange={(e) =>
-                    updateLine(i, { dose_amount: Number(e.target.value) })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Dose unit
-                </label>
-                <select
-                  className="w-full border rounded px-2 py-1"
-                  value={ln.dose_unit || "tab"}
-                  onChange={(e) => updateLine(i, { dose_unit: e.target.value })}
-                >
-                  {UNITS.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Frequency
-                </label>
-                <select
-                  className="w-full border rounded px-2 py-1"
-                  value={ln.frequency_code || "BID"}
-                  onChange={(e) =>
-                    updateLine(i, { frequency_code: e.target.value })
-                  }
-                >
-                  {FREQS.map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {["OD", "BID", "TID", "QID", "HS", "PRN"].map((code) => (
-                    <button
-                      key={code}
-                      type="button"
-                      className="text-[11px] px-2 py-1 rounded border"
-                      onClick={() => updateLine(i, { frequency_code: code })}
-                    >
-                      {code}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Duration (days)
-                </label>
-                <input
-                  className="w-full border rounded px-2 py-1"
-                  type="number"
-                  min={1}
-                  value={ln.duration_days ?? 7}
-                  onChange={(e) =>
-                    updateLine(i, { duration_days: Number(e.target.value) })
-                  }
-                />
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {[3, 5, 7, 14, 30].map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      className="text-[11px] px-2 py-1 rounded border"
-                      onClick={() => updateLine(i, { duration_days: d })}
-                    >
-                      {d}d
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Quantity
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    className="border rounded px-2 py-1 w-28"
-                    type="number"
-                    min={1}
-                    value={ln.quantity ?? 14}
-                    onChange={(e) =>
-                      updateLine(i, { quantity: Number(e.target.value) })
-                    }
-                  />
-                  <button
-                    className="text-xs underline text-gray-700"
-                    type="button"
-                    onClick={() => {
-                      const q = calcSuggestedQty(ln);
-                      if (q != null) updateLine(i, { quantity: q });
-                    }}
-                  >
-                    Calc
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {ln.unit_price != null && ln.quantity != null && (
-              <div className="text-right text-sm mt-2">
-                Line total: ₱{(ln.unit_price * ln.quantity).toFixed(2)}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Shared instructions */}
-      <div className="mt-4">
-        <label className="block text-sm mb-1">Shared instructions for patient</label>
-        <textarea
-          className="w-full border rounded p-2 text-sm"
-          value={notesForPatient}
-          onChange={(e) => {
-            setNotesForPatient(e.target.value);
-            setIsDirty(true);
-          }}
-          placeholder="Diet, lifestyle, follow-up, special instructions…"
-        />
-      </div>
-
-      {/* Validity */}
-      <div className="mt-4">
-        <label className="block text-sm mb-1">Prescription validity (days)</label>
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            className="w-28 border rounded px-2 py-1"
-            type="number"
-            min={1}
-            max={365}
-            value={validDays}
-            onChange={(e) => updateValidDaysInput(Number(e.target.value))}
-          />
-          <div className="text-xs text-gray-500">
-            {lockedSigned && signedValidUntil
-              ? `Signed Rx valid until ${validityPreviewLabel ?? "—"}.`
-              : validityPreviewLabel
-              ? `Will be valid until ${validityPreviewLabel}.`
-              : "Enter number of days to auto-compute expiry."}
-          </div>
         </div>
-        <div className="flex flex-wrap gap-1 mt-1 text-xs">
-          {[7, 14, 30, 60, 90].map((d) => (
+
+        {/* Bottom actions */}
+        <div className="sticky bottom-0 bg-white pt-2 pb-2 border-t mt-2">
+          <div className="flex items-center gap-3">
+            <div className="text-sm font-medium">Subtotal: ₱{subtotal.toFixed(2)}</div>
             <button
-              key={d}
+              className="ml-auto rounded border px-3 py-2"
               type="button"
-              className="rounded border px-2 py-1"
-              onClick={() => updateValidDaysInput(d)}
+              onClick={() => saveDraft()}
             >
-              {d}d
+              Save Draft
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Bottom actions */}
-      <div className="sticky bottom-0 bg-white pt-2 pb-2 border-t mt-2">
-        <div className="flex items-center gap-3">
-          <div className="text-sm font-medium">
-            Subtotal: ₱{subtotal.toFixed(2)}
+            <button
+              className="rounded border px-3 py-2"
+              type="button"
+              onClick={() => deleteDraft()}
+            >
+              Delete Draft
+            </button>
+            <button
+              type="button"
+              onClick={signRx}
+              className="rounded bg-[#44969b] text-white px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!canSign}
+              title={signTitle}
+              aria-disabled={!canSign}
+            >
+              Sign Prescription
+            </button>
           </div>
-          <button
-            className="ml-auto rounded border px-3 py-2"
-            type="button"
-            onClick={() => saveDraft()}
-          >
-            Save Draft
-          </button>
-          <button
-            className="rounded border px-3 py-2"
-            type="button"
-            onClick={() => deleteDraft()}
-          >
-            Delete Draft
-          </button>
-          <button
-            type="button"
-            onClick={signRx}
-            className="rounded bg-[#44969b] text-white px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!canSign}
-            title={signTitle}
-            aria-disabled={!canSign}
-          >
-            Sign Prescription
-          </button>
         </div>
-      </div>
-    </fieldset>
-  </div>
-);
+      </fieldset>
+    </div>
+  );
 }

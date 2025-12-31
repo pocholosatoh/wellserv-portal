@@ -13,7 +13,7 @@ export async function GET(req: Request) {
 
     // ✅ Select all columns to avoid unknown-column errors
     const { data, error } = await supa
-      .from("encounters")            // <— change this table name if you use a different one
+      .from("encounters") // <— change this table name if you use a different one
       .select("*")
       .eq("patient_id", patient_id)
       .order("created_at", { ascending: false })

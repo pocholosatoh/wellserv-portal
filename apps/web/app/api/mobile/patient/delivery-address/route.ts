@@ -52,13 +52,13 @@ export async function POST(req: Request) {
     if (!delivery_address_label || !delivery_address_text) {
       return NextResponse.json(
         { error: "delivery_address_label and delivery_address_text are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (delivery_lat_raw === null || delivery_lng_raw === null) {
       return NextResponse.json(
         { error: "delivery_lat and delivery_lng are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
       })
       .eq("patient_id", patientId)
       .select(
-        "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at"
+        "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at",
       )
       .maybeSingle();
 

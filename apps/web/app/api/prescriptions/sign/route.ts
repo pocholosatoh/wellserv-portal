@@ -18,7 +18,9 @@ function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
 }
 
 function isUuid(v?: string | null) {
-  return !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+  return (
+    !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+  );
 }
 
 function escapeRegExp(str: string) {
@@ -71,7 +73,7 @@ export async function POST(req: NextRequest) {
       if (q.data.status !== "draft") {
         return NextResponse.json(
           { error: "Only draft prescriptions can be signed. Create a Revision first." },
-          { status: 409 }
+          { status: 409 },
         );
       }
     }
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
     if (!consultationId && !prescriptionId) {
       return NextResponse.json(
         { error: "consultation_id or prescription_id is required." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -141,13 +143,15 @@ export async function POST(req: NextRequest) {
         }
         if ((alreadySigned.data || []).length > 0) {
           return NextResponse.json(
-            { error: "Prescription already signed for this consultation. Create a Revision first." },
-            { status: 409 }
+            {
+              error: "Prescription already signed for this consultation. Create a Revision first.",
+            },
+            { status: 409 },
           );
         }
         return NextResponse.json(
           { error: "No draft found to sign. Add items and Save Draft first." },
-          { status: 409 }
+          { status: 409 },
         );
       }
       prescriptionId = latestDraft.data.id as string;
@@ -163,14 +167,14 @@ export async function POST(req: NextRequest) {
       if (!chk.data?.consultation_id || chk.data.consultation_id !== consultationId) {
         return NextResponse.json(
           { error: "Prescription not found for this consultation." },
-          { status: 404 }
+          { status: 404 },
         );
       }
       existingValidDays = parseValidDays(chk.data.valid_days);
       if (chk.data.status !== "draft") {
         return NextResponse.json(
           { error: "Only draft prescriptions can be signed. Create a Revision first." },
-          { status: 409 }
+          { status: 409 },
         );
       }
     }
@@ -263,10 +267,7 @@ export async function POST(req: NextRequest) {
 
     if (candidateIds.size) {
       const ids = Array.from(candidateIds);
-      const { data: encs } = await db
-        .from("encounters")
-        .select("id, status")
-        .in("id", ids);
+      const { data: encs } = await db.from("encounters").select("id, status").in("id", ids);
 
       const allowedToFinish = new Set(["for-processing", "for-extract", "done"]);
 
@@ -281,7 +282,7 @@ export async function POST(req: NextRequest) {
             payload.status = "done";
           }
           return db.from("encounters").update(payload).eq("id", enc.id);
-        })
+        }),
       );
     }
 

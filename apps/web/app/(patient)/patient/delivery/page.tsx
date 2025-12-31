@@ -22,7 +22,7 @@ export default async function PatientDeliveryPage() {
   const { data } = await db
     .from("patients")
     .select(
-      "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at"
+      "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at",
     )
     .eq("patient_id", session.patient_id)
     .limit(1)
@@ -39,7 +39,8 @@ export default async function PatientDeliveryPage() {
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Patient Portal</p>
               <h1 className="mt-2 text-2xl font-semibold text-slate-900">Meds Delivery</h1>
               <p className="mt-1 text-sm text-slate-600">
-                Request doorstep delivery for your prescriptions. A representative will confirm via call.
+                Request doorstep delivery for your prescriptions. A representative will confirm via
+                call.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">

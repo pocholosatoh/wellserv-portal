@@ -1,12 +1,5 @@
 import { Stack } from "expo-router";
-import {
-  ActivityIndicator,
-  FlatList,
-  TouchableOpacity,
-  View,
-  Text,
-  Image,
-} from "react-native";
+import { ActivityIndicator, FlatList, TouchableOpacity, View, Text, Image } from "react-native";
 import { colors, spacing } from "@wellserv/theme";
 import { usePatientFollowups } from "../hooks/usePatientFollowups";
 import icon from "../../assets/icon.png";

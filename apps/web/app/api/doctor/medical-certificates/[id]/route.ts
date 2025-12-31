@@ -13,10 +13,7 @@ function isUuid(v?: string | null) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
-export async function GET(
-  req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
@@ -30,11 +27,7 @@ export async function GET(
 
     const db = getSupabase();
 
-    const cert = await db
-      .from("medical_certificates")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+    const cert = await db.from("medical_certificates").select("*").eq("id", id).maybeSingle();
 
     if (cert.error) {
       return NextResponse.json({ error: cert.error.message }, { status: 400 });
@@ -44,11 +37,7 @@ export async function GET(
     }
 
     // only allow the issuing doctor (if we can compare)
-    if (
-      isUuid(doctor.doctorId) &&
-      cert.data.doctor_id &&
-      cert.data.doctor_id !== doctor.doctorId
-    ) {
+    if (isUuid(doctor.doctorId) && cert.data.doctor_id && cert.data.doctor_id !== doctor.doctorId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -62,13 +51,11 @@ export async function GET(
       return NextResponse.json({ error: supporting.error.message }, { status: 400 });
     }
 
-    const doctorSnapshot = cert.data.doctor_snapshot
-      ? { ...cert.data.doctor_snapshot }
-      : null;
+    const doctorSnapshot = cert.data.doctor_snapshot ? { ...cert.data.doctor_snapshot } : null;
     if (doctorSnapshot?.signature_image_url) {
       doctorSnapshot.signed_signature_url = await signDoctorSignature(
         db,
-        doctorSnapshot.signature_image_url
+        doctorSnapshot.signature_image_url,
       );
     }
 
@@ -103,10 +90,7 @@ function normalizeSupportingData(list: any): SupportingDataEntry[] {
     .filter(Boolean) as SupportingDataEntry[];
 }
 
-export async function PATCH(
-  req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
@@ -121,11 +105,7 @@ export async function PATCH(
     const body = await req.json().catch(() => ({}));
     const db = getSupabase();
 
-    const existing = await db
-      .from("medical_certificates")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+    const existing = await db.from("medical_certificates").select("*").eq("id", id).maybeSingle();
     if (existing.error) {
       return NextResponse.json({ error: existing.error.message }, { status: 400 });
     }
@@ -140,7 +120,8 @@ export async function PATCH(
     const supportingData = normalizeSupportingData(body.supporting_data);
 
     const updatePayload = {
-      diagnosis_text: body.diagnosis_text ?? body.diagnosisText ?? existing.data.diagnosis_text ?? null,
+      diagnosis_text:
+        body.diagnosis_text ?? body.diagnosisText ?? existing.data.diagnosis_text ?? null,
       remarks: body.remarks ?? existing.data.remarks ?? null,
       advice: body.advice ?? existing.data.advice ?? null,
       findings_summary: body.findings_summary ?? existing.data.findings_summary ?? null,
@@ -157,13 +138,13 @@ export async function PATCH(
       .maybeSingle();
 
     if (updated.error || !updated.data) {
-      return NextResponse.json({ error: updated.error?.message || "Update failed" }, { status: 400 });
+      return NextResponse.json(
+        { error: updated.error?.message || "Update failed" },
+        { status: 400 },
+      );
     }
 
-    await db
-      .from("medical_certificate_supporting_items")
-      .delete()
-      .eq("certificate_id", id);
+    await db.from("medical_certificate_supporting_items").delete().eq("certificate_id", id);
 
     if (supportingData.length) {
       const detailRows = supportingData.map((entry, idx) => ({

@@ -1,26 +1,28 @@
 // lib/sheetsdaily.ts
 export type RunningRow = {
-  encounter_id: string;       // ✅ NEW: required UUID (string)
+  encounter_id: string; // ✅ NEW: required UUID (string)
   patient_id: string;
-  full_name: string;          // "SURNAME, FIRSTNAME" (ALL CAPS)
-  age?: string;               // leave "" so the sheet computes
+  full_name: string; // "SURNAME, FIRSTNAME" (ALL CAPS)
+  age?: string; // leave "" so the sheet computes
   sex: "M" | "F";
-  birthday: string;           // MM/DD/YYYY
+  birthday: string; // MM/DD/YYYY
   contact?: string;
   address?: string;
-  date_of_test?: string;      // MM/DD/YYYY (defaults to Manila today)
-  notes?: string;             // comma-separated tests
+  date_of_test?: string; // MM/DD/YYYY (defaults to Manila today)
+  notes?: string; // comma-separated tests
 };
 
 function manilaTodayMMDDYYYY(): string {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: process.env.APP_TZ || "Asia/Manila",
-    year: "numeric", month: "2-digit", day: "2-digit"
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   });
   const parts = fmt.formatToParts(new Date());
-  const mm = parts.find(p => p.type === "month")?.value ?? "01";
-  const dd = parts.find(p => p.type === "day")?.value ?? "01";
-  const yy = parts.find(p => p.type === "year")?.value ?? "1970";
+  const mm = parts.find((p) => p.type === "month")?.value ?? "01";
+  const dd = parts.find((p) => p.type === "day")?.value ?? "01";
+  const yy = parts.find((p) => p.type === "year")?.value ?? "1970";
   return `${mm}/${dd}/${yy}`;
 }
 
@@ -30,7 +32,9 @@ function isMMDDYYYY(s: string | undefined | null) {
 
 // ✅ NEW: simple UUID v4-ish check
 function isUuidLike(s: string | undefined | null) {
-  return !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+  return (
+    !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)
+  );
 }
 
 async function postJSON(url: string, body: unknown, init?: RequestInit) {
@@ -46,7 +50,9 @@ async function postJSON(url: string, body: unknown, init?: RequestInit) {
     });
     const text = await res.text();
     let parsed: any = null;
-    try { parsed = JSON.parse(text); } catch {}
+    try {
+      parsed = JSON.parse(text);
+    } catch {}
     return { res, text, json: parsed };
   } finally {
     clearTimeout(timeout);
@@ -66,7 +72,7 @@ export async function appendRunningRow(branchCode: "SI" | "SL", row: RunningRow)
 
   if (!endpoint || !token || !sheetId) {
     throw new Error(
-      "Sheets env missing: APPS_SCRIPT_ENDPOINT/APPS_SCRIPT_TOKEN/(SI|SL)_RUNNING_SHEET_ID"
+      "Sheets env missing: APPS_SCRIPT_ENDPOINT/APPS_SCRIPT_TOKEN/(SI|SL)_RUNNING_SHEET_ID",
     );
   }
 
@@ -117,11 +123,11 @@ export async function appendRunningRow(branchCode: "SI" | "SL", row: RunningRow)
         : `Non-JSON body: "${bodyPreview}"`;
       throw new Error(
         `Sheets append failed: HTTP ${res.status}. ${hint}. ` +
-        `Ensure your Apps Script returns JSON: {"ok":true,"rowNumber":n}`
+          `Ensure your Apps Script returns JSON: {"ok":true,"rowNumber":n}`,
       );
     } catch (e) {
       lastErr = e;
-      await new Promise(r => setTimeout(r, 350));
+      await new Promise((r) => setTimeout(r, 350));
     }
   }
 

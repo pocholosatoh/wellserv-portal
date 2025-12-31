@@ -237,7 +237,7 @@ export default function MedicalCertificateDrawer({
   const doctorKey = formData?.doctor?.doctor_id || "reliever-doctor";
   const draftKey = useMemo(
     () => getMedCertDraftKey({ doctorId: doctorKey, patientId, encounterId, date: issueDateKey }),
-    [doctorKey, patientId, encounterId, issueDateKey]
+    [doctorKey, patientId, encounterId, issueDateKey],
   );
 
   function loadDraftFromStorage(): DraftPayload | null {
@@ -476,9 +476,10 @@ export default function MedicalCertificateDrawer({
       return;
     }
 
-    const todaysCert = existingCertificate && isSameDay(existingCertificate?.issued_at, issueDateKey)
-      ? existingCertificate
-      : null;
+    const todaysCert =
+      existingCertificate && isSameDay(existingCertificate?.issued_at, issueDateKey)
+        ? existingCertificate
+        : null;
     if (todaysCert) {
       const next = certificateToFormState(todaysCert);
       setFormState({
@@ -503,7 +504,10 @@ export default function MedicalCertificateDrawer({
     onClose();
   }
 
-  function updateExam(key: PhysicalExamKey, values: Partial<{ status: "normal" | "abnormal"; remarks: string }>) {
+  function updateExam(
+    key: PhysicalExamKey,
+    values: Partial<{ status: "normal" | "abnormal"; remarks: string }>,
+  ) {
     setFormState((prev) => ({
       ...prev,
       physicalExam: {
@@ -535,7 +539,7 @@ export default function MedicalCertificateDrawer({
     setFormState((prev) => ({
       ...prev,
       customSupporting: prev.customSupporting.map((item) =>
-        item.id === id ? { ...item, ...patch } : item
+        item.id === id ? { ...item, ...patch } : item,
       ),
     }));
   }
@@ -553,7 +557,9 @@ export default function MedicalCertificateDrawer({
         ? existingCertificate
         : null;
     clearDraft(draftKey);
-    const baseState = todaysCert ? certificateToFormState(todaysCert) : defaultsToFormState(formData);
+    const baseState = todaysCert
+      ? certificateToFormState(todaysCert)
+      : defaultsToFormState(formData);
     const nextState = { ...baseState, suggestions: formState.suggestions };
     hasInitializedRef.current = true;
     setFormState(nextState);
@@ -598,13 +604,16 @@ export default function MedicalCertificateDrawer({
     setFormState((prev) => {
       const next = [...prev.customSupporting];
       const idx = next.findIndex(
-        (entry) => entry.meta?.kind === "lab" && entry.meta?.date === dateKey
+        (entry) => entry.meta?.kind === "lab" && entry.meta?.date === dateKey,
       );
       if (idx >= 0) {
         const entry = next[idx];
         const lines: string[] = entry.meta?.lines
           ? [...entry.meta.lines]
-          : entry.summary.split(";").map((s) => s.trim()).filter(Boolean);
+          : entry.summary
+              .split(";")
+              .map((s) => s.trim())
+              .filter(Boolean);
         if (!lines.includes(result.summary)) {
           lines.push(result.summary);
           entry.summary = lines.join("; ");
@@ -629,7 +638,7 @@ export default function MedicalCertificateDrawer({
   const issueDate = useMemo(() => new Date(`${issueDateKey}T00:00:00`), [issueDateKey]);
   const validUntil = useMemo(
     () => new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000),
-    [issueDate]
+    [issueDate],
   );
   const displayIssuedAt = existingCertificate?.issued_at || issueDate.toISOString();
   const displayValidUntil = existingCertificate?.valid_until || validUntil.toISOString();
@@ -683,9 +692,12 @@ export default function MedicalCertificateDrawer({
       if (!res.ok) {
         if (res.status === 409 && data?.certificate_id) {
           try {
-            const detailRes = await fetch(`/api/doctor/medical-certificates/${data.certificate_id}`, {
-              cache: "no-store",
-            });
+            const detailRes = await fetch(
+              `/api/doctor/medical-certificates/${data.certificate_id}`,
+              {
+                cache: "no-store",
+              },
+            );
             const detail = await detailRes.json();
             if (detailRes.ok && detail?.certificate) {
               setExistingCertificate(detail.certificate);
@@ -693,7 +705,9 @@ export default function MedicalCertificateDrawer({
                 const next = certificateToFormState(detail.certificate);
                 return { ...next, suggestions: prev.suggestions };
               });
-              setError("A certificate already exists for this consultation. Loaded it for editing.");
+              setError(
+                "A certificate already exists for this consultation. Loaded it for editing.",
+              );
               return;
             }
           } catch (loadErr) {
@@ -755,7 +769,12 @@ export default function MedicalCertificateDrawer({
             {existingCertificate && (
               <button
                 type="button"
-                onClick={() => window.open(`/doctor/medical-certificates/${existingCertificate.id}/print`, "_blank")}
+                onClick={() =>
+                  window.open(
+                    `/doctor/medical-certificates/${existingCertificate.id}/print`,
+                    "_blank",
+                  )
+                }
                 className="rounded-full border border-[#2e6468] px-4 py-1 text-sm font-medium text-[#2e6468]"
               >
                 View Print
@@ -784,7 +803,8 @@ export default function MedicalCertificateDrawer({
           )}
           {isEditing && existingCertificate && (
             <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Editing certificate <b>{existingCertificate.certificate_no}</b>. Changes will update the existing record.
+              Editing certificate <b>{existingCertificate.certificate_no}</b>. Changes will update
+              the existing record.
             </div>
           )}
 
@@ -802,10 +822,18 @@ export default function MedicalCertificateDrawer({
               />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-gray-700">
-              <div><span className="text-gray-500">Patient ID:</span> {patientId}</div>
-              <div><span className="text-gray-500">Sex:</span> {sex || "—"}</div>
-              <div><span className="text-gray-500">Age:</span> {age ?? "—"}</div>
-              <div><span className="text-gray-500">DOB:</span> {birthday}</div>
+              <div>
+                <span className="text-gray-500">Patient ID:</span> {patientId}
+              </div>
+              <div>
+                <span className="text-gray-500">Sex:</span> {sex || "—"}
+              </div>
+              <div>
+                <span className="text-gray-500">Age:</span> {age ?? "—"}
+              </div>
+              <div>
+                <span className="text-gray-500">DOB:</span> {birthday}
+              </div>
               <div className="col-span-2">
                 <span className="text-gray-500">Address:</span> {patientAddress}
               </div>
@@ -878,7 +906,9 @@ export default function MedicalCertificateDrawer({
                       rows={2}
                       placeholder="Remarks"
                       value={entry?.remarks || ""}
-                      onChange={(e) => updateExam(key as PhysicalExamKey, { remarks: e.target.value })}
+                      onChange={(e) =>
+                        updateExam(key as PhysicalExamKey, { remarks: e.target.value })
+                      }
                     />
                   </div>
                 );
@@ -917,9 +947,7 @@ export default function MedicalCertificateDrawer({
                   className="mt-1 w-full rounded border px-3 py-2 text-sm"
                   rows={4}
                   value={formState.remarks}
-                  onChange={(e) =>
-                    setFormState((prev) => ({ ...prev, remarks: e.target.value }))
-                  }
+                  onChange={(e) => setFormState((prev) => ({ ...prev, remarks: e.target.value }))}
                   placeholder="e.g., Fit for work, Unfit for work for x days…"
                 />
               </div>
@@ -929,9 +957,7 @@ export default function MedicalCertificateDrawer({
                   className="mt-1 w-full rounded border px-3 py-2 text-sm"
                   rows={4}
                   value={formState.advice}
-                  onChange={(e) =>
-                    setFormState((prev) => ({ ...prev, advice: e.target.value }))
-                  }
+                  onChange={(e) => setFormState((prev) => ({ ...prev, advice: e.target.value }))}
                 />
               </div>
             </div>
@@ -944,7 +970,9 @@ export default function MedicalCertificateDrawer({
             </div>
             <div className="mt-3 space-y-3">
               {formState.suggestions.length === 0 && (
-                <p className="text-sm text-gray-500">No automatic suggestions found for this encounter.</p>
+                <p className="text-sm text-gray-500">
+                  No automatic suggestions found for this encounter.
+                </p>
               )}
               {formState.suggestions.map((item, idx) => (
                 <label key={item.key} className="flex gap-3 rounded border px-3 py-2 text-sm">
@@ -966,10 +994,7 @@ export default function MedicalCertificateDrawer({
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-gray-800">Add Lab Tests</h4>
               </div>
-              <form
-                onSubmit={executeLabSearch}
-                className="mt-2 flex flex-col gap-2 sm:flex-row"
-              >
+              <form onSubmit={executeLabSearch} className="mt-2 flex flex-col gap-2 sm:flex-row">
                 <input
                   type="text"
                   value={labSearch}
@@ -985,16 +1010,11 @@ export default function MedicalCertificateDrawer({
                   {labSearchLoading ? "Searching…" : "Search"}
                 </button>
               </form>
-              {labSearchError && (
-                <p className="mt-2 text-xs text-rose-600">{labSearchError}</p>
-              )}
+              {labSearchError && <p className="mt-2 text-xs text-rose-600">{labSearchError}</p>}
               {labResults.length > 0 && (
                 <div className="mt-3 space-y-2 rounded-lg border bg-gray-50/80 p-3">
                   {labResults.map((res) => (
-                    <div
-                      key={res.id}
-                      className="rounded border bg-white px-3 py-2 text-sm"
-                    >
+                    <div key={res.id} className="rounded border bg-white px-3 py-2 text-sm">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <div className="font-medium text-gray-800">{res.label}</div>
@@ -1050,7 +1070,9 @@ export default function MedicalCertificateDrawer({
                       onChange={(e) => updateCustom(entry.id, { label: e.target.value })}
                       placeholder="e.g., Imaging"
                     />
-                    <label className="mt-2 text-xs font-semibold uppercase text-gray-500">Summary</label>
+                    <label className="mt-2 text-xs font-semibold uppercase text-gray-500">
+                      Summary
+                    </label>
                     <textarea
                       className="mt-1 w-full rounded border px-2 py-1 text-sm"
                       rows={2}
@@ -1070,7 +1092,9 @@ export default function MedicalCertificateDrawer({
               {historyLoading && <span className="text-xs text-gray-400">Loading…</span>}
             </div>
             {history.length === 0 && !historyLoading && (
-              <p className="mt-2 text-sm text-gray-500">No certificates issued for this patient yet.</p>
+              <p className="mt-2 text-sm text-gray-500">
+                No certificates issued for this patient yet.
+              </p>
             )}
             <ul className="mt-3 space-y-2">
               {history.map((item) => (
@@ -1086,7 +1110,9 @@ export default function MedicalCertificateDrawer({
                   </div>
                   <button
                     type="button"
-                    onClick={() => window.open(`/doctor/medical-certificates/${item.id}/print`, "_blank")}
+                    onClick={() =>
+                      window.open(`/doctor/medical-certificates/${item.id}/print`, "_blank")
+                    }
                     className="rounded-full border border-[#2e6468] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#2e6468]"
                   >
                     View

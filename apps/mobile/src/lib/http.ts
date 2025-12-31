@@ -18,14 +18,14 @@ export async function apiFetch(path: string, init?: ApiFetchInit) {
   if (__DEV__ && devBase && !devValid && !devBaseWarned) {
     devBaseWarned = true;
     console.warn(
-      "[apiFetch] EXPO_PUBLIC_DEV_API_BASE_URL ignored; must start with http:// or https://"
+      "[apiFetch] EXPO_PUBLIC_DEV_API_BASE_URL ignored; must start with http:// or https://",
     );
   }
 
   const base = __DEV__ && devValid ? devBase : prodBase;
   if (!isValidBaseUrl(base)) {
     throw new Error(
-      "API base URL missing or invalid. Set EXPO_PUBLIC_API_BASE_URL to a full http(s) URL."
+      "API base URL missing or invalid. Set EXPO_PUBLIC_API_BASE_URL to a full http(s) URL.",
     );
   }
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;

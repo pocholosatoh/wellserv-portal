@@ -1,25 +1,25 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import { CalendarClock, Microscope, UserCheck } from 'lucide-react';
+import { motion } from "framer-motion";
+import { CalendarClock, Microscope, UserCheck } from "lucide-react";
 
 const highlights = [
   {
-    value: '15+',
-    label: 'Diagnostic services',
-    note: 'Comprehensive lab work, imaging partners, and pharmacy support.',
+    value: "15+",
+    label: "Diagnostic services",
+    note: "Comprehensive lab work, imaging partners, and pharmacy support.",
     icon: Microscope,
   },
   {
-    value: '6 days',
-    label: 'Mon–Sat service',
-    note: 'Doors open 6:30 AM to accommodate fasting patients.',
+    value: "6 days",
+    label: "Mon–Sat service",
+    note: "Doors open 6:30 AM to accommodate fasting patients.",
     icon: CalendarClock,
   },
   {
-    value: '99%',
-    label: 'Patient satisfaction',
-    note: 'Consistently high ratings for gentle, caring staff.',
+    value: "99%",
+    label: "Patient satisfaction",
+    note: "Consistently high ratings for gentle, caring staff.",
     icon: UserCheck,
   },
 ];
@@ -48,7 +48,9 @@ export default function Highlights() {
                 <Icon className="h-6 w-6" />
               </div>
               <div className="text-3xl font-semibold text-gray-900">{value}</div>
-              <div className="text-sm font-medium uppercase tracking-[0.2em] text-accent">{label}</div>
+              <div className="text-sm font-medium uppercase tracking-[0.2em] text-accent">
+                {label}
+              </div>
               <p className="text-sm text-gray-600">{note}</p>
             </motion.div>
           ))}

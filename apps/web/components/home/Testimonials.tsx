@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import { Quote, Star } from 'lucide-react';
+import { motion } from "framer-motion";
+import { Quote, Star } from "lucide-react";
 
 const reviews = [
   {
     quote:
-      'I highly recommend this Laboratory because the price is affordable than others so i can recommend this Laboratory to my friends and relatives, thankyou for the good service of your staff ❤️️',
-    name: 'Michelle Santos (Facebook Review)',
+      "I highly recommend this Laboratory because the price is affordable than others so i can recommend this Laboratory to my friends and relatives, thankyou for the good service of your staff ❤️️",
+    name: "Michelle Santos (Facebook Review)",
   },
   {
     quote:
-      'I highly recommend this clinic kasi bukod sa malinis ang kanilang laboratory, maasikaso at mababait ang kanilang staff and then accurate din yung mga tests results. Bukod don meron din silang pharmacy kung saan mabibili mo na din yung mga nireseta ni doc.',
-    name: 'Joycelyn Franco (Facebook Review)',
+      "I highly recommend this clinic kasi bukod sa malinis ang kanilang laboratory, maasikaso at mababait ang kanilang staff and then accurate din yung mga tests results. Bukod don meron din silang pharmacy kung saan mabibili mo na din yung mga nireseta ni doc.",
+    name: "Joycelyn Franco (Facebook Review)",
   },
   {
     quote:
-      'Highly recommended ko po nag WellServ - Diagnostic Laboratory, Pharmacy & Medical Clinic., napakamaayos ng kanilang serbisyo. Mabilis at magiliw ang kanilang mga staff at mga doktor. Malinis at maayos din ang kanilang clinic. Hindi rin masakit ang mga procedure na ginawa sa akin. Hindi ko ramdam ang pagtusok sa akin ng karayom ng kanilang medical technologist sa pagkuha ng aking dugo para sa mga laboratory tests.',
-    name: 'Kristel Yanson (Facebook Review)',
+      "Highly recommended ko po nag WellServ - Diagnostic Laboratory, Pharmacy & Medical Clinic., napakamaayos ng kanilang serbisyo. Mabilis at magiliw ang kanilang mga staff at mga doktor. Malinis at maayos din ang kanilang clinic. Hindi rin masakit ang mga procedure na ginawa sa akin. Hindi ko ramdam ang pagtusok sa akin ng karayom ng kanilang medical technologist sa pagkuha ng aking dugo para sa mga laboratory tests.",
+    name: "Kristel Yanson (Facebook Review)",
   },
 ];
 
@@ -29,7 +29,8 @@ export default function Testimonials() {
         <div className="space-y-3">
           <h2 className="text-3xl font-semibold md:text-4xl">What our patients say</h2>
           <p className="max-w-xl text-gray-600">
-            Consistently rated 5★ for gentle procedures, accurate results, and friendly staff who go the extra mile.
+            Consistently rated 5★ for gentle procedures, accurate results, and friendly staff who go
+            the extra mile.
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-accent shadow-md backdrop-blur">

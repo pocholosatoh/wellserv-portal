@@ -56,7 +56,9 @@ export default function NotesPanel({
       setLoading(true);
       setErr(null);
       try {
-        const res = await fetch(`/api/doctor-notes/get?consultation_id=${encodeURIComponent(consultationId)}`);
+        const res = await fetch(
+          `/api/doctor-notes/get?consultation_id=${encodeURIComponent(consultationId)}`,
+        );
         const j = await res.json();
         if (!res.ok) throw new Error(j?.error || "Failed to load notes.");
 
@@ -135,7 +137,7 @@ export default function NotesPanel({
       clearSavedTimer();
       setSaving("idle");
     }
-    setSoap(prev => ({ ...prev, [k]: v }));
+    setSoap((prev) => ({ ...prev, [k]: v }));
   };
 
   // Cleanup timer on unmount
@@ -229,7 +231,13 @@ export default function NotesPanel({
 
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-gray-500">
-            {loading ? "Loading…" : saving === "saving" ? "Saving…" : saving === "saved" ? "Saved" : ""}
+            {loading
+              ? "Loading…"
+              : saving === "saving"
+                ? "Saving…"
+                : saving === "saved"
+                  ? "Saved"
+                  : ""}
           </span>
         </div>
       </div>

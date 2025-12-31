@@ -28,19 +28,13 @@ async function getBaseUrl(): Promise<string> {
     h.get("host") ??
     process.env.NEXT_PUBLIC_SITE_URL ??
     "localhost:3000";
-  const proto =
-    h.get("x-forwarded-proto") ??
-    (host.includes("localhost") ? "http" : "https");
+  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
   return `${proto}://${host}`;
 }
 
 async function fetchCertificate(id: string) {
   const db = getSupabase();
-  const cert = await db
-    .from("medical_certificates")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  const cert = await db.from("medical_certificates").select("*").eq("id", id).maybeSingle();
   if (cert.error) {
     throw new Error(cert.error.message);
   }
@@ -139,18 +133,37 @@ export default async function MedicalCertificatePrintPage({
           <section className="attestation">
             <div className="attestation-heading">PATIENT INFORMATION</div>
             <div className="attestation-grid">
-              <div><strong>Name:</strong> {cert.patient_full_name}</div>
-              <div><strong>Patient ID:</strong> {cert.patient_id}</div>
-              <div><strong>Date of Birth:</strong> {formatDate(cert.patient_birthdate)}</div>
-              <div><strong>Age:</strong> {cert.patient_age ?? "—"}</div>
-              <div><strong>Sex:</strong> {(cert.patient_sex || "").toString().toUpperCase()}</div>
-              <div className="full"><strong>Address:</strong> {cert.patient_address || "—"}</div>
+              <div>
+                <strong>Name:</strong> {cert.patient_full_name}
+              </div>
+              <div>
+                <strong>Patient ID:</strong> {cert.patient_id}
+              </div>
+              <div>
+                <strong>Date of Birth:</strong> {formatDate(cert.patient_birthdate)}
+              </div>
+              <div>
+                <strong>Age:</strong> {cert.patient_age ?? "—"}
+              </div>
+              <div>
+                <strong>Sex:</strong> {(cert.patient_sex || "").toString().toUpperCase()}
+              </div>
+              <div className="full">
+                <strong>Address:</strong> {cert.patient_address || "—"}
+              </div>
             </div>
             <p className="attestation-text">
-              I hereby certify that the information I disclosed, as reflected in this certificate, are true and correct to the best of my knowledge and belief. I understand that any misrepresentation or concealment on my part may lead to consequences which may include termination, legal prosecution, expulsion, or disqualification. I authorize WELLSERV MEDICAL CORPORATION and its designated medical staff to conduct necessary examinations related to my consultation.
+              I hereby certify that the information I disclosed, as reflected in this certificate,
+              are true and correct to the best of my knowledge and belief. I understand that any
+              misrepresentation or concealment on my part may lead to consequences which may include
+              termination, legal prosecution, expulsion, or disqualification. I authorize WELLSERV
+              MEDICAL CORPORATION and its designated medical staff to conduct necessary examinations
+              related to my consultation.
             </p>
             <p className="attestation-text">
-              I consent to the release of my medical findings to the requesting party as required. By signing below, I hold WELLSERV MEDICAL CORPORATION, its physicians, and staff free from any administrative, ethical, or moral liability arising from this issuance.
+              I consent to the release of my medical findings to the requesting party as required.
+              By signing below, I hold WELLSERV MEDICAL CORPORATION, its physicians, and staff free
+              from any administrative, ethical, or moral liability arising from this issuance.
             </p>
             <div className="patient-signature">
               <div className="sig-line" />
@@ -165,8 +178,12 @@ export default async function MedicalCertificatePrintPage({
             <header>
               <h2>Diagnosis & Recommendations</h2>
               <div className="meta">
-                <div><strong>Certificate No.</strong> {cert.certificate_no}</div>
-                <div><strong>Issued At</strong> {formatDateTime(cert.issued_at)}</div>
+                <div>
+                  <strong>Certificate No.</strong> {cert.certificate_no}
+                </div>
+                <div>
+                  <strong>Issued At</strong> {formatDateTime(cert.issued_at)}
+                </div>
               </div>
             </header>
             <div className="card">
@@ -200,10 +217,16 @@ export default async function MedicalCertificatePrintPage({
               )}
               <div className="sig-line" />
               <div className="sig-text">
-                {(cert.doctor_snapshot?.full_name || cert.doctor_snapshot?.display_name || "Attending Physician")}
+                {cert.doctor_snapshot?.full_name ||
+                  cert.doctor_snapshot?.display_name ||
+                  "Attending Physician"}
               </div>
-              {cert.doctor_snapshot?.credentials && <div className="sig-caption">{cert.doctor_snapshot.credentials}</div>}
-              {cert.doctor_snapshot?.prc_no && <div className="sig-caption">PRC No.: {cert.doctor_snapshot.prc_no}</div>}
+              {cert.doctor_snapshot?.credentials && (
+                <div className="sig-caption">{cert.doctor_snapshot.credentials}</div>
+              )}
+              {cert.doctor_snapshot?.prc_no && (
+                <div className="sig-caption">PRC No.: {cert.doctor_snapshot.prc_no}</div>
+              )}
             </div>
             <div className="qr-block">
               <img src={qrSrc} alt="Verification QR" className="qr-img" />
@@ -231,7 +254,9 @@ export default async function MedicalCertificatePrintPage({
                 {Object.entries(physicalExam).map(([key, entry]: any) => (
                   <tr key={key}>
                     <td className="label">{key}</td>
-                    <td className={entry?.status === "abnormal" ? "status abnormal" : "status normal"}>
+                    <td
+                      className={entry?.status === "abnormal" ? "status abnormal" : "status normal"}
+                    >
                       {entry?.status === "abnormal" ? "Abnormal" : "Normal"}
                     </td>
                     <td>{entry?.remarks || "—"}</td>
@@ -243,7 +268,9 @@ export default async function MedicalCertificatePrintPage({
 
           <section className="section tight avoid-page-break">
             <h2>Supporting Data</h2>
-            {supporting.length === 0 && <p className="text-muted">No supporting entries recorded.</p>}
+            {supporting.length === 0 && (
+              <p className="text-muted">No supporting entries recorded.</p>
+            )}
             {supporting.length > 0 && (
               <ul className="supporting-list">
                 {supporting.map((item) => (
@@ -265,7 +292,8 @@ export default async function MedicalCertificatePrintPage({
               <span>Certificate No.: {cert.certificate_no}</span>
             </div>
             <div className="corp">
-              WELLSERV MEDICAL CORPORATION · San Isidro, Nueva Ecija · Tel: 0993-985-4927 · San Leonardo, Nueva Ecija · Tel: 0994-276-0253
+              WELLSERV MEDICAL CORPORATION · San Isidro, Nueva Ecija · Tel: 0993-985-4927 · San
+              Leonardo, Nueva Ecija · Tel: 0994-276-0253
             </div>
           </footer>
         </div>

@@ -10,12 +10,12 @@ type SessionData = {
   patient_id?: string;
 
   // Staff session (we already use these cookies elsewhere)
-  staff_id?: string;         // UUID from public.staff
-  staff_no?: string;         // auto-generated staff number (0001 etc.)
+  staff_id?: string; // UUID from public.staff
+  staff_no?: string; // auto-generated staff number (0001 etc.)
   staff_login_code?: string; // e.g., ADM-CHL
   staff_role_prefix?: string; // ADM | REC | RMT
-  staff_role?: string;     // 'admin' | 'reception' | 'rmt'
-  staff_branch?: string;   // 'SI' | 'SL' | 'ALL'
+  staff_role?: string; // 'admin' | 'reception' | 'rmt'
+  staff_branch?: string; // 'SI' | 'SL' | 'ALL'
   staff_initials?: string; // 'CHL' etc.
 
   // Persist ~30 days if true, else session cookie
@@ -28,7 +28,7 @@ const THIRTY_DAYS = 60 * 60 * 24 * 30;
 function commonCookieOpts(persist?: boolean) {
   return {
     path: "/",
-    httpOnly: false,           // we intentionally read these on the client for UI
+    httpOnly: false, // we intentionally read these on the client for UI
     sameSite: "lax" as const,
     secure: isProd,
     maxAge: persist ? THIRTY_DAYS : undefined,
@@ -96,12 +96,12 @@ export function setSession(res: NextResponse, data: SessionData) {
   if (data.patient_id) res.cookies.set("patient_id", data.patient_id, opts);
 
   // Staff session (used across staff UIs)
-  if (data.staff_id)          res.cookies.set("staff_id", data.staff_id, opts);
-  if (data.staff_no)          res.cookies.set("staff_no", data.staff_no, opts);
-  if (data.staff_login_code)  res.cookies.set("staff_login_code", data.staff_login_code, opts);
+  if (data.staff_id) res.cookies.set("staff_id", data.staff_id, opts);
+  if (data.staff_no) res.cookies.set("staff_no", data.staff_no, opts);
+  if (data.staff_login_code) res.cookies.set("staff_login_code", data.staff_login_code, opts);
   if (data.staff_role_prefix) res.cookies.set("staff_role_prefix", data.staff_role_prefix, opts);
-  if (data.staff_role)     res.cookies.set("staff_role", data.staff_role, opts);
-  if (data.staff_branch)   res.cookies.set("staff_branch", data.staff_branch, opts);
+  if (data.staff_role) res.cookies.set("staff_role", data.staff_role, opts);
+  if (data.staff_branch) res.cookies.set("staff_branch", data.staff_branch, opts);
   if (data.staff_initials) res.cookies.set("staff_initials", data.staff_initials, opts);
 
   return res;

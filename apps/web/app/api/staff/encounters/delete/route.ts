@@ -21,6 +21,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Failed to delete encounter" }, { status: 400 });
+    return NextResponse.json(
+      { error: e?.message || "Failed to delete encounter" },
+      { status: 400 },
+    );
   }
 }

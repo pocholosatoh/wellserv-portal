@@ -30,7 +30,7 @@ function setCookie(
     sameSite: "lax" | "strict" | "none";
     path: string;
     maxAge: number;
-  }> = {}
+  }> = {},
 ) {
   res.cookies.set({
     name,
@@ -45,14 +45,9 @@ function setCookie(
 
 export async function POST(req: Request) {
   try {
-    const {
-      name,
-      credentials,
-      passcode,
-      branch,
-      license_no,
-      philhealth_md_id,
-    } = await req.json().catch(() => ({}));
+    const { name, credentials, passcode, branch, license_no, philhealth_md_id } = await req
+      .json()
+      .catch(() => ({}));
 
     const expected = process.env.MD_RELIEVER_PASSCODE;
 

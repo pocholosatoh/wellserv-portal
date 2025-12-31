@@ -9,17 +9,14 @@ import { getSupabase } from "@/lib/supabase";
 // Always return a STRING (never an object), or null.
 async function getSignedSignatureUrl(
   db: ReturnType<typeof getSupabase>,
-  key?: string | null
+  key?: string | null,
 ): Promise<string | null> {
   if (!key) return null;
 
   // If somehow an object sneaks in, try to unwrap the most likely field.
   if (typeof key !== "string") {
     try {
-      const anyKey =
-        (key as any)?.signedUrl ??
-        (key as any)?.url ??
-        String(key);
+      const anyKey = (key as any)?.signedUrl ?? (key as any)?.url ?? String(key);
       if (typeof anyKey === "string") key = anyKey;
     } catch {
       /* ignore */
@@ -59,10 +56,7 @@ function splitDisplayName(display?: string | null) {
 }
 
 // NOTE: Next 15 => params is a Promise. Await it.
-export async function GET(
-  _req: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
-) {
+export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id: rxId } = await ctx.params;
 
   const db = getSupabase();
@@ -71,7 +65,7 @@ export async function GET(
   const rx = await db
     .from("prescriptions")
     .select(
-      "id, consultation_id, patient_id, doctor_id, status, notes_for_patient, created_at, valid_days, valid_until"
+      "id, consultation_id, patient_id, doctor_id, status, notes_for_patient, created_at, valid_days, valid_until",
     )
     .eq("id", rxId)
     .maybeSingle();
@@ -86,7 +80,7 @@ export async function GET(
   const items = await db
     .from("prescription_items")
     .select(
-      "id, prescription_id, med_id, generic_name, brand_name, strength, form, route, dose_amount, dose_unit, frequency_code, duration_days, quantity, instructions, unit_price"
+      "id, prescription_id, med_id, generic_name, brand_name, strength, form, route, dose_amount, dose_unit, frequency_code, duration_days, quantity, instructions, unit_price",
     )
     .eq("prescription_id", rxId)
     .order("created_at", { ascending: true });
@@ -114,24 +108,21 @@ export async function GET(
           "display_name",
           "full_name",
           "credentials",
-          "designations:credentials",          // alias for backwards-compat
+          "designations:credentials", // alias for backwards-compat
           "specialty",
           "affiliations",
           "prc_no",
           "ptr_no",
           "s2_no",
           "signature_url:signature_image_url", // alias → signature_url
-        ].join(", ")
+        ].join(", "),
       )
       .eq("doctor_id", docKey)
       .maybeSingle();
 
     if (!d.error && d.data) {
       doctor = d.data;
-      doctor.signature_url = await getSignedSignatureUrl(
-        db,
-        doctor.signature_url
-      );
+      doctor.signature_url = await getSignedSignatureUrl(db, doctor.signature_url);
     }
   }
 
@@ -140,7 +131,7 @@ export async function GET(
     const c = await db
       .from("consultations")
       .select(
-        "doctor_id, doctor_name_at_time, signing_doctor_name, signing_doctor_prc_no, signing_doctor_philhealth_md_id"
+        "doctor_id, doctor_name_at_time, signing_doctor_name, signing_doctor_prc_no, signing_doctor_philhealth_md_id",
       )
       .eq("id", rx.data.consultation_id)
       .maybeSingle();
@@ -163,24 +154,20 @@ export async function GET(
               "ptr_no",
               "s2_no",
               "signature_url:signature_image_url",
-            ].join(", ")
+            ].join(", "),
           )
           .eq("doctor_id", c.data.doctor_id)
           .maybeSingle();
 
         if (!d2.error && d2.data) {
           doctor = d2.data;
-          doctor.signature_url = await getSignedSignatureUrl(
-            db,
-            doctor.signature_url
-          );
+          doctor.signature_url = await getSignedSignatureUrl(db, doctor.signature_url);
         }
       }
 
       // Final fallback: snapshot name
       if (!doctor) {
-        const fallbackDisplay =
-          c.data.signing_doctor_name || c.data.doctor_name_at_time || null;
+        const fallbackDisplay = c.data.signing_doctor_name || c.data.doctor_name_at_time || null;
         if (fallbackDisplay) {
           const split = splitDisplayName(fallbackDisplay);
           doctor = {

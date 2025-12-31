@@ -22,10 +22,7 @@ export function middleware(req: NextRequest) {
     // const portalOK = req.cookies.get("staff_portal_ok")?.value === "1";
 
     const isLoggedIn =
-      !!legacySession ||
-      !!staffId ||
-      (!!staffRole && !!staffInitials) ||
-      !!staffCode; // && portalOK
+      !!legacySession || !!staffId || (!!staffRole && !!staffInitials) || !!staffCode; // && portalOK
 
     if (!isLoggedIn) {
       const loginUrl = new URL("/staff/login", url);
@@ -52,7 +49,7 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/staff/:path*",   // staff area
+    "/staff/:path*", // staff area
     "/patient/:path*", // patient area
   ],
 };

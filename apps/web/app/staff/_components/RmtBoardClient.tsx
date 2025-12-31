@@ -28,9 +28,7 @@ export default function RmtBoardClient({
   const [items, setItems] = useState<RmtRow[]>(initialItems || []);
   const [tab, setTab] = useState<Status | "all">("all");
   const [dragId, setDragId] = useState<string | null>(null);
-  const [saving, setSaving] = useState<"idle" | "saving" | "saved" | "error">(
-    "idle"
-  );
+  const [saving, setSaving] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const counts = useMemo(() => {
     const c: Record<Status, number> = {
@@ -49,7 +47,6 @@ export default function RmtBoardClient({
   }, [items, tab]);
 
   const canQueue = role === "admin" || role === "reception" || role === "rmt";
-
 
   // Drag helpers
   function onDragStart(id: string) {
@@ -90,24 +87,17 @@ export default function RmtBoardClient({
     }
   }
 
-  const tabBtn =
-    "px-3 py-1.5 rounded border text-sm hover:bg-gray-50 whitespace-nowrap";
+  const tabBtn = "px-3 py-1.5 rounded border text-sm hover:bg-gray-50 whitespace-nowrap";
   const tabActive = "px-3 py-1.5 rounded border text-sm bg-gray-900 text-white";
 
   return (
     <div className="space-y-4">
       {/* filters */}
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          className={tab === "all" ? tabActive : tabBtn}
-          onClick={() => setTab("all")}
-        >
+        <button className={tab === "all" ? tabActive : tabBtn} onClick={() => setTab("all")}>
           All ({items.length})
         </button>
-        <button
-          className={tab === "intake" ? tabActive : tabBtn}
-          onClick={() => setTab("intake")}
-        >
+        <button className={tab === "intake" ? tabActive : tabBtn} onClick={() => setTab("intake")}>
           Intake ({counts["intake"]})
         </button>
         <button
@@ -122,10 +112,7 @@ export default function RmtBoardClient({
         >
           Processing ({counts["for-processing"]})
         </button>
-        <button
-          className={tab === "done" ? tabActive : tabBtn}
-          onClick={() => setTab("done")}
-        >
+        <button className={tab === "done" ? tabActive : tabBtn} onClick={() => setTab("done")}>
           Done ({counts["done"]})
         </button>
 
@@ -137,15 +124,9 @@ export default function RmtBoardClient({
           >
             Save Order
           </button>
-          {saving === "saving" && (
-            <span className="text-sm text-gray-600">Saving…</span>
-          )}
-          {saving === "saved" && (
-            <span className="text-sm text-emerald-700">Saved ✓</span>
-          )}
-          {saving === "error" && (
-            <span className="text-sm text-red-600">Failed</span>
-          )}
+          {saving === "saving" && <span className="text-sm text-gray-600">Saving…</span>}
+          {saving === "saved" && <span className="text-sm text-emerald-700">Saved ✓</span>}
+          {saving === "error" && <span className="text-sm text-red-600">Failed</span>}
         </div>
       </div>
 
@@ -178,34 +159,23 @@ export default function RmtBoardClient({
             <div className="mt-1 sm:mt-0 w-full sm:w-auto">
               {/* Mobile: compact into a dropdown */}
               <details className="sm:hidden rounded border px-3 py-2">
-                <summary className="list-none cursor-pointer text-sm font-medium">
-                  Actions
-                </summary>
+                <summary className="list-none cursor-pointer text-sm font-medium">Actions</summary>
                 <div className="mt-2 flex flex-col gap-2">
                   {canQueue && item.status === "intake" && (
-                      <form action="/api/staff/encounters/status" method="post">
-                        <input type="hidden" name="id" value={item.id} />
-                        <input type="hidden" name="status" value="for-extract" />
-                        <button className="w-full rounded border px-3 py-2 text-left">
-                          Queue (For Extract)
-                        </button>
-                      </form>
-                    )}
-
-                  {(item.status === "intake" ||
-                    item.status === "for-extract") && (
                     <form action="/api/staff/encounters/status" method="post">
                       <input type="hidden" name="id" value={item.id} />
-                      <input
-                        type="hidden"
-                        name="status"
-                        value="for-processing"
-                      />
-                      <input
-                        type="hidden"
-                        name="note"
-                        value="skip_extraction"
-                      />
+                      <input type="hidden" name="status" value="for-extract" />
+                      <button className="w-full rounded border px-3 py-2 text-left">
+                        Queue (For Extract)
+                      </button>
+                    </form>
+                  )}
+
+                  {(item.status === "intake" || item.status === "for-extract") && (
+                    <form action="/api/staff/encounters/status" method="post">
+                      <input type="hidden" name="id" value={item.id} />
+                      <input type="hidden" name="status" value="for-processing" />
+                      <input type="hidden" name="note" value="skip_extraction" />
                       <button
                         className="w-full rounded border px-3 py-2 text-left"
                         title="Specimen not needed"
@@ -218,11 +188,7 @@ export default function RmtBoardClient({
                   {item.status === "for-extract" && (
                     <form action="/api/staff/encounters/status" method="post">
                       <input type="hidden" name="id" value={item.id} />
-                      <input
-                        type="hidden"
-                        name="status"
-                        value="for-processing"
-                      />
+                      <input type="hidden" name="status" value="for-processing" />
                       <button className="w-full rounded border px-3 py-2 text-left">
                         Specimen Received
                       </button>
@@ -264,21 +230,16 @@ export default function RmtBoardClient({
               {/* Desktop: inline toolbar with wrapping */}
               <div className="hidden sm:flex flex-wrap gap-2 justify-end">
                 {canQueue && item.status === "intake" && (
-                    <form action="/api/staff/encounters/status" method="post">
-                      <input type="hidden" name="id" value={item.id} />
-                      <input
-                        type="hidden"
-                        name="status"
-                        value="for-extract"
-                      />
-                      <button className="rounded border px-2 py-1 shrink-0">
-                        Queue (For Extract)
-                      </button>
-                    </form>
-                  )}
+                  <form action="/api/staff/encounters/status" method="post">
+                    <input type="hidden" name="id" value={item.id} />
+                    <input type="hidden" name="status" value="for-extract" />
+                    <button className="rounded border px-2 py-1 shrink-0">
+                      Queue (For Extract)
+                    </button>
+                  </form>
+                )}
 
-                {(item.status === "intake" ||
-                  item.status === "for-extract") && (
+                {(item.status === "intake" || item.status === "for-extract") && (
                   <form action="/api/staff/encounters/status" method="post">
                     <input type="hidden" name="id" value={item.id} />
                     <input type="hidden" name="status" value="for-processing" />
@@ -296,9 +257,7 @@ export default function RmtBoardClient({
                   <form action="/api/staff/encounters/status" method="post">
                     <input type="hidden" name="id" value={item.id} />
                     <input type="hidden" name="status" value="for-processing" />
-                    <button className="rounded border px-2 py-1 shrink-0">
-                      Specimen Received
-                    </button>
+                    <button className="rounded border px-2 py-1 shrink-0">Specimen Received</button>
                   </form>
                 )}
 
@@ -337,9 +296,7 @@ export default function RmtBoardClient({
         ))}
       </ul>
 
-      {filtered.length === 0 && (
-        <p className="text-gray-500">No encounters in this filter.</p>
-      )}
+      {filtered.length === 0 && <p className="text-gray-500">No encounters in this filter.</p>}
     </div>
   );
 }
@@ -357,7 +314,5 @@ function StatusPill({ s }: { s: Status }) {
     "for-processing": "Specimen Received",
     done: "Done",
   };
-  return (
-    <span className={`px-2 py-1 rounded text-xs ${map[s]}`}>{label[s]}</span>
-  );
+  return <span className={`px-2 py-1 rounded text-xs ${map[s]}`}>{label[s]}</span>;
 }

@@ -10,10 +10,7 @@ import {
   generateQrToken,
   generateVerificationCode,
 } from "@/lib/medicalCertificates";
-import {
-  normalizePhysicalExam,
-  SupportingDataEntry,
-} from "@/lib/medicalCertificateSchema";
+import { normalizePhysicalExam, SupportingDataEntry } from "@/lib/medicalCertificateSchema";
 
 type MedicalCertificateRow = {
   id: string;
@@ -128,10 +125,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const patientId = normalizePatientId(url.searchParams.get("patient_id"));
     const consultationId = url.searchParams.get("consultation_id")?.trim() || null;
-    const limit = Math.min(
-      20,
-      Math.max(1, Number(url.searchParams.get("limit") || 10) || 10)
-    );
+    const limit = Math.min(20, Math.max(1, Number(url.searchParams.get("limit") || 10) || 10));
 
     if (!patientId) {
       return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
@@ -152,7 +146,7 @@ export async function GET(req: Request) {
           "status",
           "doctor_id",
           "doctor_snapshot",
-        ].join(", ")
+        ].join(", "),
       )
       .eq("patient_id", patientId)
       .order("issued_at", { ascending: false })
@@ -167,7 +161,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    const rows = ((data || []) as unknown) as MedicalCertificateRow[];
+    const rows = (data || []) as unknown as MedicalCertificateRow[];
     const items = rows.map((row) => ({
       id: row.id,
       certificate_no: row.certificate_no,
@@ -201,7 +195,7 @@ export async function POST(req: Request) {
     if (!patientId || !consultationId || !encounterId) {
       return NextResponse.json(
         { error: "patient_id, consultation_id, and encounter_id are required." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -256,15 +250,11 @@ export async function POST(req: Request) {
     if (existingCert?.id) {
       return NextResponse.json(
         { error: "certificate_exists", certificate_id: existingCert.id },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
-    const patient = await db
-      .from("patients")
-      .select("*")
-      .eq("patient_id", patientId)
-      .maybeSingle();
+    const patient = await db.from("patients").select("*").eq("patient_id", patientId).maybeSingle();
     if (patient.error) return NextResponse.json({ error: patient.error.message }, { status: 400 });
     const patientRow = patient.data as PatientRow | null;
     if (!patientRow) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
@@ -282,14 +272,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Consultation not found" }, { status: 404 });
     }
     if (consultationRow.patient_id !== patientId) {
-      return NextResponse.json({ error: "Consultation does not belong to patient" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Consultation does not belong to patient" },
+        { status: 400 },
+      );
     }
 
-    const encounter = await db
-      .from("encounters")
-      .select("*")
-      .eq("id", encounterId)
-      .maybeSingle();
+    const encounter = await db.from("encounters").select("*").eq("id", encounterId).maybeSingle();
     if (encounter.error) {
       return NextResponse.json({ error: encounter.error.message }, { status: 400 });
     }
@@ -311,7 +300,7 @@ export async function POST(req: Request) {
           "icd10_text_snapshot",
           "is_primary",
           "created_at",
-        ].join(", ")
+        ].join(", "),
       )
       .eq("consultation_id", consultationId)
       .order("is_primary", { ascending: false })
@@ -319,7 +308,7 @@ export async function POST(req: Request) {
     if (diagnoses.error) {
       return NextResponse.json({ error: diagnoses.error.message }, { status: 400 });
     }
-    const diagnosisRows = ((diagnoses.data || []) as unknown) as DiagnosisRow[];
+    const diagnosisRows = (diagnoses.data || []) as unknown as DiagnosisRow[];
 
     const notes = await db
       .from("doctor_notes")
@@ -359,7 +348,7 @@ export async function POST(req: Request) {
             "ptr_no",
             "s2_no",
             "signature_image_url",
-          ].join(", ")
+          ].join(", "),
         )
         .eq("doctor_id", doctor.doctorId)
         .maybeSingle();
@@ -390,7 +379,7 @@ export async function POST(req: Request) {
         }
       : {
           doctor_id: null,
-          display_name: fallbackDisplay || (fallbackFull || "Reliever Doctor"),
+          display_name: fallbackDisplay || fallbackFull || "Reliever Doctor",
           full_name: fallbackFull || fallbackDisplay || "Reliever Doctor",
           credentials: doctor.credentials || null,
           specialty: null,
@@ -413,15 +402,17 @@ export async function POST(req: Request) {
       .map((d) =>
         d.icd10_code
           ? `${d.icd10_code} — ${d.icd10_text_snapshot || ""}`.trim()
-          : d.icd10_text_snapshot || ""
+          : d.icd10_text_snapshot || "",
       )
       .filter(Boolean)
       .join("; ");
 
-    const diagnosisText = String(body.diagnosis_text || body.diagnosisText || "").trim()
-      || diagnosisFromConsult;
+    const diagnosisText =
+      String(body.diagnosis_text || body.diagnosisText || "").trim() || diagnosisFromConsult;
     const diagnosisSource = String(
-      body.diagnosis_source || body.diagnosisSource || (body.diagnosis_text ? "manual" : "consultation")
+      body.diagnosis_source ||
+        body.diagnosisSource ||
+        (body.diagnosis_text ? "manual" : "consultation"),
     ).toLowerCase();
 
     const certificatePayload = {
@@ -434,10 +425,7 @@ export async function POST(req: Request) {
       status: "issued",
       patient_full_name: patientRow.full_name || "",
       patient_birthdate: patientRow.birthday || null,
-      patient_age:
-        patientRow.age ??
-        calcAge(patientRow.birthday as string | null) ??
-        null,
+      patient_age: patientRow.age ?? calcAge(patientRow.birthday as string | null) ?? null,
       patient_sex: patientRow.sex || null,
       patient_address: patientRow.address || null,
       diagnosis_source: diagnosisSource || (body.diagnosis_text ? "manual" : "consultation"),
@@ -493,7 +481,7 @@ export async function POST(req: Request) {
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message || "Failed to create certificate" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

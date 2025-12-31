@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ReportViewer from "@/components/ReportViewer";
 import OtherLabsViewer from "@/components/OtherLabsViewer";
+import PatientSelfLogsCard from "@/app/(doctor)/doctor/patient/[patientId]/PatientSelfLogsCard";
 
 function findSearchInput(): HTMLInputElement | null {
   return (
@@ -15,13 +16,11 @@ function findViewButtonNear(el: HTMLElement | null): HTMLButtonElement | HTMLInp
   if (!el) return null;
   const container = el.closest("form, div, section") || el.parentElement || el;
   const btns = container.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
-    'button, input[type="button"], input[type="submit"]'
+    'button, input[type="button"], input[type="submit"]',
   );
   for (const b of Array.from(btns)) {
     const label =
-      (b as HTMLButtonElement).innerText?.trim() ||
-      (b as HTMLInputElement).value?.trim() ||
-      "";
+      (b as HTMLButtonElement).innerText?.trim() || (b as HTMLInputElement).value?.trim() || "";
     if (label.toLowerCase() === "view") return b;
   }
   return Array.from(btns)[0] || null;
@@ -51,8 +50,12 @@ export default function StaffPortalPage() {
     };
 
     const onClick = () => setTimeout(apply, 0);
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Enter") setTimeout(apply, 0); };
-    const onInput = () => { if (!norm(input.value)) setShowOtherLabs(false); };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") setTimeout(apply, 0);
+    };
+    const onInput = () => {
+      if (!norm(input.value)) setShowOtherLabs(false);
+    };
 
     input.addEventListener("keydown", onKeyDown);
     input.addEventListener("input", onInput);
@@ -69,7 +72,7 @@ export default function StaffPortalPage() {
     <div className="mx-auto max-w-7xl">
       <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Left: ReportViewer (point to STAFF endpoint) */}
-        <section className="lg:col-span-2 rounded-xl border bg-white/95 shadow-sm overflow-hidden">
+        <section className="lg:col-span-2 rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
           <div className="p-4">
             <ReportViewer apiPath="/api/staff/patient-results" />
           </div>
@@ -78,23 +81,29 @@ export default function StaffPortalPage() {
         {/* Right: Other Labs (staff endpoint, explicit patientId) */}
         <aside className="lg:col-span-1 space-y-4 print-hide">
           {showOtherLabs && activePid ? (
-            <section className="rounded-xl border bg-white/95 shadow-sm overflow-hidden">
-              <header className="px-4 py-3 border-b">
-                <h2 className="font-medium text-gray-800">Other Labs</h2>
-              </header>
-              <div className="p-4">
-              
-              <OtherLabsViewer
-                patientId={activePid}
-                useSession={false}
-                // READ route that SIGNS URLs (not /upload) – no patient_id here
-                apiPath={`/api/staff/other-labs?expires=3600&v=${Date.now()}`}
-                showIfEmpty
-                emptyText="No other labs available."
-              />
+            <>
+              <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
+                <header className="px-4 py-3 border-b border-gray-100">
+                  <h2 className="font-medium text-gray-800">Other Labs</h2>
+                </header>
+                <div className="p-4">
+                  <OtherLabsViewer
+                    patientId={activePid}
+                    useSession={false}
+                    // READ route that SIGNS URLs (not /upload) - no patient_id here
+                    apiPath={`/api/staff/other-labs?expires=3600&v=${Date.now()}`}
+                    showIfEmpty
+                    emptyText="No other labs available."
+                  />
+                </div>
+              </section>
 
-              </div>
-            </section>
+              <PatientSelfLogsCard
+                patientId={activePid}
+                monitoringApiPath="/api/staff/patient-self-monitoring"
+                logsApiPath="/api/staff/patient-self-monitoring/logs"
+              />
+            </>
           ) : null}
         </aside>
       </div>

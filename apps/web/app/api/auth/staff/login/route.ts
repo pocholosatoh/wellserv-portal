@@ -11,7 +11,9 @@ import { setSession } from "@/lib/session";
 const isProd = process.env.NODE_ENV === "production";
 
 function normalizeBranch(raw?: string) {
-  const b = String(raw || "").trim().toUpperCase();
+  const b = String(raw || "")
+    .trim()
+    .toUpperCase();
   if (b === "SL" || b === "ALL") return b;
   return "SI";
 }
@@ -26,7 +28,7 @@ function setCookie(
     sameSite: "lax" | "strict" | "none";
     path: string;
     maxAge: number;
-  }> = {}
+  }> = {},
 ) {
   res.cookies.set({
     name,
@@ -64,14 +66,14 @@ export async function POST(req: Request) {
     if (error || !staff) {
       return NextResponse.json(
         { error: "Invalid access code. Please check your login code or contact admin." },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (!staff.pin_hash) {
       return NextResponse.json(
         { error: "Please set up your PIN first.", needsPinSetup: true },
-        { status: 403 }
+        { status: 403 },
       );
     }
 

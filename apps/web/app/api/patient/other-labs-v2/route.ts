@@ -3,11 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { requireActor, getTargetPatientId } from "@/lib/api-actor";
-import {
-  fetchOtherLabsForPatient,
-  getOtherLabsBucket,
-  getOtherLabsExpiry,
-} from "@/lib/otherLabs";
+import { fetchOtherLabsForPatient, getOtherLabsBucket, getOtherLabsExpiry } from "@/lib/otherLabs";
 
 const BUCKET = getOtherLabsBucket();
 
@@ -18,7 +14,8 @@ export async function GET(req: Request) {
     if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const pidRaw = getTargetPatientId(actor, { searchParams: url.searchParams });
-    if (!pidRaw) return NextResponse.json({ error: "patient_id query param required" }, { status: 400 });
+    if (!pidRaw)
+      return NextResponse.json({ error: "patient_id query param required" }, { status: 400 });
 
     const patient_id = String(pidRaw).trim().toUpperCase();
     const expiresIn = getOtherLabsExpiry(url.searchParams);

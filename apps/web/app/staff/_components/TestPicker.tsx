@@ -36,8 +36,12 @@ export default function TestPicker({ value, onChange }: Props) {
   }, []);
 
   const tokens = useMemo(
-    () => (value || "").split(",").map((s) => s.trim()).filter(Boolean),
-    [value]
+    () =>
+      (value || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    [value],
   );
 
   function setTokens(next: string[]) {
@@ -70,36 +74,39 @@ export default function TestPicker({ value, onChange }: Props) {
   }, [q, packs]);
 
   // …inside TestPicker component, after `const tokens = …` and before the return:
-const coverageHints = (() => {
-  // Show which tokens are covered by any selected package
-  const toks = (value || "").split(",").map(s => s.trim()).filter(Boolean);
-  const chosenUpper = new Set(toks.map(t => t.toUpperCase()));
+  const coverageHints = (() => {
+    // Show which tokens are covered by any selected package
+    const toks = (value || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const chosenUpper = new Set(toks.map((t) => t.toUpperCase()));
 
-  // Build quick maps
-  const packCodes = new Set((packs || []).map(p => p.code.toUpperCase()));
-  const covered = new Set<string>();
+    // Build quick maps
+    const packCodes = new Set((packs || []).map((p) => p.code.toUpperCase()));
+    const covered = new Set<string>();
 
-  // If you loaded packageMap from /api/catalog/lab, thread it via props
-  // If not available in this file, skip hints silently.
-  const pm: Record<string, string[]> | undefined =
-    typeof window !== "undefined" &&
-    typeof (window as WindowWithLabPackageMap).__labPackageMap === "object"
-      ? (window as WindowWithLabPackageMap).__labPackageMap
-      : undefined;
+    // If you loaded packageMap from /api/catalog/lab, thread it via props
+    // If not available in this file, skip hints silently.
+    const pm: Record<string, string[]> | undefined =
+      typeof window !== "undefined" &&
+      typeof (window as WindowWithLabPackageMap).__labPackageMap === "object"
+        ? (window as WindowWithLabPackageMap).__labPackageMap
+        : undefined;
 
-  if (!pm) return [] as string[];
+    if (!pm) return [] as string[];
 
-  for (const tok of chosenUpper) {
-    if (packCodes.has(tok)) {
-      const members = pm[tok];
-      if (members) members.forEach(m => covered.add(m.toUpperCase()));
+    for (const tok of chosenUpper) {
+      if (packCodes.has(tok)) {
+        const members = pm[tok];
+        if (members) members.forEach((m) => covered.add(m.toUpperCase()));
+      }
     }
-  }
 
-  // list tests that are covered & also present in tokens
-  const duplicates = toks.filter(t => covered.has(t.toUpperCase()));
-  return Array.from(new Set(duplicates));
-})();
+    // list tests that are covered & also present in tokens
+    const duplicates = toks.filter((t) => covered.has(t.toUpperCase()));
+    return Array.from(new Set(duplicates));
+  })();
 
   return (
     <div className="space-y-2">
@@ -117,7 +124,9 @@ const coverageHints = (() => {
           {tokens.map((t) => (
             <span key={t} className="pill-accent flex items-center gap-1">
               {t}
-              <button type="button" onClick={() => removeToken(t)} aria-label="remove">×</button>
+              <button type="button" onClick={() => removeToken(t)} aria-label="remove">
+                ×
+              </button>
             </span>
           ))}
         </div>
@@ -141,7 +150,7 @@ const coverageHints = (() => {
                 <button
                   key={"P:" + p.code}
                   type="button"
-                  onClick={() => addToken(p.code)}   // store package_code
+                  onClick={() => addToken(p.code)} // store package_code
                   className="w-full text-left px-2 py-1 hover:bg-gray-50 rounded"
                   title={p.name}
                 >
@@ -157,7 +166,7 @@ const coverageHints = (() => {
                 <button
                   key={"T:" + t.code}
                   type="button"
-                  onClick={() => addToken(t.code)}   // store test_code
+                  onClick={() => addToken(t.code)} // store test_code
                   className="w-full text-left px-2 py-1 hover:bg-gray-50 rounded"
                   title={t.name}
                 >
@@ -169,7 +178,9 @@ const coverageHints = (() => {
           {!!coverageHints.length && (
             <div className="text-xs text-amber-700">
               {coverageHints.map((t) => (
-                <span key={t} className="pill-accent mr-2">Covered by package: {t}</span>
+                <span key={t} className="pill-accent mr-2">
+                  Covered by package: {t}
+                </span>
               ))}
             </div>
           )}

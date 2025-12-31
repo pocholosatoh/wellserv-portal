@@ -13,7 +13,13 @@ const CARDS: {
     label: "Follow-ups",
     badge: "Queue",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg
+        viewBox="0 0 24 24"
+        className="h-6 w-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
         <path d="M5 6h14" />
         <path d="M5 10h10" />
         <path d="M5 14h7" />
@@ -23,11 +29,35 @@ const CARDS: {
     description: "Manage post-consult follow-ups.",
   },
   {
+    href: "/staff/self-monitoring",
+    label: "Self-Monitoring",
+    badge: "Queue",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-6 w-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M7 12h3l2-4 3 8 2-4h3" />
+      </svg>
+    ),
+    description: "Patients prescribed for self-logging.",
+  },
+  {
     href: "/staff/other-labs",
     label: "Other Labs / Send-outs",
     badge: "Uploads",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg
+        viewBox="0 0 24 24"
+        className="h-6 w-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
         <path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
         <path d="M9 13h6" />
         <path d="M9 17h6" />
@@ -40,7 +70,13 @@ const CARDS: {
     label: "Patient Vitals + Hx",
     badge: "Vitals",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg
+        viewBox="0 0 24 24"
+        className="h-6 w-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
         <path d="M5 5h9l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
         <path d="M9 12h6" />
         <path d="M9 16h4" />
@@ -55,7 +91,13 @@ const CARDS: {
     label: "Portal",
     badge: "Results",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg
+        viewBox="0 0 24 24"
+        className="h-6 w-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
         <circle cx="12" cy="12" r="9" />
         <path d="M3 12h18M12 3a15 15 0 0 0 0 18M12 3a15 15 0 0 1 0 18" />
       </svg>
@@ -67,7 +109,13 @@ const CARDS: {
     label: "Prescriptions",
     badge: "Rx",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg
+        viewBox="0 0 24 24"
+        className="h-6 w-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
         <path d="M7 7h7" />
         <path d="M7 11h6" />
         <path d="M7 15h4" />
@@ -81,7 +129,13 @@ const CARDS: {
     label: "Med Orders",
     badge: "Orders",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg
+        viewBox="0 0 24 24"
+        className="h-6 w-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
         <path d="M8 4h8a2 2 0 0 1 2 2v13l-4-2-4 2-4-2V6a2 2 0 0 1 2-2Z" />
         <path d="M9 9h6" />
         <path d="M9 13h4" />
@@ -95,7 +149,13 @@ const CARDS: {
     label: "Medical Certs",
     badge: "Certs",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg
+        viewBox="0 0 24 24"
+        className="h-6 w-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
         <path d="M6 4h10a2 2 0 0 1 2 2v12l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2Z" />
         <path d="M9 9h6" />
         <path d="M9 12h5" />
@@ -109,7 +169,13 @@ const CARDS: {
     label: "RMT Hema Upload",
     badge: "Hema",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg
+        viewBox="0 0 24 24"
+        className="h-6 w-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
         <path d="M12 3v12" />
         <path d="M8 11l4 4 4-4" />
         <rect x="3" y="17" width="18" height="4" rx="1" />
@@ -210,9 +276,7 @@ export default async function StaffHome() {
             </div>
 
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
-                Staff Hub
-              </h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Staff Hub</h1>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                 <Pill label={`Role: ${staffRole || "—"}`} />
                 <Pill label={`Branch: ${staffBranch || "—"}`} />

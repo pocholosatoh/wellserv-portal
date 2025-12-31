@@ -35,11 +35,7 @@ export default async function LabelPage(props: {
     .maybeSingle();
 
   if (encErr) {
-    return (
-      <div className="p-4 text-red-600">
-        Error loading encounter: {encErr.message}
-      </div>
-    );
+    return <div className="p-4 text-red-600">Error loading encounter: {encErr.message}</div>;
   }
   if (!enc) {
     return <div className="p-4">Encounter not found.</div>;

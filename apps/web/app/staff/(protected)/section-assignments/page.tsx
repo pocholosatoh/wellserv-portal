@@ -22,10 +22,7 @@ export default async function SectionAssignmentsPage() {
 
   return (
     <main className="space-y-6">
-      <SectionAssignmentsClient
-        role={isAdmin ? "admin" : "rmt"}
-        initialHub={branch || undefined}
-      />
+      <SectionAssignmentsClient role={isAdmin ? "admin" : "rmt"} initialHub={branch || undefined} />
     </main>
   );
 }

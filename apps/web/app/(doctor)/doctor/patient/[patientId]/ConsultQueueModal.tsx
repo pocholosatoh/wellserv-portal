@@ -27,8 +27,8 @@ function StatusPill({ status }: { status?: string | null }) {
     s === "done"
       ? "bg-emerald-100 text-emerald-800"
       : s === "in-progress" || s === "in_consult"
-      ? "bg-blue-100 text-blue-800"
-      : "bg-amber-100 text-amber-800";
+        ? "bg-blue-100 text-blue-800"
+        : "bg-amber-100 text-amber-800";
   const label =
     s === "done" ? "Done" : s === "in-progress" || s === "in_consult" ? "In progress" : s ? s : "—";
   return <span className={`px-2 py-0.5 rounded text-xs ${cls}`}>{label}</span>;
@@ -46,7 +46,7 @@ export default function ConsultQueueModal({ queue, branch, currentPatientId }: P
   const normalizedCurrent = currentPatientId.toUpperCase();
   const nextPatient = useMemo(
     () => queue.find((q) => (q.patient_id || "").toUpperCase() !== normalizedCurrent),
-    [queue, normalizedCurrent]
+    [queue, normalizedCurrent],
   );
 
   const handleNext = () => {
@@ -87,7 +87,9 @@ export default function ConsultQueueModal({ queue, branch, currentPatientId }: P
                   onClick={handleNext}
                   disabled={!nextPatient}
                   className="inline-flex items-center justify-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  title={nextPatient ? `Open ${nextPatient.patient_id}` : "No other patients in queue"}
+                  title={
+                    nextPatient ? `Open ${nextPatient.patient_id}` : "No other patients in queue"
+                  }
                 >
                   Open next patient →
                 </button>
@@ -117,10 +119,17 @@ export default function ConsultQueueModal({ queue, branch, currentPatientId }: P
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {queue.map((r) => (
-                      <tr key={r.id} className={r.patient_id.toUpperCase() === normalizedCurrent ? "bg-amber-50" : ""}>
+                      <tr
+                        key={r.id}
+                        className={
+                          r.patient_id.toUpperCase() === normalizedCurrent ? "bg-amber-50" : ""
+                        }
+                      >
                         <td className="py-2 px-3 font-semibold">{r.queue_number ?? "-"}</td>
                         <td className="py-2 px-3">
-                          <div className="font-medium text-gray-900">{r.full_name || r.patient_id}</div>
+                          <div className="font-medium text-gray-900">
+                            {r.full_name || r.patient_id}
+                          </div>
                           <div className="text-xs text-gray-500">{r.patient_id}</div>
                         </td>
                         <td className="py-2 px-3">{r.contact || "—"}</td>

@@ -6,7 +6,9 @@ async function handleUpdate(req: Request) {
   const db = getSupabase();
   try {
     const ct = req.headers.get("content-type") || "";
-    let id = "", status = "", note = "";
+    let id = "",
+      status = "",
+      note = "";
 
     if (ct.includes("application/json")) {
       const j = await req.json().catch(() => ({}));
@@ -41,7 +43,8 @@ async function handleUpdate(req: Request) {
       .maybeSingle();
 
     if (ev) {
-      await db.from("encounter_events")
+      await db
+        .from("encounter_events")
         .update({
           actor_role: ev.actor_role || actor_role || null,
           actor_id: ev.actor_id || actor_id || null,
@@ -57,4 +60,6 @@ async function handleUpdate(req: Request) {
   }
 }
 
-export async function POST(req: Request) { return handleUpdate(req); }
+export async function POST(req: Request) {
+  return handleUpdate(req);
+}

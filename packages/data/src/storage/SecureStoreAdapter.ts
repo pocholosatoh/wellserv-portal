@@ -11,9 +11,7 @@ async function loadModule(): Promise<SecureStoreModule> {
   return modulePromise;
 }
 
-export function createSecureStoreAdapter(
-  namespace = "wellserv"
-): StorageAdapter {
+export function createSecureStoreAdapter(namespace = "wellserv"): StorageAdapter {
   const prefix = `${namespace}_auth`;
 
   const sanitize = (value: string) => value.replace(/[^A-Za-z0-9._-]/g, "_");

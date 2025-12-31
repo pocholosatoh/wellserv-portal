@@ -171,14 +171,16 @@ export default function PatientHistoryPage() {
   const [newBirthday, setNewBirthday] = React.useState(""); // "YYYY-MM-DD"
 
   const [branchFilter, setBranchFilter] = React.useState<Branch>(() => resolveScopedBranch());
-  const [todayPatients, setTodayPatients] = React.useState<Array<{
-    encounter_id: string;
-    patient_id: string;
-    full_name: string | null;
-    queue_number: number | null;
-    status: string | null;
-    consult_status: string | null;
-  }>>([]);
+  const [todayPatients, setTodayPatients] = React.useState<
+    Array<{
+      encounter_id: string;
+      patient_id: string;
+      full_name: string | null;
+      queue_number: number | null;
+      status: string | null;
+      consult_status: string | null;
+    }>
+  >([]);
   const [todayLoading, setTodayLoading] = React.useState(false);
   const [todayError, setTodayError] = React.useState<string | null>(null);
 
@@ -187,13 +189,15 @@ export default function PatientHistoryPage() {
   const [vitalsError, setVitalsError] = React.useState<string | null>(null);
   const [vitalsSubmitError, setVitalsSubmitError] = React.useState<string | null>(null);
   const [vitalsSaving, setVitalsSaving] = React.useState(false);
-  const [encounters, setEncounters] = React.useState<Array<{
-    id: string;
-    visit_date_local: string | null;
-    branch_code: string | null;
-    status: string | null;
-    queue_number: number | null;
-  }>>([]);
+  const [encounters, setEncounters] = React.useState<
+    Array<{
+      id: string;
+      visit_date_local: string | null;
+      branch_code: string | null;
+      status: string | null;
+      queue_number: number | null;
+    }>
+  >([]);
   const [vitalsForm, setVitalsForm] = React.useState({
     encounter_id: "",
     measured_at: nowLocalInput(),
@@ -208,8 +212,6 @@ export default function PatientHistoryPage() {
     o2sat: "",
     notes: "",
   });
-
-
 
   function asciiUpperNoSpaces(s: string) {
     return s
@@ -257,7 +259,9 @@ export default function PatientHistoryPage() {
     setVitalsLoading(true);
     setVitalsError(null);
     try {
-      const res = await fetch(`/api/staff/vitals?patient_id=${encodeURIComponent(pid)}&limit=8`, { cache: "no-store" });
+      const res = await fetch(`/api/staff/vitals?patient_id=${encodeURIComponent(pid)}&limit=8`, {
+        cache: "no-store",
+      });
       const json = await res.json();
       if (!res.ok || json.error) throw new Error(json.error || "Failed to fetch vitals");
       setVitals(json.snapshots || []);
@@ -292,36 +296,39 @@ export default function PatientHistoryPage() {
     }
   }, []);
 
-  const loadTodayPatients = React.useCallback(async (branch: Branch) => {
-    setTodayLoading(true);
-    setTodayError(null);
-    try {
-      const today = todayPhilippinesISODate();
-      const { data, error } = await supabase
-        .from("encounters")
-        .select("id, patient_id, queue_number, status, consult_status, patients(full_name)")
-        .eq("visit_date_local", today)
-        .eq("branch_code", branch)
-        .order("queue_number", { ascending: true })
-        .limit(40);
-      if (error) throw error;
-      const rows =
-        data?.map((row: any) => ({
-          encounter_id: row.id,
-          patient_id: row.patient_id,
-          full_name: row.patients?.full_name ?? null,
-          queue_number: row.queue_number ?? null,
-          status: row.status ?? null,
-          consult_status: row.consult_status ?? null,
-        })) ?? [];
-      setTodayPatients(rows);
-    } catch (e: any) {
-      setTodayError(e?.message || "Failed to load today's patients");
-      setTodayPatients([]);
-    } finally {
-      setTodayLoading(false);
-    }
-  }, [supabase]);
+  const loadTodayPatients = React.useCallback(
+    async (branch: Branch) => {
+      setTodayLoading(true);
+      setTodayError(null);
+      try {
+        const today = todayPhilippinesISODate();
+        const { data, error } = await supabase
+          .from("encounters")
+          .select("id, patient_id, queue_number, status, consult_status, patients(full_name)")
+          .eq("visit_date_local", today)
+          .eq("branch_code", branch)
+          .order("queue_number", { ascending: true })
+          .limit(40);
+        if (error) throw error;
+        const rows =
+          data?.map((row: any) => ({
+            encounter_id: row.id,
+            patient_id: row.patient_id,
+            full_name: row.patients?.full_name ?? null,
+            queue_number: row.queue_number ?? null,
+            status: row.status ?? null,
+            consult_status: row.consult_status ?? null,
+          })) ?? [];
+        setTodayPatients(rows);
+      } catch (e: any) {
+        setTodayError(e?.message || "Failed to load today's patients");
+        setTodayPatients([]);
+      } finally {
+        setTodayLoading(false);
+      }
+    },
+    [supabase],
+  );
 
   React.useEffect(() => {
     loadTodayPatients(branchFilter);
@@ -331,7 +338,7 @@ export default function PatientHistoryPage() {
     const ft = Number(ftStr) || 0;
     const inch = Number(inStr) || 0;
     if (!ft && !inch) return null;
-    const cm = ((ft * 12) + inch) * 2.54;
+    const cm = (ft * 12 + inch) * 2.54;
     return Math.round(cm * 100) / 100;
   }
 
@@ -352,7 +359,12 @@ export default function PatientHistoryPage() {
     return `${ft}ft ${inch}in`;
   }
 
-  function describeEncounter(enc: { visit_date_local: string | null; branch_code: string | null; status: string | null; queue_number: number | null }) {
+  function describeEncounter(enc: {
+    visit_date_local: string | null;
+    branch_code: string | null;
+    status: string | null;
+    queue_number: number | null;
+  }) {
     const date = enc.visit_date_local
       ? new Date(enc.visit_date_local).toLocaleDateString("en-PH", { timeZone: "Asia/Manila" })
       : "No date";
@@ -395,7 +407,9 @@ export default function PatientHistoryPage() {
         notes: vitalsForm.notes?.trim() || null,
       };
 
-      (["systolic_bp", "diastolic_bp", "hr", "rr", "temp_c", "o2sat", "weight_kg"] as const).forEach((key) => {
+      (
+        ["systolic_bp", "diastolic_bp", "hr", "rr", "temp_c", "o2sat", "weight_kg"] as const
+      ).forEach((key) => {
         const raw = vitalsForm[key as keyof typeof vitalsForm];
         payload[key] = raw ? Number(raw) : null;
       });
@@ -438,7 +452,7 @@ export default function PatientHistoryPage() {
     const { data, error } = await supabase
       .from("patients")
       .select("*")
-      .eq("patient_id", target)   // exact match (we already uppercase the input)
+      .eq("patient_id", target) // exact match (we already uppercase the input)
       .single();
     setLoading(false);
 
@@ -613,7 +627,8 @@ export default function PatientHistoryPage() {
                     const FST = asciiUpperNoSpaces(newFirstname);
                     const bdayISO = newBirthday; // "YYYY-MM-DD" from <input type="date">
 
-                    if (!SUR || !FST || !bdayISO) throw new Error("Please complete Surname, First name, and Birthday.");
+                    if (!SUR || !FST || !bdayISO)
+                      throw new Error("Please complete Surname, First name, and Birthday.");
 
                     // 1) Check for an existing person (exact name + birthday)
                     const fullName = `${SUR}, ${FST}`;
@@ -630,12 +645,14 @@ export default function PatientHistoryPage() {
                         const existingId = dupRows[0].patient_id;
                         const open = window.confirm(
                           `Mukhang existing na ang pasyente na ito (ID: ${existingId}).\n\n` +
-                          `Open existing record instead? (OK = Open, Cancel = Create new anyway)`
+                            `Open existing record instead? (OK = Open, Cancel = Create new anyway)`,
                         );
                         if (open) {
                           setSearchId(existingId);
                           setShowCreate(false);
-                          setNewSurname(""); setNewFirstname(""); setNewBirthday("");
+                          setNewSurname("");
+                          setNewFirstname("");
+                          setNewBirthday("");
                           // load the form for existing ID (reuse your loader)
                           await onRetrieve(existingId);
                           return;
@@ -662,10 +679,13 @@ export default function PatientHistoryPage() {
                       // First collision: ask user before we suffix
                       const ok = window.confirm(
                         `Patient ID ${candidate} is already taken.\n\n` +
-                        `We will create a new ID with a suffix (e.g., ${candidate}-1).\n` +
-                        `Proceed?`
+                          `We will create a new ID with a suffix (e.g., ${candidate}-1).\n` +
+                          `Proceed?`,
                       );
-                      if (!ok) { setCreating(false); return; }
+                      if (!ok) {
+                        setCreating(false);
+                        return;
+                      }
                       while (await idExists(candidate)) {
                         suffix += 1;
                         candidate = `${SUR}${code}-${suffix}`;
@@ -678,7 +698,7 @@ export default function PatientHistoryPage() {
                       .insert({
                         patient_id: candidate,
                         full_name: fullName,
-                        birthday: bdayISO,  // DATE column expects YYYY-MM-DD
+                        birthday: bdayISO, // DATE column expects YYYY-MM-DD
                       })
                       .select("*")
                       .single();
@@ -687,7 +707,9 @@ export default function PatientHistoryPage() {
                     // 4) Load the editor for the new patient
                     setSearchId(candidate);
                     setShowCreate(false);
-                    setNewSurname(""); setNewFirstname(""); setNewBirthday("");
+                    setNewSurname("");
+                    setNewFirstname("");
+                    setNewBirthday("");
 
                     setInitial(ins as Patient);
                     const copy: Partial<Patient> = {};
@@ -744,7 +766,9 @@ export default function PatientHistoryPage() {
 
         <div className="flex gap-3 overflow-x-auto pb-1">
           {todayPatients.length === 0 && !todayLoading ? (
-            <div className="text-sm text-neutral-500">No patients queued today for this branch.</div>
+            <div className="text-sm text-neutral-500">
+              No patients queued today for this branch.
+            </div>
           ) : (
             todayPatients.map((pat) => (
               <button
@@ -760,9 +784,7 @@ export default function PatientHistoryPage() {
                 <div className="font-semibold text-sm truncate">
                   {pat.full_name || pat.patient_id}
                 </div>
-                <div className="text-xs text-neutral-500">
-                  {pat.patient_id}
-                </div>
+                <div className="text-xs text-neutral-500">{pat.patient_id}</div>
                 {pat.consult_status && (
                   <div className="mt-1 text-[11px] uppercase tracking-wide text-neutral-600">
                     Consult: {pat.consult_status}
@@ -783,13 +805,16 @@ export default function PatientHistoryPage() {
 
         <form
           className="flex flex-col gap-2 sm:flex-row"
-          onSubmit={(e) => { e.preventDefault(); onRetrieve(); }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            onRetrieve();
+          }}
         >
           <input
             className="w-full rounded-xl border px-3 py-2"
             placeholder="e.g., SATOH010596"
             value={searchId}
-            onChange={(e) => setSearchId(e.target.value.toUpperCase())}  // normalize
+            onChange={(e) => setSearchId(e.target.value.toUpperCase())} // normalize
           />
           <button
             type="submit"
@@ -801,17 +826,27 @@ export default function PatientHistoryPage() {
         </form>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        {found && !error && <p className="text-green-700 text-sm">Patient found. Data loaded below.</p>}
-        </div>
+        {found && !error && (
+          <p className="text-green-700 text-sm">Patient found. Data loaded below.</p>
+        )}
+      </div>
 
       {/* Quick links */}
       {initial && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-neutral-600">Quick open:</span>
-          <a className="underline text-sm" href={viewerHref} target="_blank">Results Viewer</a>
-          <a className="underline text-sm" href={rxHref} target="_blank">Prescriptions</a>
-          <a className="underline text-sm" href={otherLabs} target="_blank">Other Labs/Sendouts</a>
-          <span className="text-xs text-neutral-500">(You can wire these to your actual routes later.)</span>
+          <a className="underline text-sm" href={viewerHref} target="_blank">
+            Results Viewer
+          </a>
+          <a className="underline text-sm" href={rxHref} target="_blank">
+            Prescriptions
+          </a>
+          <a className="underline text-sm" href={otherLabs} target="_blank">
+            Other Labs/Sendouts
+          </a>
+          <span className="text-xs text-neutral-500">
+            (You can wire these to your actual routes later.)
+          </span>
         </div>
       )}
 
@@ -853,7 +888,7 @@ export default function PatientHistoryPage() {
               <div>
                 <div className="text-xs text-neutral-500">Weight</div>
                 <div className="font-medium">
-                  {latestVitals.weight_kg ? `${latestVitals.weight_kg} kg` : (form.weight_kg || "—")}
+                  {latestVitals.weight_kg ? `${latestVitals.weight_kg} kg` : form.weight_kg || "—"}
                 </div>
               </div>
               <div>
@@ -902,8 +937,7 @@ export default function PatientHistoryPage() {
                           : "—"}
                       </td>
                       <td className="py-2 pr-4">
-                        {snap.hr ? `HR ${snap.hr} bpm` : ""}{" "}
-                        {snap.rr ? `RR ${snap.rr}/min` : ""}
+                        {snap.hr ? `HR ${snap.hr} bpm` : ""} {snap.rr ? `RR ${snap.rr}/min` : ""}
                       </td>
                       <td className="py-2 pr-4">
                         {snap.temp_c ? `${snap.temp_c} °C` : "—"}{" "}
@@ -911,7 +945,9 @@ export default function PatientHistoryPage() {
                       </td>
                       <td className="py-2 pr-4">{snap.weight_kg ? `${snap.weight_kg} kg` : "—"}</td>
                       <td className="py-2 pr-4">{snap.notes || "—"}</td>
-                      <td className="py-2 pr-4">{snap.created_by_initials || snap.source || "—"}</td>
+                      <td className="py-2 pr-4">
+                        {snap.created_by_initials || snap.source || "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1055,12 +1091,7 @@ export default function PatientHistoryPage() {
               </div>
             </div>
             {vitalsSubmitError && <p className="text-sm text-red-600">{vitalsSubmitError}</p>}
-            <button
-              type="button"
-              className={BTN}
-              onClick={onSaveVitals}
-              disabled={vitalsSaving}
-            >
+            <button type="button" className={BTN} onClick={onSaveVitals} disabled={vitalsSaving}>
               {vitalsSaving ? "Saving vitals…" : "Save Vitals"}
             </button>
           </div>
@@ -1137,17 +1168,19 @@ export default function PatientHistoryPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">Medical Interview</h2>
             <div className="grid gap-3">
-              {([
-                "chief_complaint",
-                "present_illness_history",
-                "past_medical_history",
-                "past_surgical_history",
-                "allergies_text",
-                "medications_current",
-                "family_hx",
-                "smoking_hx",
-                "alcohol_hx",
-              ] as (keyof Patient)[]).map((f) => (
+              {(
+                [
+                  "chief_complaint",
+                  "present_illness_history",
+                  "past_medical_history",
+                  "past_surgical_history",
+                  "allergies_text",
+                  "medications_current",
+                  "family_hx",
+                  "smoking_hx",
+                  "alcohol_hx",
+                ] as (keyof Patient)[]
+              ).map((f) => (
                 <div key={f} className="space-y-1">
                   <label className="block text-sm font-medium">{LABELS[f]}</label>
                   {HELP[f] && <p className="text-xs text-neutral-500">{HELP[f]}</p>}
@@ -1193,7 +1226,8 @@ export default function PatientHistoryPage() {
 
       {!initial && (
         <div className="text-sm text-neutral-500">
-          Tip: Find a patient first. The form will show current data (even blanks) and you can type as you interview.
+          Tip: Find a patient first. The form will show current data (even blanks) and you can type
+          as you interview.
         </div>
       )}
     </div>

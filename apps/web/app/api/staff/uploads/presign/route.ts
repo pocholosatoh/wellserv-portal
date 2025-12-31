@@ -6,14 +6,7 @@ import { randomUUID } from "crypto";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { getSession } from "@/lib/session";
 
-const Category = z.enum([
-  "imaging",
-  "cytology",
-  "microbiology",
-  "ecg",
-  "in_vitro",
-  "other",
-]);
+const Category = z.enum(["imaging", "cytology", "microbiology", "ecg", "in_vitro", "other"]);
 
 const PresignRequest = z.object({
   files: z
@@ -21,7 +14,7 @@ const PresignRequest = z.object({
       z.object({
         name: z.string().min(1),
         contentType: z.string().min(1),
-      })
+      }),
     )
     .min(1),
   patient_id: z.string().min(1),
@@ -38,11 +31,7 @@ const PresignRequest = z.object({
 });
 
 function getExpectedSecret() {
-  return (
-    process.env.RMT_UPLOAD_SECRET ||
-    process.env.NEXT_PUBLIC_RMT_UPLOAD_SECRET ||
-    ""
-  ).trim();
+  return (process.env.RMT_UPLOAD_SECRET || process.env.NEXT_PUBLIC_RMT_UPLOAD_SECRET || "").trim();
 }
 
 async function requireStaffIdentity() {
@@ -74,9 +63,7 @@ function isSecretAuthorized(req: Request) {
   const expected = getExpectedSecret();
   if (!expected) return false;
   const provided =
-    req.headers.get("x-rmt-upload-secret") ||
-    req.headers.get("x-upload-secret") ||
-    "";
+    req.headers.get("x-rmt-upload-secret") || req.headers.get("x-upload-secret") || "";
   return provided.trim() === expected;
 }
 
@@ -113,13 +100,14 @@ export async function POST(req: Request) {
     for (const f of data.files) {
       const safeName = f.name.replace(/[^A-Za-z0-9._-]/g, "_");
       const objectPath = `${basePrefix}/${categorySegment}/${safeName}`;
-      const { data: signed, error } = await supa
-        .storage
+      const { data: signed, error } = await supa.storage
         .from(bucket)
         .createSignedUploadUrl(objectPath);
 
       if (error || !signed?.signedUrl) {
-        throw new Error(`Failed to presign upload for ${f.name}: ${error?.message || "unknown error"}`);
+        throw new Error(
+          `Failed to presign upload for ${f.name}: ${error?.message || "unknown error"}`,
+        );
       }
 
       items.push({

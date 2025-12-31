@@ -82,7 +82,7 @@ export function TodayPatientsQuickList({
         setLoading(false);
       }
     },
-    [supabase]
+    [supabase],
   );
 
   React.useEffect(() => {
@@ -99,7 +99,7 @@ export function TodayPatientsQuickList({
       params.set(queryParam, patientId);
       router.push(`${targetPath || pathname}?${params.toString()}`);
     },
-    [onSelectPatient, pathname, queryParam, router, searchParams, targetPath]
+    [onSelectPatient, pathname, queryParam, router, searchParams, targetPath],
   );
 
   return (
@@ -151,9 +151,7 @@ export function TodayPatientsQuickList({
               <div className="font-semibold text-sm truncate">
                 {pat.full_name || pat.patient_id}
               </div>
-              <div className="text-xs text-neutral-500">
-                {pat.patient_id}
-              </div>
+              <div className="text-xs text-neutral-500">{pat.patient_id}</div>
               {pat.consult_status && (
                 <div className="mt-1 text-[11px] uppercase tracking-wide text-neutral-600">
                   Consult: {pat.consult_status}

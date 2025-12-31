@@ -13,10 +13,10 @@ export async function POST(req: Request) {
       followup_id,
       patient_id,
       created_from_consultation_id, // keep original or set to the recent consult that triggered the resched
-      new_due_date,                 // YYYY-MM-DD
-      return_branch,                // optional override
-      intended_outcome,             // optional carry-over
-      expected_tests,               // optional carry-over
+      new_due_date, // YYYY-MM-DD
+      return_branch, // optional override
+      intended_outcome, // optional carry-over
+      expected_tests, // optional carry-over
       updated_by = null,
     } = body || {};
 
@@ -35,16 +35,18 @@ export async function POST(req: Request) {
     // Insert new
     const { data: inserted, error: insErr } = await supa
       .from("followups")
-      .insert([{
-        patient_id,
-        created_from_consultation_id,
-        due_date: new_due_date,
-        return_branch,
-        intended_outcome,
-        expected_tests,
-        status: "scheduled",
-        updated_by,
-      }])
+      .insert([
+        {
+          patient_id,
+          created_from_consultation_id,
+          due_date: new_due_date,
+          return_branch,
+          intended_outcome,
+          expected_tests,
+          status: "scheduled",
+          updated_by,
+        },
+      ])
       .select()
       .single();
     if (insErr) throw insErr;

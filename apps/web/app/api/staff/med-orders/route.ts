@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     const pendingQuery = supabase
       .from("patients")
       .select(
-        "patient_id, full_name, sex, birthday, contact, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at"
+        "patient_id, full_name, sex, birthday, contact, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at",
       )
       .not("last_delivery_used_at", "is", null)
       .is("last_delivery_success_at", null)
@@ -45,25 +45,27 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({
-      pending: pending.data?.map((p) => ({
-        patient_id: p.patient_id,
-        full_name: p.full_name ?? null,
-        sex: p.sex ?? null,
-        birth_date: p.birthday ?? null,
-        contact_no: p.contact ?? null,
-        delivery_address_label: p.delivery_address_label ?? null,
-        delivery_address_text: p.delivery_address_text ?? null,
-        delivery_lat: p.delivery_lat ?? null,
-        delivery_lng: p.delivery_lng ?? null,
-        delivery_notes: p.delivery_notes ?? null,
-        last_delivery_used_at: p.last_delivery_used_at ?? null,
-      })) ?? [],
-      delivered: delivered.data?.map((p) => ({
-        patient_id: p.patient_id,
-        full_name: p.full_name ?? null,
-        contact_no: p.contact ?? null,
-        last_delivery_success_at: p.last_delivery_success_at,
-      })) ?? [],
+      pending:
+        pending.data?.map((p) => ({
+          patient_id: p.patient_id,
+          full_name: p.full_name ?? null,
+          sex: p.sex ?? null,
+          birth_date: p.birthday ?? null,
+          contact_no: p.contact ?? null,
+          delivery_address_label: p.delivery_address_label ?? null,
+          delivery_address_text: p.delivery_address_text ?? null,
+          delivery_lat: p.delivery_lat ?? null,
+          delivery_lng: p.delivery_lng ?? null,
+          delivery_notes: p.delivery_notes ?? null,
+          last_delivery_used_at: p.last_delivery_used_at ?? null,
+        })) ?? [],
+      delivered:
+        delivered.data?.map((p) => ({
+          patient_id: p.patient_id,
+          full_name: p.full_name ?? null,
+          contact_no: p.contact ?? null,
+          last_delivery_success_at: p.last_delivery_success_at,
+        })) ?? [],
     });
   } catch (e: any) {
     console.error("[staff/med-orders] GET unexpected", e);
@@ -78,7 +80,9 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json().catch(() => ({}))) as { patient_id?: string };
-  const patient_id = String(body.patient_id || "").trim().toUpperCase();
+  const patient_id = String(body.patient_id || "")
+    .trim()
+    .toUpperCase();
   if (!patient_id) {
     return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
   }

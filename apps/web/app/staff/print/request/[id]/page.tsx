@@ -7,8 +7,12 @@ const supa = () => getSupabase();
 function formatNowPH() {
   const tz = process.env.APP_TZ || "Asia/Manila";
   return new Intl.DateTimeFormat("en-PH", {
-    timeZone: tz, year: "numeric", month: "short", day: "2-digit",
-    hour: "2-digit", minute: "2-digit"
+    timeZone: tz,
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date());
 }
 function formatYMDToNice(d?: string | null) {
@@ -16,12 +20,12 @@ function formatYMDToNice(d?: string | null) {
   const dt = new Date(d);
   return isNaN(+dt)
     ? d
-    : new Intl.DateTimeFormat("en-PH", { year: "numeric", month: "short", day: "2-digit" }).format(dt);
+    : new Intl.DateTimeFormat("en-PH", { year: "numeric", month: "short", day: "2-digit" }).format(
+        dt,
+      );
 }
 
-export default async function RequestA5Page(
-  { params }: { params: Promise<{ id: string }> }
-) {
+export default async function RequestA5Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const db = supa();
 
@@ -72,15 +76,28 @@ export default async function RequestA5Page(
 
         {/* Patient block */}
         <section className="grid-2">
-          <div className="field"><b>Patient ID:</b> {pat?.patient_id}</div>
-          <div className="field"><b>Date:</b> {enc.visit_date_local ? formatYMDToNice(enc.visit_date_local as string) : formatNowPH()}</div>
-          <div className="field"><b>Name:</b> {pat?.full_name}</div>
+          <div className="field">
+            <b>Patient ID:</b> {pat?.patient_id}
+          </div>
+          <div className="field">
+            <b>Date:</b>{" "}
+            {enc.visit_date_local ? formatYMDToNice(enc.visit_date_local as string) : formatNowPH()}
+          </div>
+          <div className="field">
+            <b>Name:</b> {pat?.full_name}
+          </div>
           <div className="field">
             <b>Sex:</b> {(pat?.sex || "").toUpperCase()} &nbsp; <b>Age:</b> {pat?.age ?? "-"}
           </div>
-          <div className="field"><b>Birthday:</b> {formatYMDToNice(pat?.birthday as any)}</div>
-          <div className="field"><b>Contact:</b> {pat?.contact || "-"}</div>
-          <div className="field wide"><b>Address:</b> {pat?.address || "-"}</div>
+          <div className="field">
+            <b>Birthday:</b> {formatYMDToNice(pat?.birthday as any)}
+          </div>
+          <div className="field">
+            <b>Contact:</b> {pat?.contact || "-"}
+          </div>
+          <div className="field wide">
+            <b>Address:</b> {pat?.address || "-"}
+          </div>
         </section>
 
         {/* Tests */}

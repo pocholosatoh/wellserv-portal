@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { BRANCHES } from "@/lib/hubs";
 import { phTodayYMD, addDaysYMD, isDueTodayYMD, isOverdueYMD, isPastGraceYMD } from "@/lib/time";
@@ -39,7 +40,7 @@ function parseExpectedTokens(raw?: string | null) {
 }
 
 const STATUS_FILTERS = ["all", "scheduled", "completed", "canceled", "skipped"] as const;
-type StatusFilter = typeof STATUS_FILTERS[number];
+type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 export default function StaffFollowupsPage() {
   // Filters
@@ -64,6 +65,7 @@ export default function StaffFollowupsPage() {
   const [attemptsById, setAttemptsById] = useState<Record<string, Attempt[]>>({});
   const [loadingAttempts, setLoadingAttempts] = useState<Record<string, boolean>>({});
   const [attemptErr, setAttemptErr] = useState<Record<string, string | null>>({});
+  const [defaultName, setDefaultName] = useState("");
 
   async function load() {
     setErr(null);
@@ -85,7 +87,9 @@ export default function StaffFollowupsPage() {
       setBusy(false);
     }
   }
-  useEffect(() => { load(); }, [start, end, hub, statusFilter]);
+  useEffect(() => {
+    load();
+  }, [start, end, hub, statusFilter]);
 
   // Client-side chips for Due Today / Overdue
   const filtered = useMemo(() => {
@@ -125,16 +129,29 @@ export default function StaffFollowupsPage() {
     });
   }
 
-  const headerInitials =
-    (document.querySelector("[data-staff-initials]") as HTMLElement)?.getAttribute("data-staff-initials") || "";
-  const lastUsed = localStorage.getItem("followups:lastAttemptName") || "";
-  const defaultName = headerInitials || lastUsed;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const headerInitials =
+      typeof document !== "undefined"
+        ? (document.querySelector("[data-staff-initials]") as HTMLElement | null)?.getAttribute(
+            "data-staff-initials",
+          ) || ""
+        : "";
+    let lastUsed = "";
+    try {
+      lastUsed = window.localStorage.getItem("followups:lastAttemptName") || "";
+    } catch {}
+    setDefaultName(headerInitials || lastUsed);
+  }, []);
 
   /** ACTIONS **/
   async function logAttempt(f: Followup) {
     const channel = prompt("Channel (call/sms/messenger/email/other):", "call")?.trim();
     if (!channel) return;
-    const outcome = prompt("Outcome (reached_confirmed/reached_declined/no_answer/wrong_number/callback_requested/other):", "reached_confirmed")?.trim();
+    const outcome = prompt(
+      "Outcome (reached_confirmed/reached_declined/no_answer/wrong_number/callback_requested/other):",
+      "reached_confirmed",
+    )?.trim();
     if (!outcome) return;
     const notes = prompt("Notes (optional):", "") ?? "";
     const name = prompt("Your name (for audit):", defaultName) ?? defaultName;
@@ -179,13 +196,19 @@ export default function StaffFollowupsPage() {
       }),
     });
     const j = await r.json();
-    if (!r.ok || j.error) { alert(j?.error || `HTTP ${r.status}`); return; }
+    if (!r.ok || j.error) {
+      alert(j?.error || `HTTP ${r.status}`);
+      return;
+    }
     await load();
     if (open.has(f.id)) await fetchAttempts(f.id);
   }
 
   async function cancelF(f: Followup) {
-    const reason = prompt("Cancel reason (canceled_rescheduled/declined/duplicate/transferred/wrong_number/other):", "declined")?.trim();
+    const reason = prompt(
+      "Cancel reason (canceled_rescheduled/declined/duplicate/transferred/wrong_number/other):",
+      "declined",
+    )?.trim();
     if (!reason) return;
     const r = await fetch("/api/followups/cancel", {
       method: "POST",
@@ -193,7 +216,10 @@ export default function StaffFollowupsPage() {
       body: JSON.stringify({ followup_id: f.id, reason }),
     });
     const j = await r.json();
-    if (!r.ok || j.error) { alert(j?.error || `HTTP ${r.status}`); return; }
+    if (!r.ok || j.error) {
+      alert(j?.error || `HTTP ${r.status}`);
+      return;
+    }
     await load();
     if (open.has(f.id)) await fetchAttempts(f.id);
   }
@@ -245,34 +271,68 @@ export default function StaffFollowupsPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
             <label className="block text-xs text-gray-600 mb-1">Start</label>
-            <input type="date" className="w-full border rounded px-2 py-1 text-sm" value={start} onChange={(e) => setStart(e.target.value)} />
+            <input
+              type="date"
+              className="w-full border rounded px-2 py-1 text-sm"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+            />
           </div>
           <div>
             <label className="block text-xs text-gray-600 mb-1">End</label>
-            <input type="date" className="w-full border rounded px-2 py-1 text-sm" value={end} onChange={(e) => setEnd(e.target.value)} />
+            <input
+              type="date"
+              className="w-full border rounded px-2 py-1 text-sm"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+            />
           </div>
           <div>
             <label className="block text-xs text-gray-600 mb-1">Hub</label>
-            <select className="w-full border rounded px-2 py-1 text-sm" value={hub} onChange={(e) => setHub(e.target.value)}>
+            <select
+              className="w-full border rounded px-2 py-1 text-sm"
+              value={hub}
+              onChange={(e) => setHub(e.target.value)}
+            >
               <option value="">All</option>
-              {BRANCHES.map((h) => (<option key={h} value={h}>{h}</option>))}
+              {BRANCHES.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
             </select>
           </div>
           <div>
             <label className="block text-xs text-gray-600 mb-1">Status</label>
-            <select className="w-full border rounded px-2 py-1 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}>
-              {STATUS_FILTERS.map((s) => (<option key={s} value={s}>{s}</option>))}
+            <select
+              className="w-full border rounded px-2 py-1 text-sm"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            >
+              {STATUS_FILTERS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={onlyDueToday} onChange={(e) => setOnlyDueToday(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={onlyDueToday}
+              onChange={(e) => setOnlyDueToday(e.target.checked)}
+            />
             Only Due Today
           </label>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={onlyOverdue} onChange={(e) => setOnlyOverdue(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={onlyOverdue}
+              onChange={(e) => setOnlyOverdue(e.target.checked)}
+            />
             Only Overdue
           </label>
 
@@ -301,6 +361,9 @@ export default function StaffFollowupsPage() {
             const overdue = isOverdueYMD(f.due_date, today);
             const pastGrace = isPastGraceYMD(f.valid_until, today);
             const expectedTokens = parseExpectedTokens(f.expected_tests);
+            const patientHref = f.patient_id
+              ? `/staff/portal?patient_id=${encodeURIComponent(f.patient_id)}`
+              : null;
 
             return (
               <article key={f.id} className="rounded-2xl border bg-white p-4 shadow-sm">
@@ -359,6 +422,14 @@ export default function StaffFollowupsPage() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
+                  {patientHref && (
+                    <Link
+                      href={patientHref}
+                      className="flex-1 min-w-[140px] rounded border px-3 py-1.5 text-sm text-center"
+                    >
+                      Open patient
+                    </Link>
+                  )}
                   <button
                     className="flex-1 min-w-[140px] rounded border px-3 py-1.5 text-sm"
                     onClick={() => logAttempt(f)}
@@ -423,6 +494,9 @@ export default function StaffFollowupsPage() {
               const overdue = isOverdueYMD(f.due_date, today);
               const pastGrace = isPastGraceYMD(f.valid_until, today);
               const expectedTokens = parseExpectedTokens(f.expected_tests);
+              const patientHref = f.patient_id
+                ? `/staff/portal?patient_id=${encodeURIComponent(f.patient_id)}`
+                : null;
 
               return (
                 <Fragment key={f.id}>
@@ -434,17 +508,32 @@ export default function StaffFollowupsPage() {
                         onClick={() => toggle(f.id)}
                         title={isOpen ? "Hide attempts" : "Show attempts"}
                       >
-                        <span className="inline-block transition-transform" style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▸</span>
+                        <span
+                          className="inline-block transition-transform"
+                          style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}
+                        >
+                          ▸
+                        </span>
                       </button>
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
                         <span>{f.due_date}</span>
-                        {dueToday && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">today</span>}
-                        {overdue && !pastGrace && f.status === "scheduled" && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700">overdue</span>
+                        {dueToday && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                            today
+                          </span>
                         )}
-                        {pastGrace && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-700">past-grace</span>}
+                        {overdue && !pastGrace && f.status === "scheduled" && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                            overdue
+                          </span>
+                        )}
+                        {pastGrace && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-700">
+                            past-grace
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-3 py-2">{f.patient_id}</td>
@@ -466,14 +555,31 @@ export default function StaffFollowupsPage() {
                         "—"
                       )}
                     </td>
-                    <td className="px-3 py-2">{f.status}{f.cancel_reason ? ` (${f.cancel_reason})` : ""}</td>
+                    <td className="px-3 py-2">
+                      {f.status}
+                      {f.cancel_reason ? ` (${f.cancel_reason})` : ""}
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-2">
-                        <button className="rounded border px-2 py-1" onClick={() => logAttempt(f)}>Log attempt</button>
+                        {patientHref && (
+                          <Link href={patientHref} className="rounded border px-2 py-1">
+                            Open patient
+                          </Link>
+                        )}
+                        <button className="rounded border px-2 py-1" onClick={() => logAttempt(f)}>
+                          Log attempt
+                        </button>
                         {f.status === "scheduled" && (
                           <>
-                            <button className="rounded border px-2 py-1" onClick={() => reschedule(f)}>Reschedule</button>
-                            <button className="rounded border px-2 py-1" onClick={() => cancelF(f)}>Cancel</button>
+                            <button
+                              className="rounded border px-2 py-1"
+                              onClick={() => reschedule(f)}
+                            >
+                              Reschedule
+                            </button>
+                            <button className="rounded border px-2 py-1" onClick={() => cancelF(f)}>
+                              Cancel
+                            </button>
                           </>
                         )}
                       </div>

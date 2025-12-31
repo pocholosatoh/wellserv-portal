@@ -129,7 +129,7 @@ export async function GET(req: Request) {
           "weight_kg",
           "height_cm",
           "bmi",
-        ].join(", ")
+        ].join(", "),
       )
       .eq("patient_id", patientId)
       .order("measured_at", { ascending: false })
@@ -276,7 +276,7 @@ export async function GET(req: Request) {
         .map((d) =>
           d.icd10_code
             ? `${d.icd10_code} — ${d.icd10_text_snapshot || ""}`.trim()
-            : d.icd10_text_snapshot || ""
+            : d.icd10_text_snapshot || "",
         )
         .filter(Boolean)
         .join("; ");

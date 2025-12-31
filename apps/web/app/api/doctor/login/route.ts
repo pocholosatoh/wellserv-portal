@@ -18,7 +18,7 @@ function setCookie(
     sameSite: "lax" | "strict" | "none";
     path: string;
     maxAge: number;
-  }> = {}
+  }> = {},
 ) {
   res.cookies.set({
     name,
@@ -35,15 +35,17 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
     const rawCode = String(body?.code ?? "").trim();
-    const rawPin  = String(body?.pin  ?? "").trim();
-    const branchOverride = String(body?.branch || "").trim().toUpperCase(); // optional "SI" | "SL" | "ALL"
+    const rawPin = String(body?.pin ?? "").trim();
+    const branchOverride = String(body?.branch || "")
+      .trim()
+      .toUpperCase(); // optional "SI" | "SL" | "ALL"
 
     if (!rawCode || !rawPin) {
       return NextResponse.json({ error: "Missing code or pin" }, { status: 400 });
     }
 
     const code = rawCode.toUpperCase();
-    const pin  = rawPin.replace(/\s+/g, "");
+    const pin = rawPin.replace(/\s+/g, "");
 
     const supabase = getSupabase();
 
@@ -70,8 +72,8 @@ export async function POST(req: Request) {
 
     // Build names
     const baseName = doc.display_name || doc.full_name || "";
-    const creds    = doc.credentials || "";
-    const display  = creds ? `${baseName}, ${creds}` : baseName;
+    const creds = doc.credentials || "";
+    const display = creds ? `${baseName}, ${creds}` : baseName;
 
     // Prepare response and set session cookies
     const res = NextResponse.json({ ok: true });

@@ -2,7 +2,13 @@ import { useEffect, useRef } from "react";
 import { ScrollView, Text, TouchableOpacity, View, ViewStyle, TextStyle } from "react-native";
 import { colors, spacing } from "@wellserv/theme";
 
-export type PatientTabKey = "home" | "results" | "prescriptions" | "followups" | "pharmacy";
+export type PatientTabKey =
+  | "home"
+  | "results"
+  | "logs"
+  | "prescriptions"
+  | "followups"
+  | "pharmacy";
 
 interface PatientTabsHeaderProps {
   activeTab: PatientTabKey;
@@ -12,6 +18,7 @@ interface PatientTabsHeaderProps {
 const tabs: { key: PatientTabKey; label: string }[] = [
   { key: "home", label: "Home" },
   { key: "results", label: "Results" },
+  { key: "logs", label: "Logs" },
   { key: "prescriptions", label: "Prescriptions" },
   { key: "followups", label: "Follow-ups" },
   { key: "pharmacy", label: "Online Pharmacy" },

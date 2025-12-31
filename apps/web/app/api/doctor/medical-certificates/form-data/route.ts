@@ -90,15 +90,7 @@ export async function GET(req: Request) {
     const patient = await db
       .from("patients")
       .select(
-        [
-          "patient_id",
-          "full_name",
-          "sex",
-          "birthday",
-          "age",
-          "address",
-          "contact",
-        ].join(", ")
+        ["patient_id", "full_name", "sex", "birthday", "age", "address", "contact"].join(", "),
       )
       .eq("patient_id", patientId)
       .maybeSingle();
@@ -125,7 +117,7 @@ export async function GET(req: Request) {
             "branch",
             "doctor_id",
             "doctor_name_at_time",
-          ].join(", ")
+          ].join(", "),
         )
         .eq("id", consultationId)
         .maybeSingle();
@@ -136,7 +128,10 @@ export async function GET(req: Request) {
       const consultationRow = cons.data as ConsultationRow | null;
       if (consultationRow) {
         if (consultationRow.patient_id !== patientId) {
-          return NextResponse.json({ error: "Consultation does not belong to patient" }, { status: 400 });
+          return NextResponse.json(
+            { error: "Consultation does not belong to patient" },
+            { status: 400 },
+          );
         }
         consultation = consultationRow;
       }
@@ -155,7 +150,7 @@ export async function GET(req: Request) {
             "visit_date_local",
             "notes_frontdesk",
             "consult_status",
-          ].join(", ")
+          ].join(", "),
         )
         .eq("id", targetEncounterId)
         .maybeSingle();
@@ -164,7 +159,10 @@ export async function GET(req: Request) {
       }
       const encounterRow = enc.data as EncounterRow | null;
       if (encounterRow && encounterRow.patient_id !== patientId) {
-        return NextResponse.json({ error: "Encounter does not belong to patient" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Encounter does not belong to patient" },
+          { status: 400 },
+        );
       }
       encounter = encounterRow;
     }
@@ -187,30 +185,23 @@ export async function GET(req: Request) {
           "weight_kg",
           "height_cm",
           "bmi",
-        ].join(", ")
+        ].join(", "),
       )
       .eq("patient_id", patientId)
       .order("measured_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    const diagnoses =
-      consultation
-        ? await db
-            .from("consultation_diagnoses")
-            .select(
-              [
-                "id",
-                "consultation_id",
-                "icd10_code",
-                "icd10_text_snapshot",
-                "is_primary",
-              ].join(", ")
-            )
-            .eq("consultation_id", consultation.id)
-            .order("is_primary", { ascending: false })
-            .order("created_at", { ascending: true })
-        : { data: [], error: null };
+    const diagnoses = consultation
+      ? await db
+          .from("consultation_diagnoses")
+          .select(
+            ["id", "consultation_id", "icd10_code", "icd10_text_snapshot", "is_primary"].join(", "),
+          )
+          .eq("consultation_id", consultation.id)
+          .order("is_primary", { ascending: false })
+          .order("created_at", { ascending: true })
+      : { data: [], error: null };
 
     if (diagnoses.error) {
       return NextResponse.json({ error: diagnoses.error.message }, { status: 400 });
@@ -247,7 +238,7 @@ export async function GET(req: Request) {
             "ptr_no",
             "s2_no",
             "signature_image_url",
-          ].join(", ")
+          ].join(", "),
         )
         .eq("doctor_id", doctor.doctorId)
         .maybeSingle();
@@ -263,13 +254,13 @@ export async function GET(req: Request) {
       if (doctorProfile?.signature_image_url) {
         doctorProfile.signed_signature_url = await signDoctorSignature(
           db,
-          doctorProfile.signature_image_url
+          doctorProfile.signature_image_url,
         );
       }
     } else {
       doctorProfile = {
         doctor_id: null,
-        display_name: fallbackDisplay || (fallbackFull || "Reliever Doctor"),
+        display_name: fallbackDisplay || fallbackFull || "Reliever Doctor",
         full_name: fallbackFull || fallbackDisplay || "Reliever Doctor",
         credentials: doctor.credentials || null,
         specialty: null,
@@ -305,7 +296,7 @@ export async function GET(req: Request) {
           .map((d) =>
             d.icd10_code
               ? `${d.icd10_code} — ${d.icd10_text_snapshot || ""}`.trim()
-              : d.icd10_text_snapshot || ""
+              : d.icd10_text_snapshot || "",
           )
           .filter(Boolean)
           .join("; "),

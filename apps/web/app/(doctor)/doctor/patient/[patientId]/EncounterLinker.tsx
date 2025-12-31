@@ -58,7 +58,7 @@ export default function EncounterLinker({
     try {
       const res = await fetch(
         `/api/doctor/consultations/encounter?patient_id=${encodeURIComponent(patientId)}`,
-        { cache: "no-store" }
+        { cache: "no-store" },
       );
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.error || "Failed to load encounters for today.");
@@ -119,7 +119,8 @@ export default function EncounterLinker({
         <div>
           <p className="text-sm font-semibold text-gray-800">Encounter</p>
           <p className="text-xs text-gray-600">
-            Link this consultation to a same-day encounter (Asia/Manila) to unlock certificates and finishing.
+            Link this consultation to a same-day encounter (Asia/Manila) to unlock certificates and
+            finishing.
           </p>
         </div>
         {encounterId ? (
@@ -130,9 +131,7 @@ export default function EncounterLinker({
       </div>
 
       {!encounterId && !msg && (
-        <div className="text-xs text-red-600">
-          This consultation is not linked to an encounter.
-        </div>
+        <div className="text-xs text-red-600">This consultation is not linked to an encounter.</div>
       )}
 
       <div className="flex flex-col gap-2">

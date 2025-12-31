@@ -83,7 +83,10 @@ export default function LoginScreen() {
                   >
                     <Text style={styles.linkText}>First time? Set up PIN</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.linkSpacing} onPress={() => router.push("/forgot-pin" as any)}>
+                  <TouchableOpacity
+                    style={styles.linkSpacing}
+                    onPress={() => router.push("/forgot-pin" as any)}
+                  >
                     <Text style={styles.linkText}>Forgot PIN?</Text>
                   </TouchableOpacity>
                 </View>

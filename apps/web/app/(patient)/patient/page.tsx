@@ -61,8 +61,8 @@ export default async function PatientHome() {
   const deliveryBadge = pat?.last_delivery_success_at
     ? "Delivered"
     : lastDeliveryDate
-    ? `Requested: ${lastDeliveryDate}`
-    : "New request";
+      ? `Requested: ${lastDeliveryDate}`
+      : "New request";
 
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
   const initials = getInitials(displayName);
@@ -108,7 +108,10 @@ export default async function PatientHome() {
               <div className="min-w-0">
                 <p className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/80 px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
                   Patient Portal
-                  <span className="hidden sm:inline-flex h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} />
+                  <span
+                    className="hidden sm:inline-flex h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: accent }}
+                  />
                   <span className="hidden sm:inline text-[11px] uppercase tracking-wider text-slate-400">
                     your health at a glance
                   </span>
@@ -117,7 +120,8 @@ export default async function PatientHome() {
                   Welcome back, <span className="text-slate-800">{displayName}</span>
                 </h1>
                 <p className="mt-2 text-sm text-slate-600">
-                  Patient ID: <span className="font-mono text-[0.95rem] text-slate-800">{s.patient_id}</span>
+                  Patient ID:{" "}
+                  <span className="font-mono text-[0.95rem] text-slate-800">{s.patient_id}</span>
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs">
                   <span
@@ -125,14 +129,16 @@ export default async function PatientHome() {
                     title="Most recent result date"
                   >
                     <Dot color={accent} />
-                    Latest Result: <strong className="ml-1 font-semibold text-slate-800">{lastResultDate}</strong>
+                    Latest Result:{" "}
+                    <strong className="ml-1 font-semibold text-slate-800">{lastResultDate}</strong>
                   </span>
                   <span
                     className="inline-flex items-center gap-2 rounded-full px-3 py-1 bg-white/80 ring-1 ring-slate-200 shadow-sm"
                     title="Most recent prescription date"
                   >
                     <Dot color={accent} />
-                    Last Prescription: <strong className="ml-1 font-semibold text-slate-800">{lastRxDate}</strong>
+                    Last Prescription:{" "}
+                    <strong className="ml-1 font-semibold text-slate-800">{lastRxDate}</strong>
                   </span>
                 </div>
               </div>
@@ -151,7 +157,13 @@ export default async function PatientHome() {
             badge={`Latest: ${lastResultDate}`}
             accent={accent}
             icon={
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
                 <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z" />
                 <circle cx="12" cy="12" r="2.5" />
               </svg>
@@ -164,7 +176,13 @@ export default async function PatientHome() {
             badge={`Last: ${lastRxDate}`}
             accent={accent}
             icon={
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
                 <path d="M6 3h9l3 3v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
                 <path d="M9 12h6M9 16h6M9 8h3" />
               </svg>
@@ -177,7 +195,13 @@ export default async function PatientHome() {
             badge={medCertCount ? `Total: ${medCertCount}` : "No record"}
             accent={accent}
             icon={
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
                 <path d="M6 3h12a1 1 0 0 1 1 1v16l-3-2-3 2-3-2-3 2V4a1 1 0 0 1 1-1Z" />
                 <path d="M9 8h6M9 12h6" />
               </svg>
@@ -190,7 +214,13 @@ export default async function PatientHome() {
             badge={deliveryBadge}
             accent={accent}
             icon={
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
                 <path d="M3 12h16l2 4H5l-2-4Z" />
                 <path d="m7 12 2-5h8l-2 5" />
                 <circle cx="7.5" cy="18" r="1.5" />
@@ -213,13 +243,19 @@ export default async function PatientHome() {
             <div className="flex flex-wrap items-center gap-3 text-sm">
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/60 px-3 py-1 text-slate-600">
                 San Isidro:
-                <a className="font-semibold text-slate-700 underline decoration-1 underline-offset-2 hover:opacity-80" href={`tel:${SI_NUMBER}`}>
+                <a
+                  className="font-semibold text-slate-700 underline decoration-1 underline-offset-2 hover:opacity-80"
+                  href={`tel:${SI_NUMBER}`}
+                >
                   {SI_NUMBER}
                 </a>
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/60 px-3 py-1 text-slate-600">
                 San Leonardo:
-                <a className="font-semibold text-slate-700 underline decoration-1 underline-offset-2 hover:opacity-80" href={`tel:${SL_NUMBER}`}>
+                <a
+                  className="font-semibold text-slate-700 underline decoration-1 underline-offset-2 hover:opacity-80"
+                  href={`tel:${SL_NUMBER}`}
+                >
                   {SL_NUMBER}
                 </a>
               </span>

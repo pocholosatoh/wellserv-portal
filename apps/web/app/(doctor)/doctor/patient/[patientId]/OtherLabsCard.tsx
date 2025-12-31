@@ -7,9 +7,9 @@ const ACCENT = "#44969b";
 type Item = {
   id: string;
   patient_id: string;
-  url: string;                   // already signed by the API
+  url: string; // already signed by the API
   content_type: string | null;
-  type: string;                  // legacy grouping label
+  type: string; // legacy grouping label
   encounter_id?: string | null;
   provider?: string | null;
   taken_at?: string | null;
@@ -49,9 +49,15 @@ function fmtDate(d?: string | null) {
 }
 
 function isEcgItem(item: Item) {
-  const type = String(item.type || "").trim().toUpperCase();
-  const category = String(item.category || "").trim().toUpperCase();
-  const subtype = String(item.subtype || "").trim().toUpperCase();
+  const type = String(item.type || "")
+    .trim()
+    .toUpperCase();
+  const category = String(item.category || "")
+    .trim()
+    .toUpperCase();
+  const subtype = String(item.subtype || "")
+    .trim()
+    .toUpperCase();
   return (
     type === "ECG" ||
     type.startsWith("ECG") ||
@@ -83,7 +89,7 @@ export default function OtherLabsCard({
       try {
         const res = await fetch(
           `/api/patient/other-labs?patient_id=${encodeURIComponent(patientId)}`,
-          { cache: "no-store" }
+          { cache: "no-store" },
         );
         const j = await res.json();
         if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
@@ -120,7 +126,9 @@ export default function OtherLabsCard({
 
     fetch(`/api/ecg/reports?${params.toString()}`, { cache: "no-store" })
       .then(async (res) => {
-        const body: { reports?: EcgReportSummary[]; error?: string } = await res.json().catch(() => ({}));
+        const body: { reports?: EcgReportSummary[]; error?: string } = await res
+          .json()
+          .catch(() => ({}));
         if (!res.ok) {
           throw new Error(body?.error || `HTTP ${res.status}`);
         }
@@ -154,7 +162,7 @@ export default function OtherLabsCard({
       g[k].sort(
         (a, b) =>
           new Date(b.taken_at || b.uploaded_at || 0).getTime() -
-          new Date(a.taken_at || a.uploaded_at || 0).getTime()
+          new Date(a.taken_at || a.uploaded_at || 0).getTime(),
       );
     });
     return g;
@@ -183,9 +191,7 @@ export default function OtherLabsCard({
       {open && (
         <div className={showHeader ? "px-4 pb-4" : "px-4 pt-4 pb-4"}>
           {/* status + errors */}
-          {!items && !err && (
-            <div className="text-sm text-gray-500">Loading external results…</div>
-          )}
+          {!items && !err && <div className="text-sm text-gray-500">Loading external results…</div>}
           {err && <div className="text-sm text-red-600">Failed to load: {err}</div>}
           {items && items.length === 0 && (
             <div className="text-sm text-gray-500">No outside lab results uploaded.</div>
@@ -284,9 +290,7 @@ export default function OtherLabsCard({
                                   </svg>
                                 </div>
                                 <div>
-                                  <div className="text-sm font-medium text-gray-800">
-                                    Open PDF
-                                  </div>
+                                  <div className="text-sm font-medium text-gray-800">Open PDF</div>
                                   <div className="text-xs text-gray-500">
                                     {fmtDate(it.taken_at)}
                                   </div>
@@ -299,9 +303,7 @@ export default function OtherLabsCard({
                                 rel="noreferrer"
                                 className="block rounded-md border p-3 hover:bg-gray-50"
                               >
-                                <div className="text-sm font-medium text-gray-800">
-                                  Open file
-                                </div>
+                                <div className="text-sm font-medium text-gray-800">Open file</div>
                                 <div className="text-xs text-gray-500">
                                   {it.content_type || "file"} • {fmtDate(it.taken_at)}
                                 </div>
@@ -350,13 +352,15 @@ export default function OtherLabsCard({
                                   {report?.status === "final"
                                     ? `Interpreted ${fmtDate(report.interpreted_at)}`
                                     : reportsLoading
-                                    ? "Fetching interpretation…"
-                                    : "Awaiting interpretation"}
+                                      ? "Fetching interpretation…"
+                                      : "Awaiting interpretation"}
                                 </span>
                                 {report?.interpreted_name && (
                                   <div className="mt-1 text-xs text-gray-600">
                                     by {report.interpreted_name}
-                                    {report.interpreted_license ? ` • PRC ${report.interpreted_license}` : ""}
+                                    {report.interpreted_license
+                                      ? ` • PRC ${report.interpreted_license}`
+                                      : ""}
                                   </div>
                                 )}
                                 {!report && !reportsLoading && (

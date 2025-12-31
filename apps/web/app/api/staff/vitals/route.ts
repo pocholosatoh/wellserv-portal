@@ -73,7 +73,9 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json().catch(() => ({}))) as Partial<SnapshotBody>;
-  const patient_id = String(body.patient_id || "").trim().toUpperCase();
+  const patient_id = String(body.patient_id || "")
+    .trim()
+    .toUpperCase();
   const consultation_id_raw = body.consultation_id;
   const consultation_id = consultation_id_raw ? String(consultation_id_raw).trim() : null;
   const encounter_id = String(body.encounter_id || "").trim();
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
   if (!patient_id || !encounter_id) {
     return NextResponse.json(
       { error: "patient_id and encounter_id are required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -141,10 +143,7 @@ export async function POST(req: Request) {
     if (!linkExisting.error && linkExisting.data?.id) {
       resolvedConsultationId = linkExisting.data.id;
       if (linkExisting.data.encounter_id !== encounter_id) {
-        await supa
-          .from("consultations")
-          .update({ encounter_id })
-          .eq("id", linkExisting.data.id);
+        await supa.from("consultations").update({ encounter_id }).eq("id", linkExisting.data.id);
       }
     }
   }
@@ -161,8 +160,7 @@ export async function POST(req: Request) {
       .gte("visit_at", yearStart)
       .lte("visit_at", yearEnd)
       .limit(1);
-    const computedType =
-      fpeExisting && fpeExisting.length > 0 ? "FollowUp" : "FPE";
+    const computedType = fpeExisting && fpeExisting.length > 0 ? "FollowUp" : "FPE";
 
     const inserted = await supa
       .from("consultations")
@@ -183,17 +181,14 @@ export async function POST(req: Request) {
     if (inserted.error || !inserted.data?.id) {
       return NextResponse.json(
         { error: inserted.error?.message || "Failed to create consultation" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     resolvedConsultationId = inserted.data.id;
   }
 
   if (!resolvedConsultationId) {
-    return NextResponse.json(
-      { error: "Could not resolve consultation_id" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Could not resolve consultation_id" }, { status: 400 });
   }
 
   const readings = {

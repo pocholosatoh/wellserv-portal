@@ -13,9 +13,7 @@ async function getBaseUrl(): Promise<string> {
     h.get("host") ??
     process.env.NEXT_PUBLIC_SITE_URL ??
     "localhost:3000";
-  const proto =
-    h.get("x-forwarded-proto") ??
-    (host.includes("localhost") ? "http" : "https");
+  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
   return `${proto}://${host}`;
 }
 
@@ -129,14 +127,16 @@ export default async function PrintRxPage({ params }: PageContext) {
           {data.doctor?.signature_url ? (
             <img src={data.doctor.signature_url} alt="Signature" style={{ height: 42 }} />
           ) : (
-            <div className="text-[11px] text-gray-500 italic">Not valid without Dr&apos;s signature:</div>
+            <div className="text-[11px] text-gray-500 italic">
+              Not valid without Dr&apos;s signature:
+            </div>
           )}
           <div className="border-t border-gray-800 mt-1 w-56" />
 
           <div className="text-[12px] leading-tight">
             {/* Name line: full_name, credentials  (falls back to display_name) */}
             <div className="font-medium">
-              {(data.doctor?.full_name || data.doctor?.display_name || "Consulting Physician")}
+              {data.doctor?.full_name || data.doctor?.display_name || "Consulting Physician"}
               {data.doctor?.credentials ? `, ${data.doctor.credentials}` : ""}
             </div>
 
@@ -156,7 +156,8 @@ export default async function PrintRxPage({ params }: PageContext) {
                 Valid only until: {validUntilStr}
               </div>
               <div>
-                This prescription is valid as issued by the prescribing physician. You can verify by calling branch below.
+                This prescription is valid as issued by the prescribing physician. You can verify by
+                calling branch below.
               </div>
             </>
           ) : (
@@ -175,7 +176,9 @@ export default async function PrintRxPage({ params }: PageContext) {
       <div className="rx-watermark-svg" aria-hidden>
         <svg viewBox="0 0 100 120" preserveAspectRatio="none">
           {/* x=0, y=100 = bottom-left of the SVG box */}
-          <text x="2" y="125">℞</text>
+          <text x="2" y="125">
+            ℞
+          </text>
         </svg>
       </div>
     </FitToA5>

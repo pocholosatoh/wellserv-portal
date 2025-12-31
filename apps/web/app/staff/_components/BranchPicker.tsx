@@ -41,9 +41,7 @@ export default function BranchPicker() {
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
-      <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-        Branch
-      </span>
+      <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Branch</span>
       <button
         type="button"
         className={branch === "SI" ? active : btn}

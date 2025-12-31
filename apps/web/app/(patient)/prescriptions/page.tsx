@@ -32,7 +32,7 @@ export default function PatientPrescriptionsPage() {
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error || "Failed");
         const activeOnly = (json.prescriptions || []).filter(
-          (rx: any) => rx?.is_superseded === false || rx?.is_superseded == null
+          (rx: any) => rx?.is_superseded === false || rx?.is_superseded == null,
         );
         setList(activeOnly);
       } catch (e: any) {
@@ -48,19 +48,21 @@ export default function PatientPrescriptionsPage() {
       {/* Sticky header (page-level, not per Rx) */}
       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b">
         <div className="mx-auto max-w-5xl flex items-center justify-between p-3">
-          <a href="/patient" className="rounded-lg border px-3 py-2">← Back to Home</a>
+          <a href="/patient" className="rounded-lg border px-3 py-2">
+            ← Back to Home
+          </a>
           <div className="flex items-center gap-2">
             <a
               href="/patient"
               className="rounded-lg px-3 py-2 text-white"
-              style={{ backgroundColor: (process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b") }}
+              style={{ backgroundColor: process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b" }}
             >
               Home
             </a>
             <a
               href="/results"
               className="rounded-lg px-3 py-2 text-white"
-              style={{ backgroundColor: (process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b") }}
+              style={{ backgroundColor: process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b" }}
             >
               Results
             </a>
@@ -73,11 +75,7 @@ export default function PatientPrescriptionsPage() {
           <h1 className="text-2xl font-semibold">Prescriptions</h1>
           {/* Patient-only toggle */}
           <label className="text-sm text-gray-700 inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={showPrices}
-              onChange={() => setShowPrices((v) => !v)}
-            />
+            <input type="checkbox" checked={showPrices} onChange={() => setShowPrices((v) => !v)} />
             Show prices on this page (not shown on printed Rx)
           </label>
         </header>
@@ -152,8 +150,8 @@ export default function PatientPrescriptionsPage() {
                       {r.valid_until
                         ? `Valid until ${formatDateOnly(r.valid_until) || "—"}`
                         : r.valid_days
-                        ? `Valid for ${r.valid_days} day${Number(r.valid_days) === 1 ? "" : "s"} from signing`
-                        : "Validity duration not specified"}
+                          ? `Valid for ${r.valid_days} day${Number(r.valid_days) === 1 ? "" : "s"} from signing`
+                          : "Validity duration not specified"}
                       {r.valid_until && r.valid_days ? ` (${r.valid_days} days)` : ""}
                     </div>
                   )}

@@ -10,7 +10,9 @@ export async function GET(req: Request) {
     const db = getSupabase();
     const { data: enc, error } = await db
       .from("encounters")
-      .select("id,patient_id,branch_code,notes_frontdesk,price_manual_add,price_auto_total,total_price")
+      .select(
+        "id,patient_id,branch_code,notes_frontdesk,price_manual_add,price_auto_total,total_price",
+      )
       .eq("id", id)
       .single();
     if (error) throw error;

@@ -71,7 +71,8 @@ function describeFrequency(code?: string | null) {
 
 function mapPrescription(row: ApiPrescription): MobilePrescription {
   const items = row.items || [];
-  const baseDoctor = row.doctors?.display_name || row.consultations?.signing_doctor_name || undefined;
+  const baseDoctor =
+    row.doctors?.display_name || row.consultations?.signing_doctor_name || undefined;
   const doctorName =
     baseDoctor && row.doctors?.credentials
       ? `${baseDoctor}, ${row.doctors.credentials}`
@@ -83,11 +84,7 @@ function mapPrescription(row: ApiPrescription): MobilePrescription {
     doctorName,
     doctorNamePlain: baseDoctor,
     items: items.map((it, idx) => {
-      const drug =
-        it?.generic_name ||
-        it?.brand_name ||
-        it?.med_id ||
-        `Medication ${idx + 1}`;
+      const drug = it?.generic_name || it?.brand_name || it?.med_id || `Medication ${idx + 1}`;
 
       const friendlyFreq = describeFrequency(it?.frequency_code);
 

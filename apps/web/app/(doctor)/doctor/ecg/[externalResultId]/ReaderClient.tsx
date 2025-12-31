@@ -143,9 +143,7 @@ export default function ReaderClient({ externalResultId }: ReaderProps) {
             setRecommendations(payload.report.recommendations || "");
           } else {
             const initialEncounter =
-              payload.strip.encounter_id ||
-              payload.encounters?.[0]?.id ||
-              "";
+              payload.strip.encounter_id || payload.encounters?.[0]?.id || "";
             setEncounterId(initialEncounter);
           }
         }
@@ -162,7 +160,10 @@ export default function ReaderClient({ externalResultId }: ReaderProps) {
     };
   }, [externalResultId]);
 
-  const kind = useMemo(() => normalizeContentType(strip?.content_type || null), [strip?.content_type]);
+  const kind = useMemo(
+    () => normalizeContentType(strip?.content_type || null),
+    [strip?.content_type],
+  );
   const readonly = !!report;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -201,7 +202,9 @@ export default function ReaderClient({ externalResultId }: ReaderProps) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const body: { ok?: boolean; report?: Report; error?: string } = await res.json().catch(() => ({}));
+      const body: { ok?: boolean; report?: Report; error?: string } = await res
+        .json()
+        .catch(() => ({}));
       if (!res.ok || !body.ok) {
         throw new Error(body.error || `HTTP ${res.status}`);
       }
@@ -290,7 +293,8 @@ export default function ReaderClient({ externalResultId }: ReaderProps) {
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Patient {strip.patient_id}</h2>
               <p className="text-xs text-slate-500">
-                Taken {fmtDate(strip.taken_at || strip.uploaded_at)} • Provider {strip.provider || "—"}
+                Taken {fmtDate(strip.taken_at || strip.uploaded_at)} • Provider{" "}
+                {strip.provider || "—"}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -353,11 +357,7 @@ export default function ReaderClient({ externalResultId }: ReaderProps) {
                 />
               </div>
             ) : kind === "pdf" ? (
-              <iframe
-                src={strip.url}
-                title="ECG PDF"
-                className="h-full w-full rounded-xl"
-              />
+              <iframe src={strip.url} title="ECG PDF" className="h-full w-full rounded-xl" />
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-slate-500">
                 Preview unavailable.{" "}
@@ -377,7 +377,8 @@ export default function ReaderClient({ externalResultId }: ReaderProps) {
             {readonly ? "Final Interpretation" : "Interpretation Form"}
           </h2>
           <p className="text-xs text-slate-500">
-            Encounter link is mandatory for PhilHealth YAKAP. Impression is required before finalizing.
+            Encounter link is mandatory for PhilHealth YAKAP. Impression is required before
+            finalizing.
           </p>
         </header>
 

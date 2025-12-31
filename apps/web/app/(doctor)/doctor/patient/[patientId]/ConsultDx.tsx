@@ -26,7 +26,9 @@ export default function ConsultDx({ consultationId }: { consultationId: string }
       }
     }
     load();
-    return () => { dead = true; };
+    return () => {
+      dead = true;
+    };
   }, [consultationId]);
 
   if (err) return <div className="text-sm text-red-600">Diagnoses: {err}</div>;
@@ -36,12 +38,14 @@ export default function ConsultDx({ consultationId }: { consultationId: string }
     <div className="mt-3 text-sm">
       <div className="font-medium text-gray-800">Diagnoses</div>
       <ul className="mt-1 space-y-1">
-        {rows.map(d => (
+        {rows.map((d) => (
           <li key={d.id} className="flex items-start gap-2">
             <span className="font-mono text-xs text-gray-700">{d.code}</span>
             <span className="flex-1">{d.title}</span>
             {d.is_primary && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">Primary</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                Primary
+              </span>
             )}
           </li>
         ))}

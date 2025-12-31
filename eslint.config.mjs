@@ -10,15 +10,13 @@ const __dirname = dirname(__filename);
 const compat = new FlatCompat({
   baseDirectory: join(__dirname, "apps/web"),
 });
-const nextConfigs = compat
-  .extends("next/core-web-vitals", "next/typescript")
-  .map((cfg) => ({
-    ...cfg,
-    settings: {
-      ...(cfg.settings ?? {}),
-      next: { rootDir: ["apps/web/"] },
-    },
-  }));
+const nextConfigs = compat.extends("next/core-web-vitals", "next/typescript").map((cfg) => ({
+  ...cfg,
+  settings: {
+    ...(cfg.settings ?? {}),
+    next: { rootDir: ["apps/web/"] },
+  },
+}));
 
 const config = [
   ...nextConfigs,
@@ -70,10 +68,7 @@ const config = [
     },
   },
   {
-    files: [
-      "apps/mobile/metro.config.js",
-      "apps/mobile/tailwind.config.js",
-    ],
+    files: ["apps/mobile/metro.config.js", "apps/mobile/tailwind.config.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
     },

@@ -5,7 +5,7 @@ import StartConsultBar from "./StartConsultBar";
 import NotesPanel from "./NotesPanel";
 import RxPanel from "./RxPanel";
 import BranchPicker from "./BranchPicker";
-import FollowUpPanel from "./FollowUpPanel";
+import FollowUpHistoryCard from "./FollowUpHistoryCard";
 import FinishConsultButton from "./FinishConsultButton";
 import ConsentModal from "./ConsentModal"; // ← ensure this file exists
 import MedicalCertificateDrawer from "./MedicalCertificateDrawer";
@@ -23,7 +23,9 @@ export default function ConsultationSection({
   const [consultationId, setConsultationId] = useState<string | null>(initialConsultationId);
 
   // consult meta
-  const [consultType, setConsultType] = useState<"FPE" | "FollowUp" | string | undefined>(undefined);
+  const [consultType, setConsultType] = useState<"FPE" | "FollowUp" | string | undefined>(
+    undefined,
+  );
   const [encounterId, setEncounterId] = useState<string | null>(null);
   const [metaLoading, setMetaLoading] = useState(false);
   const [consultBranch, setConsultBranch] = useState<string>(defaultBranch ?? "");
@@ -51,7 +53,7 @@ export default function ConsultationSection({
       try {
         const r = await fetch(
           `/api/claims/preview?consultation_id=${encodeURIComponent(consultationId)}`,
-          { cache: "no-store" }
+          { cache: "no-store" },
         );
         const j = await r.json().catch(() => ({}));
         if (!aborted && r.ok) {
@@ -69,7 +71,9 @@ export default function ConsultationSection({
       }
     }
     loadMeta();
-    return () => { aborted = true; };
+    return () => {
+      aborted = true;
+    };
   }, [consultationId]);
 
   // Keep branch in sync with initial defaults (from login/session) and fetched consultation meta
@@ -93,7 +97,9 @@ export default function ConsultationSection({
             Consultation started
           </span>
           {badgeText && (
-            <span className={`inline-block rounded-full px-2 py-0.5 ${badgeClass}`}>{badgeText}</span>
+            <span className={`inline-block rounded-full px-2 py-0.5 ${badgeClass}`}>
+              {badgeText}
+            </span>
           )}
           <span>· ID: {consultationId}</span>
           {metaLoading && <span>· loading…</span>}
@@ -146,16 +152,16 @@ export default function ConsultationSection({
           )}
 
           <div className="p-4">
-            <h3 className="font-medium text-gray-800 mb-2"></h3>
-            <FollowUpPanel
-              patientId={patientId}
-              consultationId={consultationId}
-              defaultBranch={consultBranch || defaultBranch}
-            />
+            <FollowUpHistoryCard patientId={patientId} />
           </div>
 
           <div className="p-4">
-            <NotesPanel patientId={patientId} consultationId={consultationId} modeDefault="soap" autosave />
+            <NotesPanel
+              patientId={patientId}
+              consultationId={consultationId}
+              modeDefault="soap"
+              autosave
+            />
           </div>
 
           <div className="p-4">
@@ -165,10 +171,16 @@ export default function ConsultationSection({
               consultationId={consultationId}
               onSigned={async () => {
                 // If we don't have encounterId yet, show modal anyway
-                if (!encounterId) { setShowConsent(true); return; }
+                if (!encounterId) {
+                  setShowConsent(true);
+                  return;
+                }
 
                 try {
-                  const r = await fetch(`/api/consents/exists?encounter_id=${encodeURIComponent(encounterId)}`, { cache: "no-store" });
+                  const r = await fetch(
+                    `/api/consents/exists?encounter_id=${encodeURIComponent(encounterId)}`,
+                    { cache: "no-store" },
+                  );
                   const j = await r.json();
                   if (j?.exists) {
                     // Consent already captured earlier. Just refresh UI.
@@ -183,7 +195,6 @@ export default function ConsultationSection({
                 }
               }}
             />
-
           </div>
         </div>
       </fieldset>
@@ -213,7 +224,10 @@ export default function ConsultationSection({
               await fetch("/api/doctor/consultations/finalize", {
                 method: "POST",
                 headers: { "content-type": "application/json" },
-                body: JSON.stringify({ consultation_id: consultationId, encounter_id: encounterId }),
+                body: JSON.stringify({
+                  consultation_id: consultationId,
+                  encounter_id: encounterId,
+                }),
               });
             } catch {}
             setShowConsent(false);
@@ -230,7 +244,9 @@ export default function ConsultationSection({
           consultationId={consultationId}
           encounterId={encounterId}
           onIssued={(_certificate, meta) => {
-            setMedCertToast(meta?.isEdit ? "Medical certificate updated." : "Medical certificate generated.");
+            setMedCertToast(
+              meta?.isEdit ? "Medical certificate updated." : "Medical certificate generated.",
+            );
             setShowMedCert(false);
           }}
         />

@@ -19,8 +19,8 @@ type FinalizePayload = {
     note?: string | null;
   };
   items: Array<{
-    storagePath: string;     // from /presign
-    content_type?: string;   // image/jpeg, application/pdf, etc.
+    storagePath: string; // from /presign
+    content_type?: string; // image/jpeg, application/pdf, etc.
   }>;
 };
 

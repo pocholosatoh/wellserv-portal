@@ -34,7 +34,7 @@ async function fetchByCode(code: string) {
         "doctor_snapshot",
         "diagnosis_text",
         "remarks",
-      ].join(", ")
+      ].join(", "),
     )
     .eq("verification_code", code)
     .maybeSingle();
@@ -93,12 +93,16 @@ export default async function MedicalCertificateVerifyPage({
         <h1>Medical Certificate Verification</h1>
         {!cert && (
           <p className="text-muted">
-            We could not find a certificate with code <b>{code}</b>. Please confirm the code or contact the issuing clinic.
+            We could not find a certificate with code <b>{code}</b>. Please confirm the code or
+            contact the issuing clinic.
           </p>
         )}
         {cert && (
           <div className="details">
-            <div className="status-pill" style={{ backgroundColor: statusColor + "20", color: statusColor }}>
+            <div
+              className="status-pill"
+              style={{ backgroundColor: statusColor + "20", color: statusColor }}
+            >
               {statusLabel}
             </div>
             <dl>

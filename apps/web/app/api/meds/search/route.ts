@@ -2,10 +2,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -15,9 +12,7 @@ export async function GET(req: Request) {
 
   if (q) {
     // very simple filter: contains on generic/strength/form
-    query = query.or(
-      `generic_name.ilike.%${q}%,strength.ilike.%${q}%,form.ilike.%${q}%`
-    );
+    query = query.or(`generic_name.ilike.%${q}%,strength.ilike.%${q}%,form.ilike.%${q}%`);
   }
 
   const { data, error } = await query.order("generic_name", { ascending: true });

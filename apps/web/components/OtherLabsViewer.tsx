@@ -5,7 +5,6 @@ import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-
 // If you used an enum in DB later, you can tighten this union.
 // For now keep it string to work with text column or backfilled rows.
 export type OtherLabType =
@@ -19,7 +18,7 @@ export type OtherLabItem = {
   patient_id: string;
   url: string;
   content_type: string;
-  type: OtherLabType;              // required in UI
+  type: OtherLabType; // required in UI
   category?: string | null;
   subtype?: string | null;
   encounter_id?: string | null;
@@ -45,10 +44,20 @@ type EcgReportSummary = {
   status: string;
 };
 
-function isEcgItem(item: { type?: string | null; category?: string | null; subtype?: string | null }) {
-  const type = String(item.type || "").trim().toUpperCase();
-  const category = String(item.category || "").trim().toUpperCase();
-  const subtype = String(item.subtype || "").trim().toUpperCase();
+function isEcgItem(item: {
+  type?: string | null;
+  category?: string | null;
+  subtype?: string | null;
+}) {
+  const type = String(item.type || "")
+    .trim()
+    .toUpperCase();
+  const category = String(item.category || "")
+    .trim()
+    .toUpperCase();
+  const subtype = String(item.subtype || "")
+    .trim()
+    .toUpperCase();
   return (
     type === "ECG" ||
     type.startsWith("ECG") ||
@@ -108,7 +117,11 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt?: string; onClo
       if (e.key === "Escape") onClose();
       if (e.key === "+") setScale((s) => Math.min(6, s + 0.25));
       if (e.key === "-") setScale((s) => Math.max(0.25, s - 0.25));
-      if (e.key === "0") { setScale(1); setTx(0); setTy(0); }
+      if (e.key === "0") {
+        setScale(1);
+        setTx(0);
+        setTy(0);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -141,13 +154,53 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt?: string; onClo
     <BodyPortal>
       <div className="fixed inset-0 z-[9999] bg-black/90" onClick={onClose}>
         <div className="absolute left-1/2 -translate-x-1/2 top-3 flex gap-2 rounded-full bg-white/95 px-3 py-1.5 shadow">
-          <button className="text-sm px-2" onClick={(e)=>{e.stopPropagation(); setScale(s=>Math.max(0.25,s-0.25));}}>-</button>
-          <div className="text-xs px-2">{Math.round(scale*100)}%</div>
-          <button className="text-sm px-2" onClick={(e)=>{e.stopPropagation(); setScale(s=>Math.min(6,s+0.25));}}>+</button>
-          <button className="text-sm px-2" onClick={(e)=>{e.stopPropagation(); setScale(1); setTx(0); setTy(0);}}>Fit</button>
-          <a href={src} target="_blank" rel="noreferrer" className="text-sm px-2 underline" onClick={(e)=>e.stopPropagation()}>Open original</a>
+          <button
+            className="text-sm px-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              setScale((s) => Math.max(0.25, s - 0.25));
+            }}
+          >
+            -
+          </button>
+          <div className="text-xs px-2">{Math.round(scale * 100)}%</div>
+          <button
+            className="text-sm px-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              setScale((s) => Math.min(6, s + 0.25));
+            }}
+          >
+            +
+          </button>
+          <button
+            className="text-sm px-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              setScale(1);
+              setTx(0);
+              setTy(0);
+            }}
+          >
+            Fit
+          </button>
+          <a
+            href={src}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm px-2 underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Open original
+          </a>
         </div>
-        <button onClick={(e)=>{e.stopPropagation(); onClose();}} className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-white text-gray-900 shadow">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-white text-gray-900 shadow"
+        >
           Close
         </button>
         <div
@@ -162,8 +215,13 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt?: string; onClo
             src={src}
             alt={alt}
             className="touch-none select-none will-change-transform"
-            style={{ transform:`translate(${tx}px,${ty}px) scale(${scale})`, transformOrigin:"center center", maxWidth:"none", maxHeight:"none" }}
-            onClick={(e)=>e.stopPropagation()}
+            style={{
+              transform: `translate(${tx}px,${ty}px) scale(${scale})`,
+              transformOrigin: "center center",
+              maxWidth: "none",
+              maxHeight: "none",
+            }}
+            onClick={(e) => e.stopPropagation()}
             draggable={false}
           />
         </div>
@@ -184,10 +242,19 @@ function PdfLightbox({ src, onClose }: { src: string; onClose: () => void }) {
     <BodyPortal>
       <div className="fixed inset-0 z-[9999] bg-black/90">
         <div className="absolute left-1/2 -translate-x-1/2 top-3 flex gap-3 rounded-full bg-white/95 px-3 py-1.5 shadow">
-          <a href={src} target="_blank" rel="noreferrer" className="text-sm underline">Open original</a>
-          <a href={src} download className="text-sm underline">Download</a>
+          <a href={src} target="_blank" rel="noreferrer" className="text-sm underline">
+            Open original
+          </a>
+          <a href={src} download className="text-sm underline">
+            Download
+          </a>
         </div>
-        <button onClick={onClose} className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-white text-gray-900 shadow">Close</button>
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-white text-gray-900 shadow"
+        >
+          Close
+        </button>
         <iframe src={src} className="w-full h-full" title="PDF Preview" />
       </div>
     </BodyPortal>
@@ -197,7 +264,7 @@ function PdfLightbox({ src, onClose }: { src: string; onClose: () => void }) {
 export default function OtherLabsViewer(props: OtherLabsViewerProps) {
   const {
     patientId,
-    useSession = !patientId,             // default to session mode when no patientId is passed
+    useSession = !patientId, // default to session mode when no patientId is passed
     apiPath = "/api/patient/other-labs-v2",
     title = "Other Labs",
     className = "",
@@ -241,7 +308,9 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
       }
     })();
 
-    return () => { abort = true; };
+    return () => {
+      abort = true;
+    };
   }, [patientId, useSession, apiPath]);
 
   useEffect(() => {
@@ -267,7 +336,9 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
 
     fetch(`/api/ecg/reports?${params.toString()}`, { cache: "no-store" })
       .then(async (res) => {
-        const body: { reports?: EcgReportSummary[]; error?: string } = await res.json().catch(() => ({}));
+        const body: { reports?: EcgReportSummary[]; error?: string } = await res
+          .json()
+          .catch(() => ({}));
         if (!res.ok) {
           throw new Error(body?.error || `HTTP ${res.status}`);
         }
@@ -291,7 +362,6 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
     };
   }, [items]);
 
-
   const grouped = useMemo(() => {
     if (!items) return {} as Record<string, OtherLabItem[]>;
     const by: Record<string, OtherLabItem[]> = {};
@@ -303,7 +373,7 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
       by[k].sort(
         (a, b) =>
           new Date(b.taken_at || b.uploaded_at || 0).getTime() -
-          new Date(a.taken_at || a.uploaded_at || 0).getTime()
+          new Date(a.taken_at || a.uploaded_at || 0).getTime(),
       );
     }
     return by;
@@ -311,7 +381,9 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
 
   const providers = useMemo(() => Object.keys(grouped), [grouped]);
   const [active, setActive] = useState<string | null>(null);
-  useEffect(() => { if (providers.length && !active) setActive(providers[0]); }, [providers, active]);
+  useEffect(() => {
+    if (providers.length && !active) setActive(providers[0]);
+  }, [providers, active]);
 
   if (!showIfEmpty && items && items.length === 0) return null;
 
@@ -341,7 +413,7 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
             </span>
           )}
           <button
-            onClick={() => setOpen(v => !v)}
+            onClick={() => setOpen((v) => !v)}
             className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
             aria-expanded={open}
           >
@@ -352,12 +424,12 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
 
       {!open ? null : (
         <div className="mt-4">
-          {!items && !error && <div className="text-sm text-gray-500">Loading other lab files…</div>}
+          {!items && !error && (
+            <div className="text-sm text-gray-500">Loading other lab files…</div>
+          )}
           {error && <div className="text-sm text-red-600">Failed to load: {error}</div>}
           {/* Empty */}
-          {items && items.length === 0 && (
-            <div className="text-sm text-gray-500">{emptyText}</div>
-          )}
+          {items && items.length === 0 && <div className="text-sm text-gray-500">{emptyText}</div>}
 
           {items && items.length > 0 && (
             <div className="flex flex-col gap-4">
@@ -383,11 +455,16 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {(grouped[active || providers[0]] || []).map((item) => {
                   const isImg = item.content_type?.startsWith("image/");
-                  const isPdf = item.content_type === "application/pdf" || item.url.toLowerCase().endsWith(".pdf");
+                  const isPdf =
+                    item.content_type === "application/pdf" ||
+                    item.url.toLowerCase().endsWith(".pdf");
                   const isEcg = isEcgItem(item);
                   const report = isEcg ? ecgReports[item.id] : undefined;
                   return (
-                    <div key={item.id} className="group relative rounded-2xl border border-white/80 bg-white/90 p-3 shadow-[0_14px_35px_rgba(15,23,42,0.07)] backdrop-blur transition">
+                    <div
+                      key={item.id}
+                      className="group relative rounded-2xl border border-white/80 bg-white/90 p-3 shadow-[0_14px_35px_rgba(15,23,42,0.07)] backdrop-blur transition"
+                    >
                       {isImg ? (
                         <button
                           type="button"
@@ -410,10 +487,21 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
                           title={fileNameFromUrl(item.url)}
                         >
                           <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6"><path d="M6 2h7l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="currentColor"/></svg>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              className="h-6 w-6"
+                            >
+                              <path
+                                d="M6 2h7l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
+                                fill="currentColor"
+                              />
+                            </svg>
                           </div>
                           <div className="min-w-0">
-                            <div className="truncate font-semibold text-slate-800">{fileNameFromUrl(item.url)}</div>
+                            <div className="truncate font-semibold text-slate-800">
+                              {fileNameFromUrl(item.url)}
+                            </div>
                             <div className="text-xs text-slate-500">{fmtDate(item.taken_at)}</div>
                           </div>
                         </button>
@@ -424,7 +512,9 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
                           rel="noreferrer"
                           className="block rounded-2xl border border-slate-200 bg-white/95 px-3.5 py-3 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg"
                         >
-                          <div className="truncate text-sm font-semibold text-slate-800">{fileNameFromUrl(item.url)}</div>
+                          <div className="truncate text-sm font-semibold text-slate-800">
+                            {fileNameFromUrl(item.url)}
+                          </div>
                           <div className="text-xs text-slate-500">
                             {item.content_type || "file"} • {fmtDate(item.taken_at)}
                           </div>
@@ -447,13 +537,15 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
                               {report?.status === "final"
                                 ? `Interpreted ${fmtDate(report.interpreted_at)}`
                                 : reportsLoading
-                                ? "Checking interpretation…"
-                                : "Awaiting interpretation"}
+                                  ? "Checking interpretation…"
+                                  : "Awaiting interpretation"}
                             </span>
                             {report?.interpreted_name && (
                               <div className="mt-1 text-[11px] text-slate-500">
                                 by {report.interpreted_name}
-                                {report.interpreted_license ? ` • PRC ${report.interpreted_license}` : ""}
+                                {report.interpreted_license
+                                  ? ` • PRC ${report.interpreted_license}`
+                                  : ""}
                               </div>
                             )}
                             {!report && !reportsLoading && (
@@ -469,7 +561,9 @@ export default function OtherLabsViewer(props: OtherLabsViewerProps) {
                             <div className="mb-1 font-semibold uppercase tracking-wide text-[10px] text-emerald-700">
                               Interpretation
                             </div>
-                            <div className="text-[12px] leading-snug whitespace-pre-wrap">{report.impression}</div>
+                            <div className="text-[12px] leading-snug whitespace-pre-wrap">
+                              {report.impression}
+                            </div>
                             {report.recommendations && (
                               <div className="mt-1 text-[11px] text-emerald-800">
                                 <span className="font-medium">Recommendations:</span>{" "}

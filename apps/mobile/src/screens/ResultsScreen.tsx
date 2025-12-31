@@ -1,6 +1,14 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { Stack, useFocusEffect } from "expo-router";
-import { ActivityIndicator, FlatList, ScrollView, TouchableOpacity, View, Text, Image } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  ScrollView,
+  TouchableOpacity,
+  View,
+  Text,
+  Image,
+} from "react-native";
 import { colors, spacing } from "@wellserv/theme";
 import { usePatientResults } from "../hooks/usePatientResults";
 import type { Report, ResultItem } from "../../../shared/types/patient-results";
@@ -54,8 +62,7 @@ function formatDate(date: string) {
 function abnormalCount(report: Report) {
   return report.sections.reduce((sum, sec) => {
     return (
-      sum +
-      sec.items.filter((it) => it.flag === "H" || it.flag === "L" || it.flag === "A").length
+      sum + sec.items.filter((it) => it.flag === "H" || it.flag === "L" || it.flag === "A").length
     );
   }, 0);
 }
@@ -117,7 +124,9 @@ function ResultsSegmentedControl({
   onChange: (next: ResultsTabKey) => void;
 }) {
   return (
-    <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm }}>
+    <View
+      style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm }}
+    >
       <View
         style={{
           flexDirection: "row",
@@ -187,7 +196,7 @@ export default function ResultsScreen() {
       return () => {
         active = false;
       };
-    }, [])
+    }, []),
   );
 
   const isEmpty = patientOnly || data.length === 0;
@@ -213,7 +222,9 @@ export default function ResultsScreen() {
                   contentContainerStyle,
                 ]}
               >
-                <Text style={{ color: colors.gray[600], textAlign: "center", marginBottom: spacing.md }}>
+                <Text
+                  style={{ color: colors.gray[600], textAlign: "center", marginBottom: spacing.md }}
+                >
                   Something went wrong loading your lab results.
                   {"\n"}
                   {error}
@@ -290,7 +301,8 @@ export default function ResultsScreen() {
                 ]}
               >
                 <Text style={{ color: colors.gray[500], textAlign: "center" }}>
-                  No lab results yet. Your profile is registered but there are no completed lab visits.
+                  No lab results yet. Your profile is registered but there are no completed lab
+                  visits.
                 </Text>
               </View>
             );
@@ -333,8 +345,8 @@ export default function ResultsScreen() {
                               {item.visit.branch || "Branch not specified"}
                             </Text>
                             <Text style={{ color: colors.gray[600], marginTop: 6 }}>
-                              {item.sections.length} section{item.sections.length === 1 ? "" : "s"} ·{" "}
-                              {flagged} flagged
+                              {item.sections.length} section{item.sections.length === 1 ? "" : "s"}{" "}
+                              · {flagged} flagged
                             </Text>
                           </View>
                           <Text style={{ color: colors.primary, fontWeight: "700" }}>

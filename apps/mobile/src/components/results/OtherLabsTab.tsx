@@ -61,9 +61,7 @@ function formatTypeLabel(value?: string | null) {
       if (!match) return word;
       const [, lead, core, tail] = match;
       const upper = core.toUpperCase();
-      const next = core === upper
-        ? upper
-        : core[0].toUpperCase() + core.slice(1).toLowerCase();
+      const next = core === upper ? upper : core[0].toUpperCase() + core.slice(1).toLowerCase();
       return `${lead}${next}${tail}`;
     })
     .join(" ");
@@ -218,7 +216,7 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
         savedY.value = 0;
       }
     },
-    [maxScale, minScale, pinchScale, savedScale, savedX, savedY, scale, translateX, translateY]
+    [maxScale, minScale, pinchScale, savedScale, savedX, savedY, scale, translateX, translateY],
   );
 
   const handleReset = useCallback(() => {
@@ -295,7 +293,7 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
       savedX.value = 0;
       savedY.value = 0;
       pendingFitWidth.value = false;
-    }
+    },
   );
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -394,10 +392,7 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
             onLayout={(event) => {
               const nextWidth = Math.round(event.nativeEvent.layout.width);
               const nextHeight = Math.round(event.nativeEvent.layout.height);
-              if (
-                nextWidth !== containerSize.width ||
-                nextHeight !== containerSize.height
-              ) {
+              if (nextWidth !== containerSize.width || nextHeight !== containerSize.height) {
                 setContainerSize({ width: nextWidth, height: nextHeight });
                 runOnUI((width: number, height: number) => {
                   "worklet";
@@ -409,9 +404,7 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
             }}
           >
             <GestureDetector gesture={composedGesture}>
-              <Animated.View
-                style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-              >
+              <Animated.View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
                 {/* eslint-disable-next-line jsx-a11y/alt-text -- React Native Image uses accessibilityLabel instead of alt */}
                 <Animated.Image
                   source={{ uri }}
@@ -453,9 +446,8 @@ export function OtherLabsTab({ contentContainerStyle }: OtherLabsTabProps) {
   }, [activeType, types]);
 
   const filtered = useMemo(() => {
-    const items = activeType === "All"
-      ? data
-      : data.filter((item) => normalizeType(item.type) === activeType);
+    const items =
+      activeType === "All" ? data : data.filter((item) => normalizeType(item.type) === activeType);
     return [...items].sort((a, b) => getItemTimestamp(b) - getItemTimestamp(a));
   }, [activeType, data]);
 
@@ -475,7 +467,7 @@ export function OtherLabsTab({ contentContainerStyle }: OtherLabsTabProps) {
       }
       handleOpenExternal(item.url);
     },
-    [handleOpenExternal]
+    [handleOpenExternal],
   );
 
   useEffect(() => {
@@ -493,21 +485,16 @@ export function OtherLabsTab({ contentContainerStyle }: OtherLabsTabProps) {
       () => {
         if (!active) return;
         setImgSize(null);
-      }
+      },
     );
     return () => {
       active = false;
     };
   }, [previewUrl]);
 
-
   const listContentStyle = useMemo(
-    () => [
-      patientTabsContentContainerStyle,
-      { paddingTop: spacing.sm },
-      contentContainerStyle,
-    ],
-    [contentContainerStyle]
+    () => [patientTabsContentContainerStyle, { paddingTop: spacing.sm }, contentContainerStyle],
+    [contentContainerStyle],
   );
 
   return (
@@ -554,7 +541,9 @@ export function OtherLabsTab({ contentContainerStyle }: OtherLabsTabProps) {
             </View>
           ) : error ? (
             <View style={{ alignItems: "center", paddingVertical: spacing.lg }}>
-              <Text style={{ color: colors.gray[600], textAlign: "center", marginBottom: spacing.sm }}>
+              <Text
+                style={{ color: colors.gray[600], textAlign: "center", marginBottom: spacing.sm }}
+              >
                 {error}
               </Text>
               <TouchableOpacity
@@ -593,7 +582,9 @@ export function OtherLabsTab({ contentContainerStyle }: OtherLabsTabProps) {
                 borderColor: colors.gray[100],
               }}
             >
-              <View style={{ flexDirection: "row", justifyContent: "space-between", columnGap: 12 }}>
+              <View
+                style={{ flexDirection: "row", justifyContent: "space-between", columnGap: 12 }}
+              >
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 15, fontWeight: "700" }}>
                     {typeLabel}
@@ -616,9 +607,7 @@ export function OtherLabsTab({ contentContainerStyle }: OtherLabsTabProps) {
                 </TouchableOpacity>
               </View>
               {detailText ? (
-                <Text style={{ marginTop: spacing.sm, color: colors.gray[600] }}>
-                  {detailText}
-                </Text>
+                <Text style={{ marginTop: spacing.sm, color: colors.gray[600] }}>{detailText}</Text>
               ) : null}
             </View>
           );

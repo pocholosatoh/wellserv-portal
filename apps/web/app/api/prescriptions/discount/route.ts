@@ -9,8 +9,8 @@ type Payload = {
   prescriptionId: string;
   discountType?: "percent" | "amount" | "" | null;
   discountValue?: number | null;
-  discountExpiresAt?: string | null;   // ISO string (local UI uses datetime-local)
-  discountAppliedBy?: string | null;   // staff initials/name
+  discountExpiresAt?: string | null; // ISO string (local UI uses datetime-local)
+  discountAppliedBy?: string | null; // staff initials/name
 };
 
 export async function POST(req: Request) {
@@ -24,9 +24,7 @@ export async function POST(req: Request) {
 
     // Normalize / validate discount inputs
     let discount_type: "percent" | "amount" | null =
-      body.discountType === "percent" || body.discountType === "amount"
-        ? body.discountType
-        : null;
+      body.discountType === "percent" || body.discountType === "amount" ? body.discountType : null;
 
     let discount_value: number | null =
       body.discountValue == null || body.discountValue === ("" as any)
@@ -62,8 +60,7 @@ export async function POST(req: Request) {
       discount_expires_at = d.toISOString();
     }
 
-    const discount_applied_by =
-      (body.discountAppliedBy?.trim() || null) ?? null;
+    const discount_applied_by = (body.discountAppliedBy?.trim() || null) ?? null;
 
     const db = getSupabase();
 

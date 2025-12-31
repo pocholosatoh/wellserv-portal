@@ -83,7 +83,6 @@ function useDrawPad(active: boolean) {
   return { canvasRef, toDataURL, clear, hasInk };
 }
 
-
 export default function ConsentModal({
   isOpen,
   onClose,
@@ -103,23 +102,20 @@ export default function ConsentModal({
   templateSlug?: string;
   templateVersion?: number;
 }) {
-    // was: const doc = useDrawPad(isOpen); const pat = useDrawPad(isOpen);
-    const [patientMethod, setPatientMethod] = useState<"drawn" | "typed">("drawn");
-    const [useStoredDocSig, setUseStoredDocSig] = useState(true);
+  // was: const doc = useDrawPad(isOpen); const pat = useDrawPad(isOpen);
+  const [patientMethod, setPatientMethod] = useState<"drawn" | "typed">("drawn");
+  const [useStoredDocSig, setUseStoredDocSig] = useState(true);
 
-    const doc = useDrawPad(isOpen && !useStoredDocSig);           // 👈 only when doc canvas is shown
-    const pat = useDrawPad(isOpen && patientMethod === "drawn");  // 👈 only when patient canvas is shown
-
+  const doc = useDrawPad(isOpen && !useStoredDocSig); // 👈 only when doc canvas is shown
+  const pat = useDrawPad(isOpen && patientMethod === "drawn"); // 👈 only when patient canvas is shown
 
   const [doctorAttest, setDoctorAttest] = useState(false);
-    const [patientTyped, setPatientTyped] = useState("");
+  const [patientTyped, setPatientTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [signer, setSigner] =
-    useState<'patient' | 'guardian' | 'representative'>('patient');
-    const [signerName, setSignerName] = useState('');
-    const [signerRelation, setSignerRelation] = useState('');
-
+  const [signer, setSigner] = useState<"patient" | "guardian" | "representative">("patient");
+  const [signerName, setSignerName] = useState("");
+  const [signerRelation, setSignerRelation] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -127,13 +123,13 @@ export default function ConsentModal({
     setUseStoredDocSig(true);
     setPatientMethod("drawn");
     setPatientTyped("");
-    setSigner('patient');        // add
-    setSignerName('');           // add
-    setSignerRelation('');       // add
+    setSigner("patient"); // add
+    setSignerName(""); // add
+    setSignerRelation(""); // add
 
     setErr(null);
-    doc.clear();   // 👈 add
-  pat.clear();  
+    doc.clear(); // 👈 add
+    pat.clear();
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -154,18 +150,18 @@ export default function ConsentModal({
         use_stored_doctor_signature: useStoredDocSig,
         patient_method: patientMethod,
         signer_kind: signer,
-        signer_name: signer === 'patient' ? null : signerName.trim(),
-        signer_relation: signer === 'patient' ? null : signerRelation.trim(),
-        };
+        signer_name: signer === "patient" ? null : signerName.trim(),
+        signer_relation: signer === "patient" ? null : signerRelation.trim(),
+      };
 
-        if (!useStoredDocSig) {
+      if (!useStoredDocSig) {
         payload.doctor_signature_data_url = doc.toDataURL();
-        }
-        if (patientMethod === 'drawn') {
+      }
+      if (patientMethod === "drawn") {
         payload.patient_signature_data_url = pat.toDataURL();
-        } else {
+      } else {
         payload.patient_typed_name = patientTyped || null;
-        }
+      }
 
       const res = await fetch("/api/consents/create", {
         method: "POST",
@@ -191,8 +187,9 @@ export default function ConsentModal({
     doctorAttest &&
     (useStoredDocSig || doc.hasInk) &&
     (patientMethod === "drawn" ? pat.hasInk : !!patientTyped) &&
-    (signer === 'patient' ? true : (signerName.trim().length > 0 && signerRelation.trim().length > 0));
-
+    (signer === "patient"
+      ? true
+      : signerName.trim().length > 0 && signerRelation.trim().length > 0);
 
   return (
     <div className="fixed inset-0 z-[999] bg-black/40 flex items-center justify-center p-4">
@@ -203,12 +200,17 @@ export default function ConsentModal({
 
         <div className="p-4 space-y-4 text-sm">
           <p className="text-gray-700">
-            I certify that the services recorded for this consultation were rendered, and I have informed the
-            patient about the nature and purpose of the procedures, including limitations of electronic submissions.
+            I certify that the services recorded for this consultation were rendered, and I have
+            informed the patient about the nature and purpose of the procedures, including
+            limitations of electronic submissions.
           </p>
 
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={doctorAttest} onChange={(e) => setDoctorAttest(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={doctorAttest}
+              onChange={(e) => setDoctorAttest(e.target.checked)}
+            />
             <span>Doctor attestation</span>
           </label>
 
@@ -227,9 +229,18 @@ export default function ConsentModal({
             </div>
             {!useStoredDocSig && (
               <div className="space-y-2">
-                <canvas key={`doc-${String(useStoredDocSig)}`} ref={doc.canvasRef} width={600} height={160} className="w-full border rounded" style={{ touchAction: "none" }}/>
+                <canvas
+                  key={`doc-${String(useStoredDocSig)}`}
+                  ref={doc.canvasRef}
+                  width={600}
+                  height={160}
+                  className="w-full border rounded"
+                  style={{ touchAction: "none" }}
+                />
                 <div className="flex gap-2">
-                  <button onClick={doc.clear} className="border rounded px-3 py-1">Clear</button>
+                  <button onClick={doc.clear} className="border rounded px-3 py-1">
+                    Clear
+                  </button>
                 </div>
               </div>
             )}
@@ -261,9 +272,18 @@ export default function ConsentModal({
 
             {patientMethod === "drawn" ? (
               <div className="space-y-2">
-                <canvas key={`pat-${patientMethod}`} ref={pat.canvasRef} width={600} height={160} className="w-full border rounded" style={{ touchAction: "none" }} />
+                <canvas
+                  key={`pat-${patientMethod}`}
+                  ref={pat.canvasRef}
+                  width={600}
+                  height={160}
+                  className="w-full border rounded"
+                  style={{ touchAction: "none" }}
+                />
                 <div className="flex gap-2">
-                  <button onClick={pat.clear} className="border rounded px-3 py-1">Clear</button>
+                  <button onClick={pat.clear} className="border rounded px-3 py-1">
+                    Clear
+                  </button>
                 </div>
               </div>
             ) : (
@@ -278,36 +298,40 @@ export default function ConsentModal({
           <div className="flex items-center gap-3 text-xs">
             <label className="font-medium mr-2">Signed by</label>
             <label className="flex items-center gap-1">
-                <input type="radio" name="signer" defaultChecked onChange={() => setSigner('patient')} />
-                Patient
+              <input
+                type="radio"
+                name="signer"
+                defaultChecked
+                onChange={() => setSigner("patient")}
+              />
+              Patient
             </label>
             <label className="flex items-center gap-1">
-                <input type="radio" name="signer" onChange={() => setSigner('guardian')} />
-                Guardian
+              <input type="radio" name="signer" onChange={() => setSigner("guardian")} />
+              Guardian
             </label>
             <label className="flex items-center gap-1">
-                <input type="radio" name="signer" onChange={() => setSigner('representative')} />
-                Representative
+              <input type="radio" name="signer" onChange={() => setSigner("representative")} />
+              Representative
             </label>
-        </div>
+          </div>
 
-        {signer !== 'patient' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                <input
+          {signer !== "patient" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+              <input
                 className="border rounded px-2 py-2"
                 placeholder="Signer full name"
                 value={signerName}
                 onChange={(e) => setSignerName(e.target.value)}
-                />
-                <input
+              />
+              <input
                 className="border rounded px-2 py-2"
                 placeholder="Relationship (e.g., Mother)"
                 value={signerRelation}
                 onChange={(e) => setSignerRelation(e.target.value)}
-                />
-        </div>
-        )}
-
+              />
+            </div>
+          )}
 
           {err && <div className="text-red-600 text-sm">{err}</div>}
         </div>

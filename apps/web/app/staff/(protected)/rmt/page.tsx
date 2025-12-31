@@ -34,9 +34,7 @@ async function loadToday(branch: "SI" | "SL"): Promise<Row[]> {
 
   const { data: encs, error } = await supabase
     .from("encounters")
-    .select(
-      "id,patient_id,branch_code,status,priority,notes_frontdesk,created_at,visit_date_local"
-    )
+    .select("id,patient_id,branch_code,status,priority,notes_frontdesk,created_at,visit_date_local")
     .eq("branch_code", branch)
     .eq("visit_date_local", today)
     .order("priority", { ascending: false })
@@ -73,9 +71,7 @@ function StatusPill({ s }: { s: Row["status"] }) {
     "for-processing": "Specimen Received",
     done: "Done",
   };
-  return (
-    <span className={`px-2 py-1 rounded text-xs ${map[s]}`}>{label[s]}</span>
-  );
+  return <span className={`px-2 py-1 rounded text-xs ${map[s]}`}>{label[s]}</span>;
 }
 
 export default async function RmtBoard() {

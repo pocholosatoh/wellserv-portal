@@ -5,13 +5,13 @@ export const BRANCHES = [
   // add more when needed
 ] as const;
 
-export type Branch = typeof BRANCHES[number];
+export type Branch = (typeof BRANCHES)[number];
 
 export type HubInfo = {
-  name: string;       // must match followups.return_branch and consultations.branch
-  label: string;      // what we show to users
-  tel?: string;       // click-to-call
-  mapsUrl?: string;   // Google Maps URL
+  name: string; // must match followups.return_branch and consultations.branch
+  label: string; // what we show to users
+  tel?: string; // click-to-call
+  mapsUrl?: string; // Google Maps URL
 };
 
 export const HUBS: HubInfo[] = [
@@ -30,5 +30,6 @@ export const HUBS: HubInfo[] = [
   // add more hubs here as you expand
 ];
 
-export const HUB_BY_NAME: Record<string, HubInfo> =
-  Object.fromEntries(HUBS.map(h => [h.name, h]));
+export const HUB_BY_NAME: Record<string, HubInfo> = Object.fromEntries(
+  HUBS.map((h) => [h.name, h]),
+);

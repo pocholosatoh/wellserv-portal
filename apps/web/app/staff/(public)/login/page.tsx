@@ -13,12 +13,12 @@ export default function StaffLoginPage() {
           <img src="/wellserv-logo.png" alt="Wellserv" className="mb-4 h-14 w-auto sm:h-16" />
           <h1 className="text-2xl font-semibold text-slate-800 sm:text-3xl">Staff Portal</h1>
           <p className="mt-3 text-sm text-slate-500 sm:text-base">
-            Access encounters, results, and prescriptions securely from any device. Please keep your login
-            credentials private.
+            Access encounters, results, and prescriptions securely from any device. Please keep your
+            login credentials private.
           </p>
           <div className="mt-6 hidden rounded-2xl bg-slate-50 p-4 text-left text-sm text-slate-500 sm:block">
-            Tip: Use the latest version of Chrome or Edge for the best experience. Contact IT if you need help
-            resetting your password.
+            Tip: Use the latest version of Chrome or Edge for the best experience. Contact IT if you
+            need help resetting your password.
           </div>
         </div>
         <div className="flex flex-1 flex-col gap-4">

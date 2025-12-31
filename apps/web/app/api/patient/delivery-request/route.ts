@@ -43,13 +43,13 @@ export async function POST(req: Request) {
     if (!delivery_address_label || !delivery_address_text) {
       return NextResponse.json(
         { error: "delivery_address_label and delivery_address_text are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (delivery_lat === null || delivery_lng === null) {
       return NextResponse.json(
         { error: "delivery_lat and delivery_lng are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       })
       .eq("patient_id", actor.patient_id)
       .select(
-        "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at"
+        "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at",
       )
       .maybeSingle();
 
@@ -76,10 +76,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     if (!data) {
-      return NextResponse.json(
-        { error: "Patient not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Patient not found" }, { status: 404 });
     }
 
     return NextResponse.json({

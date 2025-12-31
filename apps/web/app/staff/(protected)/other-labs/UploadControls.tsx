@@ -15,10 +15,10 @@ export default function UploadControls() {
     const onChange = () => {
       setError(null);
       const files = el.files ? Array.from(el.files) : [];
-      const tooBig = files.find(f => f.size > MAX_BYTES);
+      const tooBig = files.find((f) => f.size > MAX_BYTES);
       if (tooBig) {
         setError(`"${tooBig.name}" exceeds ${MAX_MB} MB. Please choose a smaller file.`);
-        el.value = "";         // clear selection
+        el.value = ""; // clear selection
         setCount(0);
         return;
       }
@@ -42,7 +42,9 @@ export default function UploadControls() {
         className="mt-1 w-full"
       />
       <p className="text-xs text-gray-500 mt-1">
-        {count > 0 ? `${count} file${count > 1 ? "s" : ""} selected.` : `You can select multiple files. Max ${MAX_MB} MB each.`}
+        {count > 0
+          ? `${count} file${count > 1 ? "s" : ""} selected.`
+          : `You can select multiple files. Max ${MAX_MB} MB each.`}
       </p>
       {error && (
         <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700">

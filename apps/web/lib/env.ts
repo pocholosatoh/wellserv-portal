@@ -13,7 +13,8 @@ function pick(...names: string[]): string {
 }
 
 function getGooglePrivateKey(): string {
-  const b64 = process.env.GOOGLE_PRIVATE_KEY_B64 || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64;
+  const b64 =
+    process.env.GOOGLE_PRIVATE_KEY_B64 || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64;
   if (b64 && b64.trim() !== "") return Buffer.from(b64, "base64").toString("utf8");
   const raw = pick("GOOGLE_PRIVATE_KEY", "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY");
   return raw.replace(/\\n/g, "\n");

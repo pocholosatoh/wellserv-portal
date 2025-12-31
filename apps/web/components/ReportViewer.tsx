@@ -4,20 +4,40 @@ import { useSearchParams } from "next/navigation";
 
 // ---------- types ----------
 type RefInfo = { low?: number; high?: number; normal_values?: string };
-type ReportItem = { key:string; label:string; value:string; unit?:string; flag?:""|"L"|"H"|"A"; ref?: RefInfo };
-type ReportSection = { name:string; items:ReportItem[] };
-type Patient = { patient_id:string; full_name:string; age:string; sex:string; birthday:string; contact:string; address:string };
-type Visit = { date_of_test:string; barcode:string; notes:string; branch?: string };
-type Report = { patient:Patient; visit:Visit; sections:ReportSection[] };
-export type ReportResponse = { count:number; reports:Report[]; config?: Record<string,string>; patientOnly?: boolean };
+type ReportItem = {
+  key: string;
+  label: string;
+  value: string;
+  unit?: string;
+  flag?: "" | "L" | "H" | "A";
+  ref?: RefInfo;
+};
+type ReportSection = { name: string; items: ReportItem[] };
+type Patient = {
+  patient_id: string;
+  full_name: string;
+  age: string;
+  sex: string;
+  birthday: string;
+  contact: string;
+  address: string;
+};
+type Visit = { date_of_test: string; barcode: string; notes: string; branch?: string };
+type Report = { patient: Patient; visit: Visit; sections: ReportSection[] };
+export type ReportResponse = {
+  count: number;
+  reports: Report[];
+  config?: Record<string, string>;
+  patientOnly?: boolean;
+};
 
 // ---------- helpers ----------
 function formatRef(ref?: RefInfo) {
   if (!ref) return "";
-  const hasLow  = typeof ref.low  === "number";
+  const hasLow = typeof ref.low === "number";
   const hasHigh = typeof ref.high === "number";
   if (hasLow && hasHigh) return `${ref.low}–${ref.high}`;
-  if (hasLow)  return `≥ ${ref.low}`;
+  if (hasLow) return `≥ ${ref.low}`;
   if (hasHigh) return `≤ ${ref.high}`;
   if (ref.normal_values) return ref.normal_values;
   return "";
@@ -32,13 +52,16 @@ function formatTestDate(d?: string) {
 
 // --- Patient Summary helpers ---
 const num = (x: any): number | null => {
-  const s = String(x ?? "").replace(/[^\d.-]/g, "").trim();
+  const s = String(x ?? "")
+    .replace(/[^\d.-]/g, "")
+    .trim();
   if (!s) return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 };
 const heightM = (ft?: any, inch?: any): number | null => {
-  const f = num(ft) ?? 0, i = num(inch) ?? 0;
+  const f = num(ft) ?? 0,
+    i = num(inch) ?? 0;
   const totalIn = f * 12 + i;
   return totalIn > 0 ? totalIn * 0.0254 : null;
 };
@@ -55,7 +78,8 @@ const bmiClass = (bmi: number): string => {
   return "Obese";
 };
 const fmtFtIn = (ft?: any, inch?: any): string => {
-  const f = num(ft), i = num(inch);
+  const f = num(ft),
+    i = num(inch);
   if (f == null && i == null) return "";
   return `${f ?? 0}′ ${i ?? 0}″`;
 };
@@ -67,7 +91,11 @@ const ftInFromCm = (cm?: number | null): { ft: number; inch: number } | null => 
   return { ft, inch };
 };
 const withUnit = (v: any, u: string): string =>
-  String(v ?? "").toString().trim() ? `${v} ${u}` : "";
+  String(v ?? "")
+    .toString()
+    .trim()
+    ? `${v} ${u}`
+    : "";
 const suffixIfNumeric = (v: any, suffix: string): string => {
   const s = String(v ?? "").trim();
   if (!s) return "";
@@ -87,30 +115,41 @@ const EXCLUDE_EXACT_KEYS = new Set([
 const EXCLUDE_EXACT_LABELS = new Set(["remarks", "results", "result", "results/s"]);
 
 function shouldExcludeFromPrev(it: ReportItem, cfg?: Record<string, string>): boolean {
-  const keyRaw = String(it.key || "").trim().toLowerCase();
-  const labelRaw = String(it.label || "").trim().toLowerCase().replace(/[:]/g, "");
+  const keyRaw = String(it.key || "")
+    .trim()
+    .toLowerCase();
+  const labelRaw = String(it.label || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[:]/g, "");
   if (EXCLUDE_EXACT_KEYS.has(keyRaw)) return true;
   if (EXCLUDE_EXACT_LABELS.has(labelRaw)) return true;
 
   const cfgKeys = (cfg?.prev_exclude_keys || "")
     .split(",")
-    .map(s => s.trim().toLowerCase())
+    .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
   if (cfgKeys.includes(keyRaw)) return true;
 
   const norm = (s?: string) =>
-    String(s || "").toLowerCase().replace(/[_\-:.]+/g, " ").replace(/\s+/g, " ").trim();
+    String(s || "")
+      .toLowerCase()
+      .replace(/[_\-:.]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   const label = norm(it.label);
   const keyNorm = norm(it.key);
   const builtins = ["remark", "remarks", "note", "notes", "comment", "comments", "interpretation"];
-  if (builtins.some(t => label.includes(t) || keyNorm.includes(t))) return true;
+  if (builtins.some((t) => label.includes(t) || keyNorm.includes(t))) return true;
 
   return false;
 }
 
 // parse a numeric string
 function toNum(s?: string): number | null {
-  const t = String(s ?? "").replace(/,/g, "").trim();
+  const t = String(s ?? "")
+    .replace(/,/g, "")
+    .trim();
   const m = t.match(/^[-+]?\d*\.?\d+$/);
   if (!m) return null;
   const n = Number(m[0]);
@@ -121,7 +160,7 @@ const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 
 // Footer lines from config
 function getFooterLines(cfg: Record<string, string> | undefined): string[] {
   if (!cfg) return [];
-  const keys = Object.keys(cfg).filter(k => /^report_footer_line\d+$/i.test(k));
+  const keys = Object.keys(cfg).filter((k) => /^report_footer_line\d+$/i.test(k));
   keys.sort((a, b) => {
     const na = parseInt(a.match(/\d+/)![0], 10);
     const nb = parseInt(b.match(/\d+/)![0], 10);
@@ -131,7 +170,11 @@ function getFooterLines(cfg: Record<string, string> | undefined): string[] {
   for (const k of keys) {
     const raw = (cfg[k] ?? "").toString().trim();
     if (!raw) continue;
-    raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean).forEach(s => lines.push(s));
+    raw
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .forEach((s) => lines.push(s));
   }
   return lines;
 }
@@ -156,17 +199,25 @@ function driveImageUrls(url?: string) {
 }
 
 function formatPrevDate(s: string): string {
-  let y = 0, m = 0, d = 0;
+  let y = 0,
+    m = 0,
+    d = 0;
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
     const [yy, mm, dd] = s.split("-").map(Number);
-    y = yy; m = mm; d = dd;
+    y = yy;
+    m = mm;
+    d = dd;
   } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
     const [mm, dd, yy] = s.split("/").map(Number);
-    y = yy; m = mm; d = dd;
+    y = yy;
+    m = mm;
+    d = dd;
   } else {
     const dt = new Date(s);
     if (!isNaN(dt.getTime())) {
-      y = dt.getFullYear(); m = dt.getMonth() + 1; d = dt.getDate();
+      y = dt.getFullYear();
+      m = dt.getMonth() + 1;
+      d = dt.getDate();
     }
   }
   const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -174,7 +225,7 @@ function formatPrevDate(s: string): string {
   return `${pad2(m)}/${pad2(d)}/'${yy2}`;
 }
 
-function getSignersFromConfig(cfg: Record<string,string>) {
+function getSignersFromConfig(cfg: Record<string, string>) {
   const rmts: Array<{ role: string; name: string; license?: string; sig?: string }> = [];
   const push = (n: string, l: string, s: string) => {
     const name = (cfg[n] || "").trim();
@@ -186,7 +237,14 @@ function getSignersFromConfig(cfg: Record<string,string>) {
 
   const pathoName = (cfg.patho_name || "").trim();
   const pathos = pathoName
-    ? [{ role: "Pathologist", name: pathoName, license: (cfg.patho_license || "").trim(), sig: (cfg.patho_signature_url || "").trim() }]
+    ? [
+        {
+          role: "Pathologist",
+          name: pathoName,
+          license: (cfg.patho_license || "").trim(),
+          sig: (cfg.patho_signature_url || "").trim(),
+        },
+      ]
     : [];
   return { rmts, pathos };
 }
@@ -209,7 +267,7 @@ function ts(d?: string | null): number {
     const y = m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10);
     const isDMY = a > 12;
     const month = (isDMY ? b : a) - 1;
-    const day   = isDMY ? a : b;
+    const day = isDMY ? a : b;
     return new Date(y, month, day).getTime();
   }
   return 0;
@@ -219,13 +277,13 @@ type ReportViewerProps = {
   initialPatientId?: string;
   apiPath?: string;
   autoFetch?: boolean;
-  useSession?: boolean; 
-  sessionPatientId?: string;     // optional, when parent already knows the session PID
+  useSession?: boolean;
+  sessionPatientId?: string; // optional, when parent already knows the session PID
 
   // NEW (optional, non-breaking):
-  headerOverride?: ReactNode;   // custom header JSX from parent
-  watermarkSizePx?: number;     // e.g., 320 (overrides size for screen/print)
-  watermarkOpacity?: number;    // e.g., 0.05 (applies to screen & print)
+  headerOverride?: ReactNode; // custom header JSX from parent
+  watermarkSizePx?: number; // e.g., 320 (overrides size for screen/print)
+  watermarkOpacity?: number; // e.g., 0.05 (applies to screen & print)
 };
 
 export default function ReportViewer(props: ReportViewerProps) {
@@ -233,7 +291,7 @@ export default function ReportViewer(props: ReportViewerProps) {
     initialPatientId,
     apiPath = "/api/patient-results",
     autoFetch = false,
-    useSession = false,          // if true, hides patient ID input (expects session to provide it)
+    useSession = false, // if true, hides patient ID input (expects session to provide it)
     sessionPatientId = "",
 
     // NEW overrides
@@ -252,7 +310,9 @@ export default function ReportViewer(props: ReportViewerProps) {
   const normalizedInitialId = (initialPatientId || "").trim();
   const normalizedSessionId = (sessionPatientId || "").trim();
 
-  const [patientId, setPatientId] = useState(normalizedInitialId || normalizedSessionId || searchPatientId);
+  const [patientId, setPatientId] = useState(
+    normalizedInitialId || normalizedSessionId || searchPatientId,
+  );
 
   useEffect(() => {
     const next = searchPatientId || normalizedInitialId || normalizedSessionId || "";
@@ -280,51 +340,60 @@ export default function ReportViewer(props: ReportViewerProps) {
         const res = await fetch("/api/config", { cache: "no-store" });
         if (res.ok) {
           const json = await res.json();
-          if (!ignore && json?.config) setBootCfg(json.config as Record<string,string>);
+          if (!ignore && json?.config) setBootCfg(json.config as Record<string, string>);
         }
-      } catch {}
-      finally {
+      } catch {
+      } finally {
         if (!ignore) setBootLoaded(true);
       }
     })();
-    return () => { ignore = true; };
+    return () => {
+      ignore = true;
+    };
   }, []);
 
-  const cfg = { ...(bootCfg || {}), ...(data?.config || {}) } as Record<string,string>;
+  const cfg = { ...(bootCfg || {}), ...(data?.config || {}) } as Record<string, string>;
   const reports = data?.reports ?? [];
   const patientOnly = data?.patientOnly === true;
 
   // Dashboard footer visibility toggles
   const showFooterOnDashboard = (cfg?.footer_show_on_dashboard || "").toLowerCase() === "true";
-  const showSignersOnDashboard = (cfg?.footer_show_signers_on_dashboard || "").toLowerCase() === "true";
+  const showSignersOnDashboard =
+    (cfg?.footer_show_signers_on_dashboard || "").toLowerCase() === "true";
   const hasReport = (reports?.length ?? 0) > 0;
   const hasLabSections = useMemo(
-    () => reports.some((r: any) => Array.isArray(r?.sections) && r.sections.some((s: any) => (s?.items?.length ?? 0) > 0)),
-    [reports]
+    () =>
+      reports.some(
+        (r: any) =>
+          Array.isArray(r?.sections) && r.sections.some((s: any) => (s?.items?.length ?? 0) > 0),
+      ),
+    [reports],
   );
   const showFooter = hasLabSections && (hasReport || showFooterOnDashboard);
   const showSigners = hasLabSections && (hasReport || showSignersOnDashboard);
 
   // Footer + style knobs
   const footerLines = getFooterLines(cfg);
-  const footerAlign = ((cfg?.report_footer_align ?? "center").toString().toLowerCase() as "left" | "center" | "right");
+  const footerAlign = (cfg?.report_footer_align ?? "center").toString().toLowerCase() as
+    | "left"
+    | "center"
+    | "right";
   const footerFontPx = Number(cfg?.report_footer_font_px) || 10;
-  const footerGapPx  = Number(cfg?.report_footer_gap_px)  || 4;
+  const footerGapPx = Number(cfg?.report_footer_gap_px) || 4;
 
   // Watermark config
   const { primary: wmPrimary, fallback: wmFallback } = driveImageUrls(cfg?.watermark_image_url);
   const wmImgUrl = wmPrimary || wmFallback;
 
   const wmShowScreen = (cfg?.watermark_show_dashboard || "true").toLowerCase() === "true";
-  const wmShowPrint  = (cfg?.watermark_show_print    || "true").toLowerCase() === "true";
+  const wmShowPrint = (cfg?.watermark_show_print || "true").toLowerCase() === "true";
   const wmOpacityScreen = Math.max(0, Math.min(1, Number(cfg?.watermark_opacity_screen || 0.12)));
-  const wmOpacityPrint  = Math.max(0, Math.min(1, Number(cfg?.watermark_opacity_print  || 0.08)));
+  const wmOpacityPrint = Math.max(0, Math.min(1, Number(cfg?.watermark_opacity_print || 0.08)));
   const wmAngleDeg = Number(cfg?.watermark_angle_deg || -30);
-  const wmSize = (cfg?.watermark_size || "40vw");
+  const wmSize = cfg?.watermark_size || "40vw";
 
   // --- Prop overrides (optional) ---
-  const wmSizeEffective =
-    typeof watermarkSizePx === "number" ? `${watermarkSizePx}px` : wmSize;
+  const wmSizeEffective = typeof watermarkSizePx === "number" ? `${watermarkSizePx}px` : wmSize;
 
   const wmOpacityScreenEffective =
     typeof watermarkOpacity === "number" ? watermarkOpacity : wmOpacityScreen;
@@ -337,11 +406,7 @@ export default function ReportViewer(props: ReportViewerProps) {
   // Visits
   const visitDates = useMemo(() => {
     const dates = Array.from(
-      new Set(
-        reports
-          .map((r: any) => String(r?.visit?.date_of_test ?? ""))
-          .filter(Boolean)
-      )
+      new Set(reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean)),
     ).sort((a, b) => ts(b) - ts(a)); // ← real date sort
     return dates;
   }, [reports]);
@@ -349,10 +414,7 @@ export default function ReportViewer(props: ReportViewerProps) {
   const report = useMemo(() => {
     if (!Array.isArray(reports) || reports.length === 0) return undefined;
     const current = selectedDate || (visitDates[0] ?? "");
-    return (
-      reports.find((r: any) => (r?.visit?.date_of_test ?? "") === current) ||
-      reports[0]
-    );
+    return reports.find((r: any) => (r?.visit?.date_of_test ?? "") === current) || reports[0];
   }, [reports, selectedDate, visitDates]);
   const showNoLabsNotice = (patientOnly || !hasLabSections) && !!report;
 
@@ -377,7 +439,9 @@ export default function ReportViewer(props: ReportViewerProps) {
           text = await res.text();
         }
       } catch {
-        try { text = await res.text(); } catch {}
+        try {
+          text = await res.text();
+        } catch {}
       }
 
       if (!res.ok) {
@@ -412,8 +476,8 @@ export default function ReportViewer(props: ReportViewerProps) {
 
       const dates: string[] = Array.from(
         new Set<string>(
-          reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean)
-        )
+          reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean),
+        ),
       ).sort((a: string, b: string) => ts(b) - ts(a));
       setSelectedDate(dates[0] ?? "");
     } catch (e: any) {
@@ -430,7 +494,7 @@ export default function ReportViewer(props: ReportViewerProps) {
     setLoading(true);
     try {
       const res = await fetch(apiPath, {
-        method: "GET",                     // session derives patient_id; GET is fine
+        method: "GET", // session derives patient_id; GET is fine
         cache: "no-store",
       });
 
@@ -444,7 +508,9 @@ export default function ReportViewer(props: ReportViewerProps) {
           text = await res.text();
         }
       } catch {
-        try { text = await res.text(); } catch {}
+        try {
+          text = await res.text();
+        } catch {}
       }
 
       if (!res.ok) {
@@ -479,8 +545,8 @@ export default function ReportViewer(props: ReportViewerProps) {
 
       const dates: string[] = Array.from(
         new Set<string>(
-          reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean)
-        )
+          reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean),
+        ),
       ).sort((a: string, b: string) => ts(b) - ts(a));
       setSelectedDate(dates[0] ?? "");
     } catch (e: any) {
@@ -491,7 +557,6 @@ export default function ReportViewer(props: ReportViewerProps) {
       setLoading(false);
     }
   }
-
 
   useEffect(() => {
     if (!autoFetch) return;
@@ -519,7 +584,10 @@ export default function ReportViewer(props: ReportViewerProps) {
     for (const r of reports) {
       const d = r.visit.date_of_test;
       let m = map.get(d);
-      if (!m) { m = new Map(); map.set(d, m); }
+      if (!m) {
+        m = new Map();
+        map.set(d, m);
+      }
       for (const s of r.sections) {
         for (const it of s.items) {
           if (shouldExcludeFromPrev(it, cfg)) continue;
@@ -533,7 +601,10 @@ export default function ReportViewer(props: ReportViewerProps) {
     return map;
   }, [reports, cfg]);
 
-  function findPrevListAny(it: ReportItem, maxCount = 3): Array<{ date: string; raw: string; num: number | null; unit?: string }> {
+  function findPrevListAny(
+    it: ReportItem,
+    maxCount = 3,
+  ): Array<{ date: string; raw: string; num: number | null; unit?: string }> {
     if (!report) return [];
     const currentDate = report.visit.date_of_test;
     const idx = visitDates.indexOf(currentDate);
@@ -600,8 +671,8 @@ export default function ReportViewer(props: ReportViewerProps) {
 
       const dates: string[] = Array.from(
         new Set<string>(
-          reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean)
-        )
+          reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean),
+        ),
       ).sort((a: string, b: string) => ts(b) - ts(a));
       setSelectedDate(dates[0] ?? "");
     } catch (e: any) {
@@ -633,7 +704,10 @@ export default function ReportViewer(props: ReportViewerProps) {
 
   useEffect(() => {
     setLogoLoaded(false);
-    if (!logoSrc) { setLogoLoaded(true); return; }
+    if (!logoSrc) {
+      setLogoLoaded(true);
+      return;
+    }
     const img = new Image();
     img.onload = img.onerror = () => setLogoLoaded(true);
     img.src = logoSrc;
@@ -646,7 +720,10 @@ export default function ReportViewer(props: ReportViewerProps) {
 
   useEffect(() => {
     setWatermarkLoaded(false);
-    if (!watermarkSrc) { setWatermarkLoaded(true); return; }
+    if (!watermarkSrc) {
+      setWatermarkLoaded(true);
+      return;
+    }
     const img = new Image();
     img.onload = img.onerror = () => setWatermarkLoaded(true);
     img.src = watermarkSrc;
@@ -654,13 +731,19 @@ export default function ReportViewer(props: ReportViewerProps) {
 
   // Splash control
   const splashEnabled = (cfg?.loading_splash_enabled ?? "true").toString().toLowerCase() === "true";
-  const splashMaxMs   = Number(cfg?.loading_splash_max_ms ?? 900);
+  const splashMaxMs = Number(cfg?.loading_splash_max_ms ?? 900);
   const waitingForAssets = !bootLoaded || !logoLoaded || !watermarkLoaded;
   const waitingForData = loading;
 
   useEffect(() => {
-    if (!splashEnabled) { setSplashTimedOut(false); return; }
-    if (!waitingForAssets) { setSplashTimedOut(false); return; }
+    if (!splashEnabled) {
+      setSplashTimedOut(false);
+      return;
+    }
+    if (!waitingForAssets) {
+      setSplashTimedOut(false);
+      return;
+    }
     const t = setTimeout(() => setSplashTimedOut(true), splashMaxMs);
     return () => clearTimeout(t);
   }, [splashEnabled, waitingForAssets, splashMaxMs]);
@@ -669,7 +752,7 @@ export default function ReportViewer(props: ReportViewerProps) {
   const showInlineLoader = !showSplash && loading && !report;
 
   return (
-    <div className="page" style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+    <div className="page" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <style>{`
         :root{
           --font-base: 14px;
@@ -1377,8 +1460,12 @@ export default function ReportViewer(props: ReportViewerProps) {
       {showSplash && (
         <div className="splash">
           <div className="splash-inner">
-            {logoSrc ? <img src={logoSrc} alt="" referrerPolicy="no-referrer" style={{ maxHeight: 72 }} /> : null}
-            <div className="splash-text">{cfg?.loading_splash_text || "Loading WELLSERV® Portal…"}</div>
+            {logoSrc ? (
+              <img src={logoSrc} alt="" referrerPolicy="no-referrer" style={{ maxHeight: 72 }} />
+            ) : null}
+            <div className="splash-text">
+              {cfg?.loading_splash_text || "Loading WELLSERV® Portal…"}
+            </div>
             <div className="splash-dot" aria-hidden />
           </div>
         </div>
@@ -1404,7 +1491,8 @@ export default function ReportViewer(props: ReportViewerProps) {
               referrerPolicy="no-referrer"
               onError={(e) => {
                 const img = e.currentTarget as HTMLImageElement;
-                if (watermarkFallback && img.src !== watermarkFallback) img.src = watermarkFallback; else img.style.display = "none";
+                if (watermarkFallback && img.src !== watermarkFallback) img.src = watermarkFallback;
+                else img.style.display = "none";
               }}
               alt=""
             />
@@ -1421,7 +1509,10 @@ export default function ReportViewer(props: ReportViewerProps) {
           <div className="mb-2">{headerOverride}</div>
         ) : (
           (cfg.clinic_name || cfg.clinic_logo_url || cfg.clinic_address || cfg.clinic_phone) && (
-            <div className="clinic" style={{ flexDirection:"column", alignItems:"center", textAlign:"center" }}>
+            <div
+              className="clinic"
+              style={{ flexDirection: "column", alignItems: "center", textAlign: "center" }}
+            >
               {logoSrc ? (
                 <img
                   src={logoSrc}
@@ -1430,7 +1521,8 @@ export default function ReportViewer(props: ReportViewerProps) {
                   style={{ display: "block", margin: "0 auto", maxHeight: 120 }}
                   onError={(e) => {
                     const img = e.currentTarget as HTMLImageElement;
-                    if (logoFallback && img.src !== logoFallback) img.src = logoFallback; else img.style.display = "none";
+                    if (logoFallback && img.src !== logoFallback) img.src = logoFallback;
+                    else img.style.display = "none";
                   }}
                 />
               ) : null}
@@ -1457,12 +1549,23 @@ export default function ReportViewer(props: ReportViewerProps) {
                   }
                 }}
                 placeholder="Enter Patient ID"
-                style={{ padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 6, width: 260 }}
+                style={{
+                  padding: "8px 10px",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  width: 260,
+                }}
               />
               <button
                 onClick={() => fetchReports(patientId)}
                 disabled={loading || !patientId.trim()}
-                style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #44969b", background: "#44969b", color: "#fff" }}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 6,
+                  border: "1px solid #44969b",
+                  background: "#44969b",
+                  color: "#fff",
+                }}
               >
                 {loading ? "Loading..." : "View"}
               </button>
@@ -1481,140 +1584,265 @@ export default function ReportViewer(props: ReportViewerProps) {
         )}
 
         {/* ---------- Patient Summary Card (hidden on print) ---------- */}
-        {report && (() => {
-          const p: any = report.patient || {};
-          const vitalsLatest = p.vitals?.latest || null;
+        {report &&
+          (() => {
+            const p: any = report.patient || {};
+            const vitalsLatest = p.vitals?.latest || null;
 
-          // Vitals & contact
-          let htFt = p.height_ft;
-          let htIn = p.height_inch;
-          const ftInConverted = ftInFromCm(
-            typeof vitalsLatest?.height_cm === "number" ? vitalsLatest.height_cm : num(vitalsLatest?.height_cm)
-          );
-          if (ftInConverted) {
-            htFt = ftInConverted.ft;
-            htIn = ftInConverted.inch;
-          }
+            // Vitals & contact
+            let htFt = p.height_ft;
+            let htIn = p.height_inch;
+            const ftInConverted = ftInFromCm(
+              typeof vitalsLatest?.height_cm === "number"
+                ? vitalsLatest.height_cm
+                : num(vitalsLatest?.height_cm),
+            );
+            if (ftInConverted) {
+              htFt = ftInConverted.ft;
+              htIn = ftInConverted.inch;
+            }
 
-          const wtKg = vitalsLatest?.weight_kg ?? p.weight_kg;
-          const systolic = vitalsLatest?.systolic_bp ?? p.systolic_bp;
-          const diastolic = vitalsLatest?.diastolic_bp ?? p.diastolic_bp;
-          const hr = vitalsLatest?.hr;
-          const rr = vitalsLatest?.rr;
-          const tempC = vitalsLatest?.temp_c;
-          const o2sat = vitalsLatest?.o2sat;
-          const vitalsTimestamp = formatVitalsTimestamp(vitalsLatest?.measured_at);
-          const bmi = vitalsLatest?.bmi ?? bmiFromFtInKg(htFt, htIn, wtKg);
-          const bpStr = (systolic && diastolic) ? `${systolic}/${diastolic} mmHg` : "";
-          const smoking = suffixIfNumeric(p.smoking_hx, "packs/mo");
-          const alcohol = suffixIfNumeric(p.alcohol_hx, "bottles/mo");
+            const wtKg = vitalsLatest?.weight_kg ?? p.weight_kg;
+            const systolic = vitalsLatest?.systolic_bp ?? p.systolic_bp;
+            const diastolic = vitalsLatest?.diastolic_bp ?? p.diastolic_bp;
+            const hr = vitalsLatest?.hr;
+            const rr = vitalsLatest?.rr;
+            const tempC = vitalsLatest?.temp_c;
+            const o2sat = vitalsLatest?.o2sat;
+            const vitalsTimestamp = formatVitalsTimestamp(vitalsLatest?.measured_at);
+            const bmi = vitalsLatest?.bmi ?? bmiFromFtInKg(htFt, htIn, wtKg);
+            const bpStr = systolic && diastolic ? `${systolic}/${diastolic} mmHg` : "";
+            const smoking = suffixIfNumeric(p.smoking_hx, "packs/mo");
+            const alcohol = suffixIfNumeric(p.alcohol_hx, "bottles/mo");
 
-          const email = (p.email || "").trim();
-          const phone = (p.contact || "").trim();
-          const addr  = (p.address || "").trim();
+            const email = (p.email || "").trim();
+            const phone = (p.contact || "").trim();
+            const addr = (p.address || "").trim();
 
-          // Narratives
-          const chief = (p.chief_complaint || "").trim();
-          const hpi   = (p.present_illness_history || "").trim();
-          const pmh   = (p.past_medical_history || "").trim();
-          const psh   = (p.past_surgical_history || "").trim();
-          const allergies = (p.allergies_text || "").trim();
-          const medsText  = (p.medications_current || p.medications || "").trim();
-          const famHx = (p.family_hx || p.family_history || "").trim();
+            // Narratives
+            const chief = (p.chief_complaint || "").trim();
+            const hpi = (p.present_illness_history || "").trim();
+            const pmh = (p.past_medical_history || "").trim();
+            const psh = (p.past_surgical_history || "").trim();
+            const allergies = (p.allergies_text || "").trim();
+            const medsText = (p.medications_current || p.medications || "").trim();
+            const famHx = (p.family_hx || p.family_history || "").trim();
 
-          const lastUpd = (p.last_updated || "").trim();
+            const lastUpd = (p.last_updated || "").trim();
 
-          const hasVitals =
-            !!htFt || !!htIn || !!wtKg || !!bmi || !!bpStr || !!smoking || !!alcohol ||
-            hr != null || rr != null || tempC != null || o2sat != null || !!vitalsTimestamp;
-          const hasContact = (!!email || !!phone || !!addr);
-          const hasNarr = (!!chief || !!hpi || !!pmh || !!psh || !!allergies || !!medsText || !!famHx);
+            const hasVitals =
+              !!htFt ||
+              !!htIn ||
+              !!wtKg ||
+              !!bmi ||
+              !!bpStr ||
+              !!smoking ||
+              !!alcohol ||
+              hr != null ||
+              rr != null ||
+              tempC != null ||
+              o2sat != null ||
+              !!vitalsTimestamp;
+            const hasContact = !!email || !!phone || !!addr;
+            const hasNarr =
+              !!chief || !!hpi || !!pmh || !!psh || !!allergies || !!medsText || !!famHx;
 
-          const collapsedHighlights: string[] = [];
-          if (bpStr) collapsedHighlights.push(`BP ${bpStr}`);
-          if (bmi != null) collapsedHighlights.push(`BMI ${bmi} ${bmiClass(bmi)}`);
-          if (wtKg) collapsedHighlights.push(`Weight ${withUnit(wtKg, "kg")}`);
-          if (vitalsTimestamp) collapsedHighlights.push(`Vitals @ ${vitalsTimestamp}`);
-          if (smoking) collapsedHighlights.push(`Smoking ${smoking}`);
-          if (alcohol) collapsedHighlights.push(`Alcohol ${alcohol}`);
-          if (collapsedHighlights.length === 0 && email) collapsedHighlights.push(`Email ${email}`);
-          const visibleHighlights = collapsedHighlights.slice(0, 3);
+            const collapsedHighlights: string[] = [];
+            if (bpStr) collapsedHighlights.push(`BP ${bpStr}`);
+            if (bmi != null) collapsedHighlights.push(`BMI ${bmi} ${bmiClass(bmi)}`);
+            if (wtKg) collapsedHighlights.push(`Weight ${withUnit(wtKg, "kg")}`);
+            if (vitalsTimestamp) collapsedHighlights.push(`Vitals @ ${vitalsTimestamp}`);
+            if (smoking) collapsedHighlights.push(`Smoking ${smoking}`);
+            if (alcohol) collapsedHighlights.push(`Alcohol ${alcohol}`);
+            if (collapsedHighlights.length === 0 && email)
+              collapsedHighlights.push(`Email ${email}`);
+            const visibleHighlights = collapsedHighlights.slice(0, 3);
 
-          if (!hasVitals && !hasContact && !hasNarr) return null;
+            if (!hasVitals && !hasContact && !hasNarr) return null;
 
-          return (
-            <section className={`ps-card ${summaryOpen ? "is-open" : "is-collapsed"}`}>
-              <div className="ps-head">
-                <div className="ps-title">Patient Summary</div>
-                <div className="ps-actions">
-                  {lastUpd && <div className="ps-badge">Last updated: {lastUpd}</div>}
-                  <button
-                    type="button"
-                    className="ps-toggle"
-                    onClick={() => setSummaryOpen(prev => !prev)}
-                    aria-expanded={summaryOpen}
-                    aria-controls={summaryPanelId}
-                  >
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                      <path d="M4 6.5 8 10l4-3.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    {summaryOpen ? "Hide details" : "Show details"}
-                  </button>
+            return (
+              <section className={`ps-card ${summaryOpen ? "is-open" : "is-collapsed"}`}>
+                <div className="ps-head">
+                  <div className="ps-title">Patient Summary</div>
+                  <div className="ps-actions">
+                    {lastUpd && <div className="ps-badge">Last updated: {lastUpd}</div>}
+                    <button
+                      type="button"
+                      className="ps-toggle"
+                      onClick={() => setSummaryOpen((prev) => !prev)}
+                      aria-expanded={summaryOpen}
+                      aria-controls={summaryPanelId}
+                    >
+                      <svg
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        aria-hidden="true"
+                      >
+                        <path d="M4 6.5 8 10l4-3.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {summaryOpen ? "Hide details" : "Show details"}
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {!summaryOpen && visibleHighlights.length > 0 && (
-                <div className="ps-collapsed-chips">
-                  {visibleHighlights.map((txt, idx) => (
-                    <span key={idx} className="ps-chip">{txt}</span>
-                  ))}
+                {!summaryOpen && visibleHighlights.length > 0 && (
+                  <div className="ps-collapsed-chips">
+                    {visibleHighlights.map((txt, idx) => (
+                      <span key={idx} className="ps-chip">
+                        {txt}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div
+                  className={`ps-body ${summaryOpen ? "open" : "collapsed"}`}
+                  id={summaryPanelId}
+                  aria-hidden={!summaryOpen}
+                >
+                  <div className="ps-grid">
+                    {/* VITALS */}
+                    {(htFt || htIn) && (
+                      <div>
+                        <div className="ps-label">Height</div>
+                        <div className="ps-value">{fmtFtIn(htFt, htIn)}</div>
+                      </div>
+                    )}
+                    {!!wtKg && (
+                      <div>
+                        <div className="ps-label">Weight</div>
+                        <div className="ps-value">{withUnit(wtKg, "kg")}</div>
+                      </div>
+                    )}
+                    {bmi != null && (
+                      <div>
+                        <div className="ps-label">Calculated BMI</div>
+                        <div className="ps-value">
+                          {bmi} <span className="ps-pill">{bmiClass(bmi)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {!!bpStr && (
+                      <div>
+                        <div className="ps-label">Latest Known Blood Pressure</div>
+                        <div className="ps-value">{bpStr}</div>
+                      </div>
+                    )}
+                    {hr != null && (
+                      <div>
+                        <div className="ps-label">Heart Rate</div>
+                        <div className="ps-value">{withUnit(hr, "bpm")}</div>
+                      </div>
+                    )}
+                    {rr != null && (
+                      <div>
+                        <div className="ps-label">Respiratory Rate</div>
+                        <div className="ps-value">{withUnit(rr, "/min")}</div>
+                      </div>
+                    )}
+                    {tempC != null && (
+                      <div>
+                        <div className="ps-label">Temperature</div>
+                        <div className="ps-value">{withUnit(tempC, "°C")}</div>
+                      </div>
+                    )}
+                    {o2sat != null && (
+                      <div>
+                        <div className="ps-label">O₂ Saturation</div>
+                        <div className="ps-value">{withUnit(o2sat, "%")}</div>
+                      </div>
+                    )}
+                    {vitalsTimestamp && (
+                      <div>
+                        <div className="ps-label">Last Vitals Recorded</div>
+                        <div className="ps-value">{vitalsTimestamp}</div>
+                      </div>
+                    )}
+                    {!!smoking && (
+                      <div>
+                        <div className="ps-label">Smoking History</div>
+                        <div className="ps-value">{smoking}</div>
+                      </div>
+                    )}
+                    {!!alcohol && (
+                      <div>
+                        <div className="ps-label">Alcohol History</div>
+                        <div className="ps-value">{alcohol}</div>
+                      </div>
+                    )}
+
+                    {/* CONTACT */}
+                    {!!phone && (
+                      <div>
+                        <div className="ps-label">Contact Number</div>
+                        <div className="ps-value">{phone}</div>
+                      </div>
+                    )}
+                    {!!email && (
+                      <div>
+                        <div className="ps-label">Email</div>
+                        <div className="ps-value">{email}</div>
+                      </div>
+                    )}
+                    {!!addr && (
+                      <div>
+                        <div className="ps-label">Address</div>
+                        <div className="ps-value ps-multi">{addr}</div>
+                      </div>
+                    )}
+
+                    {hasContact && hasNarr && <div className="ps-sep" />}
+
+                    {/* NARRATIVES */}
+                    {!!chief && (
+                      <div>
+                        <div className="ps-label">Chief Complaint</div>
+                        <div className="ps-value ps-multi">{chief}</div>
+                      </div>
+                    )}
+                    {!!hpi && (
+                      <div>
+                        <div className="ps-label">Present Illness History</div>
+                        <div className="ps-value ps-multi">{hpi}</div>
+                      </div>
+                    )}
+                    {!!pmh && (
+                      <div>
+                        <div className="ps-label">Past Medical History</div>
+                        <div className="ps-value ps-multi">{pmh}</div>
+                      </div>
+                    )}
+                    {!!psh && (
+                      <div>
+                        <div className="ps-label">Past Surgical History</div>
+                        <div className="ps-value ps-multi">{psh}</div>
+                      </div>
+                    )}
+                    {!!allergies && (
+                      <div>
+                        <div className="ps-label">Allergies</div>
+                        <div className="ps-value ps-multi">{allergies}</div>
+                      </div>
+                    )}
+                    {!!medsText && (
+                      <div>
+                        <div className="ps-label">Medications</div>
+                        <div className="ps-value ps-multi">{medsText}</div>
+                      </div>
+                    )}
+                    {!!famHx && (
+                      <div>
+                        <div className="ps-label">Family History</div>
+                        <div className="ps-value ps-multi">{famHx}</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-
-              <div
-                className={`ps-body ${summaryOpen ? "open" : "collapsed"}`}
-                id={summaryPanelId}
-                aria-hidden={!summaryOpen}
-              >
-                <div className="ps-grid">
-                  {/* VITALS */}
-                  {(htFt || htIn) && (<div><div className="ps-label">Height</div><div className="ps-value">{fmtFtIn(htFt, htIn)}</div></div>)}
-                  {!!wtKg && (<div><div className="ps-label">Weight</div><div className="ps-value">{withUnit(wtKg, "kg")}</div></div>)}
-                  {bmi != null && (
-                    <div>
-                      <div className="ps-label">Calculated BMI</div>
-                      <div className="ps-value">{bmi} <span className="ps-pill">{bmiClass(bmi)}</span></div>
-                    </div>
-                  )}
-                  {!!bpStr && (<div><div className="ps-label">Latest Known Blood Pressure</div><div className="ps-value">{bpStr}</div></div>)}
-                  {hr != null && (<div><div className="ps-label">Heart Rate</div><div className="ps-value">{withUnit(hr, "bpm")}</div></div>)}
-                  {rr != null && (<div><div className="ps-label">Respiratory Rate</div><div className="ps-value">{withUnit(rr, "/min")}</div></div>)}
-                  {tempC != null && (<div><div className="ps-label">Temperature</div><div className="ps-value">{withUnit(tempC, "°C")}</div></div>)}
-                  {o2sat != null && (<div><div className="ps-label">O₂ Saturation</div><div className="ps-value">{withUnit(o2sat, "%")}</div></div>)}
-                  {vitalsTimestamp && (<div><div className="ps-label">Last Vitals Recorded</div><div className="ps-value">{vitalsTimestamp}</div></div>)}
-                  {!!smoking && (<div><div className="ps-label">Smoking History</div><div className="ps-value">{smoking}</div></div>)}
-                  {!!alcohol && (<div><div className="ps-label">Alcohol History</div><div className="ps-value">{alcohol}</div></div>)}
-
-                  {/* CONTACT */}
-                  {!!phone && (<div><div className="ps-label">Contact Number</div><div className="ps-value">{phone}</div></div>)}
-                  {!!email && (<div><div className="ps-label">Email</div><div className="ps-value">{email}</div></div>)}
-                  {!!addr  && (<div><div className="ps-label">Address</div><div className="ps-value ps-multi">{addr}</div></div>)}
-
-                  {(hasContact && hasNarr) && <div className="ps-sep" />}
-
-                  {/* NARRATIVES */}
-                  {!!chief && (<div><div className="ps-label">Chief Complaint</div><div className="ps-value ps-multi">{chief}</div></div>)}
-                  {!!hpi   && (<div><div className="ps-label">Present Illness History</div><div className="ps-value ps-multi">{hpi}</div></div>)}
-                  {!!pmh   && (<div><div className="ps-label">Past Medical History</div><div className="ps-value ps-multi">{pmh}</div></div>)}
-                  {!!psh   && (<div><div className="ps-label">Past Surgical History</div><div className="ps-value ps-multi">{psh}</div></div>)}
-                  {!!allergies && (<div><div className="ps-label">Allergies</div><div className="ps-value ps-multi">{allergies}</div></div>)}
-                  {!!medsText  && (<div><div className="ps-label">Medications</div><div className="ps-value ps-multi">{medsText}</div></div>)}
-                  {!!famHx     && (<div><div className="ps-label">Family History</div><div className="ps-value ps-multi">{famHx}</div></div>)}
-                </div>
-              </div>
-            </section>
-          );
-        })()}
+              </section>
+            );
+          })()}
 
         {/* Print-only Test date & branch (replaces Tailwind "hidden print:block") */}
         {(report?.visit?.date_of_test || report?.visit?.branch) && (
@@ -1628,8 +1856,8 @@ export default function ReportViewer(props: ReportViewerProps) {
               )}
               {report?.visit?.branch && (
                 <>
-                  {" "}• <span style={{ fontWeight: 600 }}>Branch:</span>{" "}
-                  {report.visit.branch}
+                  {" "}
+                  • <span style={{ fontWeight: 600 }}>Branch:</span> {report.visit.branch}
                 </>
               )}
             </div>
@@ -1651,7 +1879,7 @@ export default function ReportViewer(props: ReportViewerProps) {
                     <input
                       type="checkbox"
                       checked={compareOn}
-                      onChange={(e)=>setCompareOn(e.target.checked)}
+                      onChange={(e) => setCompareOn(e.target.checked)}
                     />
                     Compare with prev. visit/s
                   </label>
@@ -1665,10 +1893,10 @@ export default function ReportViewer(props: ReportViewerProps) {
                   <label className="label">Visit date:</label>
                   <select
                     value={selectedDate || ""}
-                    onChange={(e)=>setSelectedDate(e.target.value)}
+                    onChange={(e) => setSelectedDate(e.target.value)}
                     className="date-select"
                   >
-                    {visitDates.map(d => (
+                    {visitDates.map((d) => (
                       <option key={d} value={d}>
                         {formatTestDate(d)}
                       </option>
@@ -1676,10 +1904,7 @@ export default function ReportViewer(props: ReportViewerProps) {
                   </select>
                 </div>
 
-                <button
-                  onClick={() => window.print()}
-                  className="screen-only"
-                >
+                <button onClick={() => window.print()} className="screen-only">
                   Print / Save as PDF
                 </button>
               </div>
@@ -1687,19 +1912,29 @@ export default function ReportViewer(props: ReportViewerProps) {
           </div>
         )}
 
-        {err && <div style={{ color:"#b00020", marginTop:4 }}>{err}</div>}
+        {err && <div style={{ color: "#b00020", marginTop: 4 }}>{err}</div>}
 
         {showInlineLoader && (
           <div className="panel-loader" role="status" aria-live="polite">
             <div className="loader-dots" aria-hidden={true}>
-              <span></span><span></span><span></span>
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
             <div>Loading patient details and results…</div>
           </div>
         )}
 
         {showNoLabsNotice && !loading && (
-          <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: 12, background: "#f8fafc", color: "#0f172a" }}>
+          <div
+            style={{
+              marginTop: 12,
+              padding: "12px 16px",
+              borderRadius: 12,
+              background: "#f8fafc",
+              color: "#0f172a",
+            }}
+          >
             No laboratory results yet. Patient info and vitals are shown above.
           </div>
         )}
@@ -1707,8 +1942,8 @@ export default function ReportViewer(props: ReportViewerProps) {
         {report && (
           <>
             {report.sections
-              .filter(sec => (sec?.items?.length ?? 0) > 0)
-              .map(section => {
+              .filter((sec) => (sec?.items?.length ?? 0) > 0)
+              .map((section) => {
                 const hideRF = section.name === "Urinalysis" || section.name === "Fecalysis";
 
                 return (
@@ -1717,100 +1952,140 @@ export default function ReportViewer(props: ReportViewerProps) {
                     {(() => {
                       const compactTable = hideRF && !compareOn; // e.g., Urinalysis/Fecalysis — fewer cols, avoid needless horizontal scroll
                       return (
-                        <div className="table-scroll" data-compact={compactTable ? "true" : undefined}>
+                        <div
+                          className="table-scroll"
+                          data-compact={compactTable ? "true" : undefined}
+                        >
                           <table>
-                        <thead>
-                          <tr>
-                            <th style={{ textAlign: "left" }}>Parameter</th>
-                            <th style={{ textAlign: "right" }}>Result</th>
-                            {compareOn && <th style={{ textAlign: "right" }}>Prev. Res.</th>}
-                            {compareOn && <th style={{ textAlign: "right" }}>Latest % Change</th>}
-                            <th style={{ textAlign: "left" }}>Unit</th>
-                            {!hideRF && <th style={{ textAlign: "left" }}>Reference</th>}
-                            {!hideRF && <th style={{ textAlign: "left" }}>Current Flag</th>}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {section.items.map(it => {
-                          if (!it.value) return null;
-
-                          const labelLc = String(it.label || "").trim().toLowerCase();
-                          if (labelLc === "branch" || labelLc === "created at" || labelLc === "updated at") {
-                            return null;
-                          }
-
-                          const refText = hideRF ? "" : formatRef(it.ref);
-                          const cur = toNum(it.value);
-                          const skipPrev = shouldExcludeFromPrev(it, cfg);
-                          const prevList = compareOn && !skipPrev ? findPrevListAny(it, 3) : [];
-                          const prev1Num = compareOn && !skipPrev ? findPrevNumForDelta(it) : null;
-                          const isRemarkRow = labelLc.startsWith("remark");
-
-                          let deltaText = "—";
-                          let deltaColor = "#666";
-                          if (cur != null && prev1Num) {
-                            const delta = cur - prev1Num.value;
-                            const pct = prev1Num.value !== 0 ? (delta / prev1Num.value) * 100 : null;
-                            const arrow = delta > 0 ? "▲" : delta < 0 ? "▼" : "•";
-                            deltaText = `${arrow} ${delta > 0 ? "+" : ""}${fmt(delta)}${pct != null ? ` (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` : ""}`;
-                            deltaColor = delta > 0 ? "#b00020" : delta < 0 ? "#1976d2" : "#666";
-                          }
-
-                          // For Remarks rows, span the description across the remaining columns
-                          if (isRemarkRow) {
-                            const totalCols =
-                              3 + // parameter + result + unit
-                              (compareOn ? 2 : 0) + // prev + delta
-                              (!hideRF ? 2 : 0); // reference + flag
-                            const span = totalCols - 1; // all columns except the "Parameter" label cell
-                            return (
-                              <tr key={it.key}>
-                                <td>{it.label}</td>
-                                <td colSpan={span} style={{ whiteSpace: "normal", textAlign: "left", lineHeight: 1.3 }}>
-                                  {String(it.value ?? "")}
-                                </td>
-                              </tr>
-                            );
-                          }
-
-                            return (
-                              <tr key={it.key}>
-                                <td>{it.label}</td>
-                                <td style={{ textAlign: "right" }}>
-                                  {cur != null ? fmt(cur) : String(it.value ?? "")}
-                                </td>
-
+                            <thead>
+                              <tr>
+                                <th style={{ textAlign: "left" }}>Parameter</th>
+                                <th style={{ textAlign: "right" }}>Result</th>
+                                {compareOn && <th style={{ textAlign: "right" }}>Prev. Res.</th>}
                                 {compareOn && (
-                                  <>
-                                    <td style={{ textAlign: "right" }}>
-                                      {prevList.length ? (
-                                        prevList.map(p => (
-                                          <div key={p.date} style={{ whiteSpace: "nowrap", fontSize: 12, lineHeight: 1.2 }}>
-                                            {formatPrevDate(p.date)}: {p.num != null ? fmt(p.num) : p.raw}
-                                          </div>
-                                        ))
-                                      ) : "—"}
-                                    </td>
-                                    <td style={{ textAlign: "right", color: deltaColor }}>{deltaText}</td>
-                                  </>
+                                  <th style={{ textAlign: "right" }}>Latest % Change</th>
                                 )}
-
-                                <td>{it.unit || ""}</td>
-                                {!hideRF && <td>{refText}</td>}
-                                {!hideRF && (
-                                  <td className="flag-cell">
-                                    {it.flag ? (
-                                      <span className="flag-pill" data-flag={it.flag}>
-                                        {it.flag === "H" ? "High" : it.flag === "L" ? "Low" : it.flag === "A" ? "Alert" : it.flag}
-                                      </span>
-                                    ) : ""}
-                                  </td>
-                                )}
+                                <th style={{ textAlign: "left" }}>Unit</th>
+                                {!hideRF && <th style={{ textAlign: "left" }}>Reference</th>}
+                                {!hideRF && <th style={{ textAlign: "left" }}>Current Flag</th>}
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                            </thead>
+                            <tbody>
+                              {section.items.map((it) => {
+                                if (!it.value) return null;
+
+                                const labelLc = String(it.label || "")
+                                  .trim()
+                                  .toLowerCase();
+                                if (
+                                  labelLc === "branch" ||
+                                  labelLc === "created at" ||
+                                  labelLc === "updated at"
+                                ) {
+                                  return null;
+                                }
+
+                                const refText = hideRF ? "" : formatRef(it.ref);
+                                const cur = toNum(it.value);
+                                const skipPrev = shouldExcludeFromPrev(it, cfg);
+                                const prevList =
+                                  compareOn && !skipPrev ? findPrevListAny(it, 3) : [];
+                                const prev1Num =
+                                  compareOn && !skipPrev ? findPrevNumForDelta(it) : null;
+                                const isRemarkRow = labelLc.startsWith("remark");
+
+                                let deltaText = "—";
+                                let deltaColor = "#666";
+                                if (cur != null && prev1Num) {
+                                  const delta = cur - prev1Num.value;
+                                  const pct =
+                                    prev1Num.value !== 0 ? (delta / prev1Num.value) * 100 : null;
+                                  const arrow = delta > 0 ? "▲" : delta < 0 ? "▼" : "•";
+                                  deltaText = `${arrow} ${delta > 0 ? "+" : ""}${fmt(delta)}${pct != null ? ` (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` : ""}`;
+                                  deltaColor =
+                                    delta > 0 ? "#b00020" : delta < 0 ? "#1976d2" : "#666";
+                                }
+
+                                // For Remarks rows, span the description across the remaining columns
+                                if (isRemarkRow) {
+                                  const totalCols =
+                                    3 + // parameter + result + unit
+                                    (compareOn ? 2 : 0) + // prev + delta
+                                    (!hideRF ? 2 : 0); // reference + flag
+                                  const span = totalCols - 1; // all columns except the "Parameter" label cell
+                                  return (
+                                    <tr key={it.key}>
+                                      <td>{it.label}</td>
+                                      <td
+                                        colSpan={span}
+                                        style={{
+                                          whiteSpace: "normal",
+                                          textAlign: "left",
+                                          lineHeight: 1.3,
+                                        }}
+                                      >
+                                        {String(it.value ?? "")}
+                                      </td>
+                                    </tr>
+                                  );
+                                }
+
+                                return (
+                                  <tr key={it.key}>
+                                    <td>{it.label}</td>
+                                    <td style={{ textAlign: "right" }}>
+                                      {cur != null ? fmt(cur) : String(it.value ?? "")}
+                                    </td>
+
+                                    {compareOn && (
+                                      <>
+                                        <td style={{ textAlign: "right" }}>
+                                          {prevList.length
+                                            ? prevList.map((p) => (
+                                                <div
+                                                  key={p.date}
+                                                  style={{
+                                                    whiteSpace: "nowrap",
+                                                    fontSize: 12,
+                                                    lineHeight: 1.2,
+                                                  }}
+                                                >
+                                                  {formatPrevDate(p.date)}:{" "}
+                                                  {p.num != null ? fmt(p.num) : p.raw}
+                                                </div>
+                                              ))
+                                            : "—"}
+                                        </td>
+                                        <td style={{ textAlign: "right", color: deltaColor }}>
+                                          {deltaText}
+                                        </td>
+                                      </>
+                                    )}
+
+                                    <td>{it.unit || ""}</td>
+                                    {!hideRF && <td>{refText}</td>}
+                                    {!hideRF && (
+                                      <td className="flag-cell">
+                                        {it.flag ? (
+                                          <span className="flag-pill" data-flag={it.flag}>
+                                            {it.flag === "H"
+                                              ? "High"
+                                              : it.flag === "L"
+                                                ? "Low"
+                                                : it.flag === "A"
+                                                  ? "Alert"
+                                                  : it.flag}
+                                          </span>
+                                        ) : (
+                                          ""
+                                        )}
+                                      </td>
+                                    )}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       );
                     })()}
@@ -1836,12 +2111,18 @@ export default function ReportViewer(props: ReportViewerProps) {
                         referrerPolicy="no-referrer"
                         onError={(e) => {
                           const img = e.currentTarget as HTMLImageElement;
-                          if (fallback && img.src !== fallback) img.src = fallback; else img.style.display = "none";
+                          if (fallback && img.src !== fallback) img.src = fallback;
+                          else img.style.display = "none";
                         }}
                       />
                     ) : null}
-                    <div><strong>{s.name}</strong></div>
-                    <div className="muted">{s.role}{s.license ? ` – PRC ${s.license}` : ""}</div>
+                    <div>
+                      <strong>{s.name}</strong>
+                    </div>
+                    <div className="muted">
+                      {s.role}
+                      {s.license ? ` – PRC ${s.license}` : ""}
+                    </div>
                   </div>
                 );
               })}

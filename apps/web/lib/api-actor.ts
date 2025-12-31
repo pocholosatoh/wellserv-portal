@@ -10,11 +10,11 @@ export type Actor =
   | { kind: "staff"; id: string }
   | {
       kind: "doctor";
-      id: string;                   // doctor UUID or "relief_xxx"
-      branch: Branch;               // normalized branch
-      philhealth_md_id?: string;    // for PHIC claim eligibility
-      name?: string;                // optional convenience
-      display_name?: string;        // optional convenience
+      id: string; // doctor UUID or "relief_xxx"
+      branch: Branch; // normalized branch
+      philhealth_md_id?: string; // for PHIC claim eligibility
+      name?: string; // optional convenience
+      display_name?: string; // optional convenience
     };
 
 export async function requireActor(): Promise<Actor | null> {
@@ -48,11 +48,7 @@ export async function requireActor(): Promise<Actor | null> {
   const staffCode = session?.staff_login_code || c.get("staff_login_code")?.value || "";
 
   const isStaff =
-    session?.role === "staff" ||
-    roleCookie === "staff" ||
-    !!staffRole ||
-    !!staffCode ||
-    !!staffId;
+    session?.role === "staff" || roleCookie === "staff" || !!staffRole || !!staffCode || !!staffId;
 
   if (isStaff) {
     const identifier = staffId || staffCode || staffInitials || staffRole || roleCookie;
@@ -72,7 +68,7 @@ export async function requireActor(): Promise<Actor | null> {
 /** Reads the target patient_id in a TS-safe way for GET/POST routes. */
 export function getTargetPatientId(
   actor: Actor,
-  opts: { searchParams?: URLSearchParams; body?: any }
+  opts: { searchParams?: URLSearchParams; body?: any },
 ): string | null {
   if (actor.kind === "patient") return actor.patient_id;
 

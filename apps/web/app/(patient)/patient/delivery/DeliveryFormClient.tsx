@@ -84,7 +84,11 @@ export function DeliveryFormClient({
     try {
       await new Promise<void>((resolve, reject) => {
         if (!navigator.geolocation) {
-          reject(new Error("Your browser does not support location access. Please enter coordinates manually."));
+          reject(
+            new Error(
+              "Your browser does not support location access. Please enter coordinates manually.",
+            ),
+          );
           return;
         }
         navigator.geolocation.getCurrentPosition(
@@ -105,13 +109,13 @@ export function DeliveryFormClient({
               err?.code === 1
                 ? "Location permission was denied. Please allow access and try again."
                 : err?.code === 2
-                ? "Position is unavailable. Please check your internet/GPS or type the coordinates manually."
-                : err?.code === 3
-                ? "Location request timed out. Please try again or type the coordinates manually."
-                : "Unable to fetch your location. Please try again or enter coordinates manually.";
+                  ? "Position is unavailable. Please check your internet/GPS or type the coordinates manually."
+                  : err?.code === 3
+                    ? "Location request timed out. Please try again or type the coordinates manually."
+                    : "Unable to fetch your location. Please try again or enter coordinates manually.";
             reject(new Error(msg));
           },
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
         );
       });
     } catch (e: any) {
@@ -213,7 +217,9 @@ export function DeliveryFormClient({
               {locating ? "Locating…" : "Pin my location"}
             </button>
           </div>
-          <Description>Use decimal coordinates (e.g., from Google Maps) or pin your current location.</Description>
+          <Description>
+            Use decimal coordinates (e.g., from Google Maps) or pin your current location.
+          </Description>
         </Fieldset>
       </div>
 

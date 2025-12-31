@@ -18,7 +18,9 @@ import ConsultationSection from "./ConsultationSection";
 import DiagnosisPanel from "./DiagnosisPanel";
 import ConsentBus from "./ConsentBus";
 import ConsultQueueModal from "./ConsultQueueModal";
-
+import PatientSelfMonitoringCard from "./PatientSelfMonitoringCard";
+import PatientSelfLogsCard from "./PatientSelfLogsCard";
+import FollowUpPanel from "./FollowUpPanel";
 
 type Props = {
   params: Promise<{ patientId: string }>; // Next 15: async
@@ -36,8 +38,7 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
 
   const branch = session.branch as "SI" | "SL";
   const sp = (await searchParams) || {};
-  const requestedConsultationId =
-    (Array.isArray(sp.c) ? sp.c[0] : sp.c) || null;
+  const requestedConsultationId = (Array.isArray(sp.c) ? sp.c[0] : sp.c) || null;
 
   const db = getSupabase();
   const tz = process.env.APP_TZ || "Asia/Manila";
@@ -97,15 +98,15 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
   });
 
   return (
-      <div
-    className="
+    <div
+      className="
       w-full mx-auto
       max-w-[1720px]
       px-4 sm:px-6 lg:px-8 2xl:px-12
       pt-4 sm:pt-6 pb-8
       space-y-6
     "
-  >
+    >
       <ConsentBus patientId={patientId} />
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-3">
@@ -126,11 +127,7 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          <ConsultQueueModal
-            queue={consultQueue}
-            branch={branch}
-            currentPatientId={patientId}
-          />
+          <ConsultQueueModal queue={consultQueue} branch={branch} currentPatientId={patientId} />
           {/* <QuickPatientJump accent="#44969b" />*/}
           <span className="text-sm text-gray-700">
             Signed in as <b>{docName}</b>
@@ -151,6 +148,8 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
             </div>
           </section>
 
+          <PatientSelfLogsCard patientId={patientId} />
+
           <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
             <header className="px-4 py-3 border-b border-gray-100">
               <h2 className="font-medium text-gray-800">Other Labs</h2>
@@ -159,28 +158,52 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
               <OtherLabsCard patientId={patientId} showHeader={false} />
             </div>
           </section>
-
         </div>
 
-        {/* Right column: Notes & Rx + Diagnoses */}
-        <section className="lg:col-span-5 rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
-          <header className="px-4 py-3 border-b border-gray-100">
-            <h2 className="font-medium text-gray-800">Notes, Prescriptions & Diagnoses</h2>
-          </header>
-          <div className="p-4 space-y-6">
-            <ConsultationSection
-              patientId={patientId}
-              initialConsultationId={initialConsultationId} // can be null; your StartConsultBar handles it
-              defaultBranch={branchName}
-            />
+        {/* Right column: doctor actions */}
+        <div className="lg:col-span-5 space-y-5">
+          <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
+            <header className="px-4 py-3 border-b border-gray-100">
+              <h2 className="font-medium text-gray-800">Notes, Prescriptions & Diagnoses</h2>
+            </header>
+            <div className="p-4 space-y-6">
+              <ConsultationSection
+                patientId={patientId}
+                initialConsultationId={initialConsultationId} // can be null; your StartConsultBar handles it
+                defaultBranch={branchName}
+              />
 
-            {/* Diagnoses Panel (auto-picks up today's consultation or via Refresh) */}
-            <DiagnosisPanel
-              patientId={patientId}
-              initialConsultationId={initialConsultationId}
-            />
-          </div>
-        </section>
+              {/* Diagnoses Panel (auto-picks up today's consultation or via Refresh) */}
+              <DiagnosisPanel patientId={patientId} initialConsultationId={initialConsultationId} />
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
+            <header className="px-4 py-3 border-b border-gray-100">
+              <h2 className="font-medium text-gray-800">Schedule Follow-Up</h2>
+            </header>
+            <div className="p-4">
+              <FollowUpPanel
+                patientId={patientId}
+                consultationId={initialConsultationId}
+                defaultBranch={branchName}
+                doctorId={session.doctorId}
+              />
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
+            <header className="px-4 py-3 border-b border-gray-100">
+              <h2 className="font-medium text-gray-800">Patient Self-Monitoring Prescription</h2>
+            </header>
+            <div className="p-4">
+              <PatientSelfMonitoringCard
+                patientId={patientId}
+                initialConsultationId={initialConsultationId}
+              />
+            </div>
+          </section>
+        </div>
       </div>
 
       <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">

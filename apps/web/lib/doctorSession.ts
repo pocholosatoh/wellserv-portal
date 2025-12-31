@@ -2,16 +2,16 @@
 import { cookies as getCookies } from "next/headers";
 
 export type DoctorSession = {
-  id: string;                           // cookie doctor_id (UUID or "relief_xxx")
+  id: string; // cookie doctor_id (UUID or "relief_xxx")
   code: string;
   name: string;
   role: "regular" | "relief";
   credentials?: string;
   display_name?: string;
   prc_no?: string;
-  doctorId: string;                     // alias of id
-  branch: "SI" | "SL";                  // normalized branch
-  philhealth_md_id?: string;            // for claims when reliever logs in with PHIC
+  doctorId: string; // alias of id
+  branch: "SI" | "SL"; // normalized branch
+  philhealth_md_id?: string; // for claims when reliever logs in with PHIC
 };
 
 /**
@@ -34,11 +34,11 @@ export async function getDoctorSession(): Promise<DoctorSession | null> {
   const prc_no = c.get("doctor_prc_no")?.value || undefined;
   const philhealth_md_id = c.get("doctor_philhealth_md_id")?.value || undefined;
 
-  const rawBranch =
-    (c.get("doctor_branch")?.value ||
-      c.get("staff_branch")?.value ||
-      "SI")
-      .toUpperCase();
+  const rawBranch = (
+    c.get("doctor_branch")?.value ||
+    c.get("staff_branch")?.value ||
+    "SI"
+  ).toUpperCase();
 
   const branch: "SI" | "SL" = rawBranch === "SL" ? "SL" : "SI";
 

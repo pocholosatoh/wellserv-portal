@@ -28,7 +28,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: active.error.message }, { status: 500 });
     }
     if (!active.data) {
-      return NextResponse.json({ error: "No active signed prescription to revise." }, { status: 409 });
+      return NextResponse.json(
+        { error: "No active signed prescription to revise." },
+        { status: 409 },
+      );
     }
 
     // BEFORE step 2) insert draft, clean up any existing drafts for this consultation
@@ -46,25 +49,18 @@ export async function POST(req: NextRequest) {
     const draftIds = (drafts.data || []).map((r: { id: string }) => r.id);
 
     if (draftIds.length) {
-      const delItems = await db
-        .from("prescription_items")
-        .delete()
-        .in("prescription_id", draftIds);
+      const delItems = await db.from("prescription_items").delete().in("prescription_id", draftIds);
 
       if (delItems.error) {
         return NextResponse.json({ error: delItems.error.message }, { status: 500 });
       }
 
-      const delDrafts = await db
-        .from("prescriptions")
-        .delete()
-        .in("id", draftIds);
+      const delDrafts = await db.from("prescriptions").delete().in("id", draftIds);
 
       if (delDrafts.error) {
         return NextResponse.json({ error: delDrafts.error.message }, { status: 500 });
       }
     }
-
 
     // 2) Create a new DRAFT that supersedes the active
     const ins = await db
@@ -72,7 +68,7 @@ export async function POST(req: NextRequest) {
       .insert({
         consultation_id: consultationId,
         patient_id: active.data.patient_id,
-        doctor_id: active.data.doctor_id,         // keep same doctor snapshot
+        doctor_id: active.data.doctor_id, // keep same doctor snapshot
         status: "draft",
         notes_for_patient: active.data.notes_for_patient ?? "",
         valid_days: active.data.valid_days ?? DEFAULT_RX_VALID_DAYS,
@@ -93,7 +89,7 @@ export async function POST(req: NextRequest) {
     const itemsQ = await db
       .from("prescription_items")
       .select(
-        "med_id, generic_name, brand_name, strength, form, route, dose_amount, dose_unit, frequency_code, duration_days, quantity, instructions, unit_price"
+        "med_id, generic_name, brand_name, strength, form, route, dose_amount, dose_unit, frequency_code, duration_days, quantity, instructions, unit_price",
       )
       .eq("prescription_id", active.data.id);
 
@@ -107,7 +103,7 @@ export async function POST(req: NextRequest) {
       const now = new Date().toISOString();
 
       cloned = itemsQ.data.map((it) => ({
-        id: randomUUID(),               // ✅ NEW UUID per cloned line (fixes NOT NULL / unique)
+        id: randomUUID(), // ✅ NEW UUID per cloned line (fixes NOT NULL / unique)
         prescription_id: newDraftId,
         med_id: it.med_id ?? null,
         generic_name: it.generic_name ?? null,

@@ -1,0 +1,7 @@
+node_modules
+.pnpm-store
+.expo
+.next
+apps/mobile/node_modules
+apps/mobile/ios
+pnpm-lock.yaml

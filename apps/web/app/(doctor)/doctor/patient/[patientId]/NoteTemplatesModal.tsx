@@ -69,7 +69,7 @@ export default function NoteTemplatesModal({
 
   const selected = useMemo(
     () => templates.find((t) => t.id === selectedId) || templates[0] || null,
-    [selectedId, templates]
+    [selectedId, templates],
   );
 
   useEffect(() => {
@@ -139,12 +139,15 @@ export default function NoteTemplatesModal({
       type === "SOAP"
         ? Boolean(
             currentSoap &&
-            (currentSoap.S?.trim() || currentSoap.O?.trim() || currentSoap.A?.trim() || currentSoap.P?.trim())
+              (currentSoap.S?.trim() ||
+                currentSoap.O?.trim() ||
+                currentSoap.A?.trim() ||
+                currentSoap.P?.trim()),
           )
         : Boolean(currentMarkdown && currentMarkdown.trim());
     if (hasExisting) {
       const confirmed = window.confirm(
-        "Inserting this template will overwrite your current notes. Continue?"
+        "Inserting this template will overwrite your current notes. Continue?",
       );
       if (!confirmed) return;
     }
@@ -234,7 +237,9 @@ export default function NoteTemplatesModal({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              {loading && <span className="absolute right-3 top-2.5 text-xs text-gray-500">Loading…</span>}
+              {loading && (
+                <span className="absolute right-3 top-2.5 text-xs text-gray-500">Loading…</span>
+              )}
             </div>
             <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
               {templates.length === 0 && !loading ? (
@@ -256,7 +261,9 @@ export default function NoteTemplatesModal({
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <div className="font-medium text-sm text-gray-900">{tpl.title || "Untitled"}</div>
+                        <div className="font-medium text-sm text-gray-900">
+                          {tpl.title || "Untitled"}
+                        </div>
                         <span
                           className={`text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 ${
                             tpl.is_system
@@ -362,7 +369,9 @@ export default function NoteTemplatesModal({
                 </div>
               ) : (
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Template Content (Markdown/Free Text)</label>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Template Content (Markdown/Free Text)
+                  </label>
                   <textarea
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[#44969b] focus:outline-none"
                     rows={5}
@@ -375,7 +384,9 @@ export default function NoteTemplatesModal({
 
               <div className="flex items-center justify-between">
                 <div className="text-xs text-gray-500">
-                  {creating ? "Saving…" : "Templates you create are private to your login; other doctors won’t see them."}
+                  {creating
+                    ? "Saving…"
+                    : "Templates you create are private to your login; other doctors won’t see them."}
                 </div>
                 <button
                   type="button"
@@ -391,6 +402,6 @@ export default function NoteTemplatesModal({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

@@ -21,7 +21,8 @@ export async function GET(req: Request) {
     // Postgrest can embed with "items:prescription_items(*)".
     const { data, error } = await db
       .from("prescriptions")
-      .select(`
+      .select(
+        `
         id,
         consultation_id,
         patient_id,
@@ -59,7 +60,8 @@ export async function GET(req: Request) {
           created_at,
           updated_at
         )
-      `)
+      `,
+      )
       .eq("patient_id", patientId)
       .eq("status", "signed")
       .order("created_at", { ascending: false });

@@ -8,9 +8,6 @@ export async function GET() {
     const config = await sbReadConfig();
     return NextResponse.json({ config });
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }

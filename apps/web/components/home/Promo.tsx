@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from "framer-motion";
 import {
   Activity,
   Beaker,
@@ -9,21 +9,21 @@ import {
   ShieldCheck,
   Sparkles,
   TestTubes,
-} from 'lucide-react';
+} from "lucide-react";
 
 type TestItem = { name: string; note: string; icon: React.ElementType };
 
 const tests: TestItem[] = [
-  { name: 'CBC + Platelet Count', note: 'General health', icon: TestTubes },
-  { name: 'Urinalysis', note: 'Kidney/UT health', icon: Droplet },
-  { name: 'Fasting Blood Sugar (FBS)', note: 'Diabetes check', icon: Activity },
-  { name: 'Cholesterol', note: 'Heart health', icon: HeartPulse },
-  { name: 'LDL', note: '“Bad” cholesterol', icon: ShieldCheck },
-  { name: 'HDL', note: '“Good” cholesterol', icon: ShieldCheck },
-  { name: 'Triglycerides', note: 'Heart health', icon: HeartPulse },
-  { name: 'Uric Acid (BUA)', note: 'Gout check', icon: Beaker },
-  { name: 'ALT', note: 'Liver check', icon: FlaskConical },
-  { name: 'Creatinine', note: 'Kidney check', icon: Droplet },
+  { name: "CBC + Platelet Count", note: "General health", icon: TestTubes },
+  { name: "Urinalysis", note: "Kidney/UT health", icon: Droplet },
+  { name: "Fasting Blood Sugar (FBS)", note: "Diabetes check", icon: Activity },
+  { name: "Cholesterol", note: "Heart health", icon: HeartPulse },
+  { name: "LDL", note: "“Bad” cholesterol", icon: ShieldCheck },
+  { name: "HDL", note: "“Good” cholesterol", icon: ShieldCheck },
+  { name: "Triglycerides", note: "Heart health", icon: HeartPulse },
+  { name: "Uric Acid (BUA)", note: "Gout check", icon: Beaker },
+  { name: "ALT", note: "Liver check", icon: FlaskConical },
+  { name: "Creatinine", note: "Kidney check", icon: Droplet },
 ];
 
 export default function Promo() {
@@ -44,7 +44,8 @@ export default function Promo() {
           </div>
           <h2 className="text-3xl font-semibold md:text-4xl">₱999 Complete Laboratory Promo</h2>
           <p className="text-gray-600 md:text-lg">
-            All-in-one baseline health check. Consult fee only <span className="font-medium">₱350</span> if availing package.
+            All-in-one baseline health check. Consult fee only{" "}
+            <span className="font-medium">₱350</span> if availing package.
           </p>
         </motion.div>
 
@@ -90,7 +91,8 @@ export default function Promo() {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">Need help booking?</h3>
             <p className="text-sm text-gray-600">
-              Our care team can assist you with prep instructions, availability, and follow-up reminders.
+              Our care team can assist you with prep instructions, availability, and follow-up
+              reminders.
             </p>
             <div className="flex flex-wrap gap-3">
               <a href="tel:+639939854927" className="btn">

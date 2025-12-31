@@ -10,7 +10,7 @@ export default function BrowseOtherLabs() {
         <span className="text-gray-700">Browse uploads for Patient ID</span>
         <input
           value={pid}
-          onChange={(e)=>setPid(e.target.value)}
+          onChange={(e) => setPid(e.target.value)}
           placeholder="e.g., SATOH010596"
           className="mt-1 w-full rounded-lg border p-2"
         />
@@ -19,7 +19,9 @@ export default function BrowseOtherLabs() {
       {pid ? (
         <OtherLabsViewer patientId={pid} showIfEmpty={true} />
       ) : (
-        <div className="text-sm text-gray-500">Enter a Patient ID to view their uploaded other labs.</div>
+        <div className="text-sm text-gray-500">
+          Enter a Patient ID to view their uploaded other labs.
+        </div>
       )}
     </div>
   );

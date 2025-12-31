@@ -49,12 +49,19 @@ export async function GET(req: Request) {
     }
 
     const url = new URL(req.url);
-    const typeRaw = (url.searchParams.get("type") || url.searchParams.get("template_type") || "").toUpperCase();
+    const typeRaw = (
+      url.searchParams.get("type") ||
+      url.searchParams.get("template_type") ||
+      ""
+    ).toUpperCase();
     const searchRaw = url.searchParams.get("q") || url.searchParams.get("search") || "";
     const type = typeRaw as TemplateType;
 
     if (!validTypes.has(type)) {
-      return NextResponse.json({ error: "template_type must be SOAP or MARKDOWN" }, { status: 400 });
+      return NextResponse.json(
+        { error: "template_type must be SOAP or MARKDOWN" },
+        { status: 400 },
+      );
     }
 
     const db = getSupabase();
@@ -70,7 +77,9 @@ export async function GET(req: Request) {
       query = query.ilike("title", `%${escaped}%`);
     }
 
-    const { data, error } = await query.order("is_system", { ascending: false }).order("title", { ascending: true });
+    const { data, error } = await query
+      .order("is_system", { ascending: false })
+      .order("title", { ascending: true });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -95,13 +104,19 @@ export async function POST(req: Request) {
     const title = cleanTitle(body?.title);
 
     if (!validTypes.has(type)) {
-      return NextResponse.json({ error: "template_type must be SOAP or MARKDOWN" }, { status: 400 });
+      return NextResponse.json(
+        { error: "template_type must be SOAP or MARKDOWN" },
+        { status: 400 },
+      );
     }
     if (!title) {
       return NextResponse.json({ error: "Template title is required" }, { status: 400 });
     }
     if (!isUuid(actor.id)) {
-      return NextResponse.json({ error: "Only regular doctors can save templates." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Only regular doctors can save templates." },
+        { status: 400 },
+      );
     }
 
     let soap_template: Record<string, string> | null = null;

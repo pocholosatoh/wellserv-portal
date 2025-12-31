@@ -27,6 +27,6 @@ export async function GET(req: Request) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ patient_id }),
-    })
+    }),
   );
 }

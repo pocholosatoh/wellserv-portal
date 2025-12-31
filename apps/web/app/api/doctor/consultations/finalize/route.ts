@@ -27,7 +27,10 @@ export async function POST(req: Request) {
     const encounter_id = String(body?.encounter_id || body?.encounterId || "").trim();
 
     if (!consultation_id || !encounter_id) {
-      return NextResponse.json({ error: "consultation_id and encounter_id are required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "consultation_id and encounter_id are required." },
+        { status: 400 },
+      );
     }
 
     // 1) Block finalize if any prescription exists (draft OR signed)
@@ -47,7 +50,7 @@ export async function POST(req: Request) {
           error:
             "A prescription already exists for this consultation. Sign it or delete the draft to finish.",
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -110,7 +113,7 @@ export async function POST(req: Request) {
             payload.status = "done";
           }
           return db.from("encounters").update(payload).eq("id", enc.id);
-        })
+        }),
       );
     }
 

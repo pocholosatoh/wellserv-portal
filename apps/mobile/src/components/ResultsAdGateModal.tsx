@@ -60,7 +60,7 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
       setMessage(nextMessage);
       setStatus("failed");
     },
-    [clearTimeoutRef]
+    [clearTimeoutRef],
   );
 
   const startAdFlow = useCallback(() => {
@@ -102,9 +102,7 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
         clearTimeoutRef();
         timeoutRef.current = setTimeout(() => {
           if (statusRef.current === "showing") {
-            handleAdFailure(
-              "Ad finished but close event was not received. Please continue."
-            );
+            handleAdFailure("Ad finished but close event was not received. Please continue.");
           }
         }, 20000);
       },
@@ -231,8 +229,8 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
             Support WellServ 💙
           </Text>
           <Text style={{ color: colors.gray[700], marginBottom: spacing.sm }}>
-            While your results are loading, please watch this short ad to help support secure patient
-            access and keep the app free.
+            While your results are loading, please watch this short ad to help support secure
+            patient access and keep the app free.
           </Text>
           <Text style={{ color: colors.gray[500], marginBottom: spacing.md }}>
             Your results continue loading in the background.
@@ -315,8 +313,7 @@ export function ResultsAdGateModal({ visible, onClose }: ResultsAdGateModalProps
             >
               <Text
                 style={{
-                  color:
-                    status === "loading" || status === "showing" ? colors.gray[500] : "#fff",
+                  color: status === "loading" || status === "showing" ? colors.gray[500] : "#fff",
                   textAlign: "center",
                   fontWeight: "600",
                 }}

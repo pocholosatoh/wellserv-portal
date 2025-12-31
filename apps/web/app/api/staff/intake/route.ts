@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const {
       branch_code, // "SI" | "SL"
-      patient,     // { patient_id, full_name, sex, birthday_mmddyyyy, contact, address }
+      patient, // { patient_id, full_name, sex, birthday_mmddyyyy, contact, address }
       requested_tests_csv,
       yakap_flag = false,
       price_manual_add = 0,
@@ -49,37 +49,49 @@ export async function POST(req: Request) {
 
     // ----------------- GUARDRAILS (Hard validation) -----------------
     if (!branch_code || !["SI", "SL"].includes(branch_code)) {
-      return NextResponse.json({ ok: false, error: "Branch required (SI or SL)." }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "Branch required (SI or SL)." },
+        { status: 400 },
+      );
     }
-    if (!patient?.patient_id || !patient?.full_name || !patient?.sex || !patient?.birthday_mmddyyyy) {
-      return NextResponse.json({ ok: false, error: "Missing required patient fields." }, { status: 400 });
+    if (
+      !patient?.patient_id ||
+      !patient?.full_name ||
+      !patient?.sex ||
+      !patient?.birthday_mmddyyyy
+    ) {
+      return NextResponse.json(
+        { ok: false, error: "Missing required patient fields." },
+        { status: 400 },
+      );
     }
     const isoBirthday = mmddyyyyToISO(patient.birthday_mmddyyyy);
     if (!isoBirthday) {
-      return NextResponse.json({ ok: false, error: "Birthday must be MM/DD/YYYY." }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "Birthday must be MM/DD/YYYY." },
+        { status: 400 },
+      );
     }
 
     // ----------------- 1) Upsert patient -----------------
     const pid = up(patient.patient_id);
-    const { error: upErr } = await db
-      .from("patients")
-      .upsert(
-        {
-          patient_id: pid,
-          full_name: up(patient.full_name),
-          sex: up(patient.sex),
-          birthday: isoBirthday,
-          contact: patient.contact || null,
-          address: patient.address || null,
-        },
-        { onConflict: "patient_id" }
-      );
+    const { error: upErr } = await db.from("patients").upsert(
+      {
+        patient_id: pid,
+        full_name: up(patient.full_name),
+        sex: up(patient.sex),
+        birthday: isoBirthday,
+        contact: patient.contact || null,
+        address: patient.address || null,
+      },
+      { onConflict: "patient_id" },
+    );
 
     if (upErr) {
       // Bubble a very clear message (RLS / key mismatch shows up here)
       return NextResponse.json(
         { ok: false, stage: "patients_upsert", error: upErr.message },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -93,7 +105,7 @@ export async function POST(req: Request) {
     if (selErr) {
       return NextResponse.json(
         { ok: false, stage: "patients_select", error: selErr.message },
-        { status: 500 }
+        { status: 500 },
       );
     }
     if (!pRow) {
@@ -103,10 +115,9 @@ export async function POST(req: Request) {
           stage: "patients_verify",
           error:
             "Patient insert did not persist. Check RLS and ensure the server uses SUPABASE_SERVICE_ROLE.",
-          hint:
-            "Existing patients work because no insert is needed; new ones require insert allowed by the service-role key.",
+          hint: "Existing patients work because no insert is needed; new ones require insert allowed by the service-role key.",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -127,7 +138,7 @@ export async function POST(req: Request) {
       if (exErr) {
         return NextResponse.json(
           { ok: false, stage: "encounters_lookup", error: exErr.message },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -156,7 +167,7 @@ export async function POST(req: Request) {
             : undefined;
           return NextResponse.json(
             { ok: false, stage: "encounters_insert", error: insErr.message, hint: fkHint },
-            { status: 500 }
+            { status: 500 },
           );
         }
         encounter_id = ins.id;
@@ -174,7 +185,7 @@ export async function POST(req: Request) {
           if (updErr) {
             return NextResponse.json(
               { ok: false, stage: "encounters_update", error: updErr.message },
-              { status: 500 }
+              { status: 500 },
             );
           }
         }
@@ -184,11 +195,9 @@ export async function POST(req: Request) {
     if (!encounter_id) {
       return NextResponse.json(
         { ok: false, stage: "encounters_none", error: "Could not create encounter; please retry." },
-        { status: 500 }
+        { status: 500 },
       );
     }
-
-
 
     // ----------------- 3) Expand requested tokens -----------------
     const tokens: string[] = (requested_tests_csv || "")
@@ -243,10 +252,14 @@ export async function POST(req: Request) {
     ]);
 
     const testPrice = new Map<string, number>();
-    (tests || []).forEach((t) => testPrice.set(String(t.test_code).toUpperCase(), Number(t.default_price || 0)));
+    (tests || []).forEach((t) =>
+      testPrice.set(String(t.test_code).toUpperCase(), Number(t.default_price || 0)),
+    );
 
     const packPrice = new Map<string, number>();
-    (packs || []).forEach((p) => packPrice.set(String(p.package_code).toUpperCase(), Number(p.package_price || 0)));
+    (packs || []).forEach((p) =>
+      packPrice.set(String(p.package_code).toUpperCase(), Number(p.package_price || 0)),
+    );
 
     // package members
     const { data: allItems } = await db.from("package_items").select("package_code,test_code");
@@ -283,21 +296,30 @@ export async function POST(req: Request) {
     if (expanded.length) {
       await db
         .from("order_items")
-        .insert([{ encounter_id, kind: "manual", code_or_name: expanded.join(", "), qty: 1, source }])
+        .insert([
+          { encounter_id, kind: "manual", code_or_name: expanded.join(", "), qty: 1, source },
+        ])
         .select("id")
         .maybeSingle();
     }
 
     // persist pricing on encounter
-    await db.from("encounters").update({
-      price_auto_total: autoTotal,
-      price_manual_add: manualAdd,
-      total_price: finalTotal,
-    }).eq("id", encounter_id);
+    await db
+      .from("encounters")
+      .update({
+        price_auto_total: autoTotal,
+        price_manual_add: manualAdd,
+        total_price: finalTotal,
+      })
+      .eq("id", encounter_id);
 
     // optional queue step
     if (queue_now) {
-      const { data: enc } = await db.from("encounters").select("status").eq("id", encounter_id).single();
+      const { data: enc } = await db
+        .from("encounters")
+        .select("status")
+        .eq("id", encounter_id)
+        .single();
       if (enc?.status === "intake") {
         await db.from("encounters").update({ status: "for-extract" }).eq("id", encounter_id);
       }
@@ -314,7 +336,9 @@ export async function POST(req: Request) {
       const hasEndpoint = !!process.env.APPS_SCRIPT_ENDPOINT;
       const hasToken = !!process.env.APPS_SCRIPT_TOKEN;
       const branchSheetId =
-        (branch_code === "SI" ? process.env.SI_RUNNING_SHEET_ID : process.env.SL_RUNNING_SHEET_ID) || "";
+        (branch_code === "SI"
+          ? process.env.SI_RUNNING_SHEET_ID
+          : process.env.SL_RUNNING_SHEET_ID) || "";
 
       if (hasEndpoint && hasToken && branchSheetId) {
         const encId = String(encounter_id);
@@ -331,7 +355,7 @@ export async function POST(req: Request) {
             contact: patient.contact || "",
             address: patient.address || "",
             notes: requested_tests_csv || "",
-          }
+          },
         });
 
         // Call the helper and capture the Script’s JSON
@@ -376,7 +400,7 @@ export async function POST(req: Request) {
           sheet_reason,
           sheet_error,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -388,7 +412,7 @@ export async function POST(req: Request) {
       sheet_status,
       sheet_reason,
       sheet_error,
-      sheet_debug, 
+      sheet_debug,
     });
   } catch (err: any) {
     console.error("[intake] Fatal error:", err);

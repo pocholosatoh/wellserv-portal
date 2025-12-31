@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export default function StaffNavi({
-    initials,
-    rolePrefix,
-  }: {
-    initials?: string | null;
-    rolePrefix?: string | null;
-  }) {
+  initials,
+  rolePrefix,
+}: {
+  initials?: string | null;
+  rolePrefix?: string | null;
+}) {
   const pathname = usePathname();
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
   const prefix = (rolePrefix || "").toUpperCase();
@@ -17,9 +17,10 @@ export default function StaffNavi({
   const canManageAssignments = prefix === "ADM" || prefix === "RMT";
 
   const items = [
-    { href: "/staff", label: "Home" },                 // hub
+    { href: "/staff", label: "Home" }, // hub
     { href: "/staff/portal", label: "Portal" },
     { href: "/staff/followups", label: "Follow-ups" },
+    { href: "/staff/self-monitoring", label: "Self-Monitoring" },
     { href: "/staff/other-labs", label: "Other Labs" },
     { href: "/staff/patienthistory", label: "Patient Vitals and Hx" },
     { href: "/staff/prescriptions", label: "Prescriptions" },

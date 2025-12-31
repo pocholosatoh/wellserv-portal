@@ -1,12 +1,7 @@
 // app/api/rmt/hema/import/route.ts
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
-import {
-  sanitizeHemaRows,
-  assertHemaHeaders,
-  toSheetRow,
-  OUTPUT_ORDER,
-} from "@/lib/hema";
+import { sanitizeHemaRows, assertHemaHeaders, toSheetRow, OUTPUT_ORDER } from "@/lib/hema";
 import { resolveSpreadsheetId, getTabNameForBranch } from "@/lib/branches";
 
 // Only write these columns for existing rows (skip patient_id so we don't overwrite it)
@@ -14,8 +9,7 @@ const WRITE_HEADERS = OUTPUT_ORDER.filter((h) => h !== "patient_id");
 
 // ----- secret check -----
 function requireSecretOrThrow(secretFromBody?: string) {
-  const expected =
-    process.env.RMT_UPLOAD_SECRET || process.env.NEXT_PUBLIC_RMT_UPLOAD_SECRET;
+  const expected = process.env.RMT_UPLOAD_SECRET || process.env.NEXT_PUBLIC_RMT_UPLOAD_SECRET;
   if (!expected) return;
   if (!secretFromBody || secretFromBody !== expected) {
     throw new Error("Unauthorized: bad or missing secret");
@@ -26,15 +20,11 @@ type SheetTab = { title: string; sheetId: number };
 
 // ----- Google Sheets client -----
 async function getSheetsClient() {
-  const clientEmail =
-    process.env.GOOGLE_CLIENT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  let privateKey =
-    process.env.GOOGLE_PRIVATE_KEY ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  let privateKey = process.env.GOOGLE_PRIVATE_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
 
   const privateKeyB64 =
-    process.env.GOOGLE_PRIVATE_KEY_B64 ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64;
+    process.env.GOOGLE_PRIVATE_KEY_B64 || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64;
 
   if (!privateKey && privateKeyB64) {
     try {
@@ -44,7 +34,7 @@ async function getSheetsClient() {
   if (!clientEmail || !privateKey) {
     throw new Error(
       "Missing service account envs. Set GOOGLE_CLIENT_EMAIL + GOOGLE_PRIVATE_KEY " +
-        "or GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY."
+        "or GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.",
     );
   }
   privateKey = privateKey.replace(/\\n/g, "\n");
@@ -67,7 +57,10 @@ function columnLetter(n: number) {
   return s;
 }
 
-async function fetchSpreadsheetMeta(sheets: any, spreadsheetId: string): Promise<{ tabs: SheetTab[] }> {
+async function fetchSpreadsheetMeta(
+  sheets: any,
+  spreadsheetId: string,
+): Promise<{ tabs: SheetTab[] }> {
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
   const tabs: SheetTab[] =
     meta.data.sheets
@@ -90,16 +83,10 @@ export async function POST(req: Request) {
     const { sheetKey, branch, rows, secret, sheetName } = body || {};
 
     if (!sheetKey && !branch) {
-      return NextResponse.json(
-        { ok: false, error: "Missing sheetKey or branch" },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: false, error: "Missing sheetKey or branch" }, { status: 400 });
     }
     if (!Array.isArray(rows) || rows.length === 0) {
-      return NextResponse.json(
-        { ok: false, error: "No rows to import" },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: false, error: "No rows to import" }, { status: 400 });
     }
 
     requireSecretOrThrow(secret);
@@ -123,7 +110,7 @@ export async function POST(req: Request) {
             availableTabs: tabTitles,
             resolvedSpreadsheetId,
           },
-          { status: 404 }
+          { status: 404 },
         );
       }
     } catch {
@@ -134,7 +121,7 @@ export async function POST(req: Request) {
             "Spreadsheet not found or no access. Share the sheet with your service-account email.",
           resolvedSpreadsheetId,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -147,7 +134,7 @@ export async function POST(req: Request) {
     if (sheetData.length === 0) {
       return NextResponse.json(
         { ok: false, error: `Sheet '${tabName}' is empty`, resolvedSpreadsheetId },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -158,14 +145,13 @@ export async function POST(req: Request) {
       assertHemaHeaders(headers); // patient_id + all hema_*
     } catch (e: any) {
       const msg = String(e?.message || "");
-      const missing =
-        msg.startsWith("Missing headers in sheet:")
-          ? msg
-              .replace("Missing headers in sheet:", "")
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : ["(unknown header error)"];
+      const missing = msg.startsWith("Missing headers in sheet:")
+        ? msg
+            .replace("Missing headers in sheet:", "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : ["(unknown header error)"];
       return NextResponse.json(
         {
           ok: false,
@@ -174,7 +160,7 @@ export async function POST(req: Request) {
           resolvedSpreadsheetId,
           tabName,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -192,7 +178,7 @@ export async function POST(req: Request) {
           resolvedSpreadsheetId,
           tabName,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -285,7 +271,7 @@ export async function POST(req: Request) {
         resolvedSpreadsheetId,
         tabName,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

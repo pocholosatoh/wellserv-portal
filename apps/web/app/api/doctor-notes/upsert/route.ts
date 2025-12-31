@@ -37,10 +37,7 @@ export async function POST(req: Request) {
 
     // While the page is still preparing the consultation, quietly no-op
     if (!consultationId) {
-      return NextResponse.json(
-        { ok: false, reason: "consultation_not_ready" },
-        { status: 200 }
-      );
+      return NextResponse.json({ ok: false, reason: "consultation_not_ready" }, { status: 200 });
     }
 
     // (Optional but safer) verify the consultation exists
@@ -169,9 +166,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }

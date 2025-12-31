@@ -34,21 +34,24 @@ export async function GET(req: Request) {
       if (!c.encounter_id) {
         return NextResponse.json(
           { error: "This consultation is not linked to an encounter" },
-          { status: 404 }
+          { status: 404 },
         );
       }
       useEncounterId = c.encounter_id;
     }
 
     if (!useEncounterId) {
-      return NextResponse.json({ error: "Provide encounter_id or consultation_id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Provide encounter_id or consultation_id" },
+        { status: 400 },
+      );
     }
 
     // --- Load encounter core
     const { data: enc, error: eEnc } = await sb
       .from("encounters")
       .select(
-        "id, patient_id, branch_code, visit_date_local, status, is_philhealth_claim, yakap_flag"
+        "id, patient_id, branch_code, visit_date_local, status, is_philhealth_claim, yakap_flag",
       )
       .eq("id", useEncounterId)
       .maybeSingle();
@@ -67,7 +70,7 @@ export async function GET(req: Request) {
     const { data: cons } = await sb
       .from("consultations")
       .select(
-        "id, patient_id, visit_at, type, status, doctor_id, doctor_name_at_time, branch, signing_doctor_id, signing_doctor_name, signing_doctor_prc_no, signing_doctor_philhealth_md_id"
+        "id, patient_id, visit_at, type, status, doctor_id, doctor_name_at_time, branch, signing_doctor_id, signing_doctor_name, signing_doctor_prc_no, signing_doctor_philhealth_md_id",
       )
       .eq("encounter_id", enc.id)
       .order("visit_at", { ascending: false })
@@ -80,7 +83,7 @@ export async function GET(req: Request) {
       const { data: d } = await sb
         .from("consultation_diagnoses")
         .select(
-          "id, icd10_code, icd10_text_snapshot, is_primary, certainty, acuity, onset_date, resolved_date, notes"
+          "id, icd10_code, icd10_text_snapshot, is_primary, certainty, acuity, onset_date, resolved_date, notes",
         )
         .eq("consultation_id", cons.id)
         .order("is_primary", { ascending: false });
@@ -103,7 +106,7 @@ export async function GET(req: Request) {
         const { data: items } = await sb
           .from("prescription_items")
           .select(
-            "generic_name, brand_name, strength, form, route, dose_amount, dose_unit, frequency_code, duration_days, quantity, instructions"
+            "generic_name, brand_name, strength, form, route, dose_amount, dose_unit, frequency_code, duration_days, quantity, instructions",
           )
           .eq("prescription_id", r.id)
           .order("created_at", { ascending: true });
@@ -142,7 +145,7 @@ export async function GET(req: Request) {
       const { data: cRow } = await sb
         .from("patient_consents")
         .select(
-          "id, encounter_id, consultation_id, patient_id, doctor_id, template_slug, template_version, doctor_attest, patient_method, doctor_signature_url, patient_signature_url, patient_typed_name, consent_hash, created_at, signer_kind, signer_name, signer_relation"
+          "id, encounter_id, consultation_id, patient_id, doctor_id, template_slug, template_version, doctor_attest, patient_method, doctor_signature_url, patient_signature_url, patient_typed_name, consent_hash, created_at, signer_kind, signer_name, signer_relation",
         )
         .eq("encounter_id", enc.id)
         .order("created_at", { ascending: false })
@@ -200,14 +203,14 @@ export async function GET(req: Request) {
     };
 
     return NextResponse.json({
-      header,            // <- NEW (for XML header)
+      header, // <- NEW (for XML header)
       encounter: enc,
       patient: p || null,
       consultation: cons || null,
       diagnoses: diags,
       prescription: rx,
       signer,
-      consent,           // <- NEW (signatures, signer_kind, template.body, hash, timestamp)
+      consent, // <- NEW (signatures, signer_kind, template.body, hash, timestamp)
       flags,
     });
   } catch (e: any) {

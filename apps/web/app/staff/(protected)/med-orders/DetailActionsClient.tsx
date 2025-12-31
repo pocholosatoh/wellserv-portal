@@ -24,9 +24,7 @@ export function DetailActionsClient({
   const router = useRouter();
   const [marking, setMarking] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [deliveredAt, setDeliveredAt] = useState<string | null>(
-    patient.last_delivery_success_at
-  );
+  const [deliveredAt, setDeliveredAt] = useState<string | null>(patient.last_delivery_success_at);
 
   async function share() {
     const text = [

@@ -30,7 +30,9 @@ export async function GET(req: Request) {
     const sb = supabaseAdmin();
     const { data, error } = await sb
       .from("external_results")
-      .select("id, patient_id, url, content_type, type, provider, taken_at, uploaded_at, uploaded_by, note")
+      .select(
+        "id, patient_id, url, content_type, type, provider, taken_at, uploaded_at, uploaded_by, note",
+      )
       .eq("patient_id", pid)
       .order("type", { ascending: true })
       .order("taken_at", { ascending: false })
@@ -39,12 +41,19 @@ export async function GET(req: Request) {
     if (error) throw error;
     const rows = data ?? [];
 
-    const items = await Promise.all(rows.map(async (r) => {
-      if (/^https?:\/\//i.test(r.url)) return r;
-      const { data: sgn, error: se } = await sb.storage.from(BUCKET).createSignedUrl(r.url, expiresIn);
-      if (se || !sgn?.signedUrl) throw new Error(`[sign-error] bucket="${BUCKET}" path="${r.url}" :: ${se?.message || "cannot sign"}`);
-      return { ...r, url: sgn.signedUrl };
-    }));
+    const items = await Promise.all(
+      rows.map(async (r) => {
+        if (/^https?:\/\//i.test(r.url)) return r;
+        const { data: sgn, error: se } = await sb.storage
+          .from(BUCKET)
+          .createSignedUrl(r.url, expiresIn);
+        if (se || !sgn?.signedUrl)
+          throw new Error(
+            `[sign-error] bucket="${BUCKET}" path="${r.url}" :: ${se?.message || "cannot sign"}`,
+          );
+        return { ...r, url: sgn.signedUrl };
+      }),
+    );
 
     const res = NextResponse.json(items);
     res.headers.set("x-route", "staff/other-labs:get");

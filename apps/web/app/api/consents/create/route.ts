@@ -40,18 +40,28 @@ export async function POST(req: NextRequest) {
     const use_stored_doctor_signature = !!body?.use_stored_doctor_signature;
 
     const doctor_signature_data_url = String(body?.doctor_signature_data_url || "");
-    const patient_method = (String(body?.patient_method || "drawn").toLowerCase()) as "drawn" | "typed";
+    const patient_method = String(body?.patient_method || "drawn").toLowerCase() as
+      | "drawn"
+      | "typed";
     const patient_signature_data_url = String(body?.patient_signature_data_url || "");
-    const patient_typed_name = body?.patient_typed_name ? String(body.patient_typed_name).trim() : null;
+    const patient_typed_name = body?.patient_typed_name
+      ? String(body.patient_typed_name).trim()
+      : null;
 
     if (!consultation_id || !encounter_id || !patient_id) {
-      return NextResponse.json({ error: "consultation_id, encounter_id, patient_id are required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "consultation_id, encounter_id, patient_id are required." },
+        { status: 400 },
+      );
     }
     if (!doctor_attest) {
       return NextResponse.json({ error: "Doctor attestation is required." }, { status: 400 });
     }
     if (patient_method === "drawn" && !patient_signature_data_url) {
-      return NextResponse.json({ error: "Patient signature (drawn) is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Patient signature (drawn) is required." },
+        { status: 400 },
+      );
     }
     if (patient_method === "typed" && !patient_typed_name) {
       return NextResponse.json({ error: "Patient typed name is required." }, { status: 400 });
@@ -80,7 +90,10 @@ export async function POST(req: NextRequest) {
     const signer_relation = body?.signer_relation ? String(body.signer_relation).trim() : null;
 
     if (signer_kind !== "patient" && (!signer_name || !signer_relation)) {
-      return NextResponse.json({ error: "Signer name and relation are required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Signer name and relation are required." },
+        { status: 400 },
+      );
     }
 
     // --- Doctor signature ---
@@ -90,7 +103,7 @@ export async function POST(req: NextRequest) {
       if (!doc?.signature_image_url) {
         return NextResponse.json(
           { error: "No stored doctor signature on file. Please draw your signature." },
-          { status: 400 }
+          { status: 400 },
         );
       }
       // Use stored path as-is (assume it already points to a valid bucket/path)
@@ -115,7 +128,8 @@ export async function POST(req: NextRequest) {
     let patient_signature_url: string | null = null;
     if (patient_method === "drawn" && patient_signature_data_url) {
       const parsed = parseDataUrlPng(patient_signature_data_url);
-      if (!parsed) return NextResponse.json({ error: "Invalid patient signature image." }, { status: 400 });
+      if (!parsed)
+        return NextResponse.json({ error: "Invalid patient signature image." }, { status: 400 });
       const fname = `${basePath}/patient-${patient_id}.png`; // relative to bucket
       const put = await db.storage.from("consents").upload(fname, parsed.buf, {
         contentType: "image/png",

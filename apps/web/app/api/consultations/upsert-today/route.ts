@@ -16,7 +16,9 @@ function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
   }).format(new Date());
 }
 function isUuid(v?: string | null) {
-  return !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+  return (
+    !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+  );
 }
 
 export async function POST(req: Request) {
@@ -29,7 +31,9 @@ export async function POST(req: Request) {
     const docSession = await getDoctorSession().catch(() => null);
 
     const body = await req.json().catch(() => ({}));
-    const patientId = String(body?.patientId || body?.patient_id || "").trim().toUpperCase();
+    const patientId = String(body?.patientId || body?.patient_id || "")
+      .trim()
+      .toUpperCase();
     if (!patientId) {
       return NextResponse.json({ error: "patientId required" }, { status: 400 });
     }
@@ -49,8 +53,7 @@ export async function POST(req: Request) {
         .eq("doctor_id", doctor_id)
         .maybeSingle();
       if (!prof.error && prof.data) {
-        docNameRaw =
-          prof.data.display_name || prof.data.full_name || docNameRaw || "";
+        docNameRaw = prof.data.display_name || prof.data.full_name || docNameRaw || "";
         docCreds = (prof.data.credentials || docCreds || "").trim();
       }
     }
@@ -111,9 +114,7 @@ export async function POST(req: Request) {
       if (upd.error) return NextResponse.json({ error: upd.error.message }, { status: 400 });
 
       if (encounterId) {
-        await db.from("encounters")
-          .update({ consult_status: "in_consult" })
-          .eq("id", encounterId);
+        await db.from("encounters").update({ consult_status: "in_consult" }).eq("id", encounterId);
       }
 
       return NextResponse.json({ ok: true, consultation: { id: upd.data!.id } });
@@ -122,7 +123,7 @@ export async function POST(req: Request) {
     // === One FPE per calendar year ===
     const year = today.slice(0, 4);
     const startOfYear = `${year}-01-01T00:00:00+08:00`;
-    const endOfYear   = `${year}-12-31T23:59:59.999+08:00`;
+    const endOfYear = `${year}-12-31T23:59:59.999+08:00`;
 
     const fpeCheck = await db
       .from("consultations")
@@ -134,7 +135,7 @@ export async function POST(req: Request) {
       .neq("status", "cancelled")
       .limit(1);
 
-    const computedType = (fpeCheck.data && fpeCheck.data.length > 0) ? "FollowUp" : "FPE";
+    const computedType = fpeCheck.data && fpeCheck.data.length > 0 ? "FollowUp" : "FPE";
 
     // 3) Create a new consultation
     const ins = await db
@@ -146,7 +147,7 @@ export async function POST(req: Request) {
         branch,
         encounter_id: encounterId || null,
         visit_at: new Date().toISOString(),
-        type: computedType,                 // <-- NEW
+        type: computedType, // <-- NEW
         status: "draft",
         plan_shared: null,
       })
@@ -156,14 +157,12 @@ export async function POST(req: Request) {
     if (ins.error || !ins.data?.id) {
       return NextResponse.json(
         { error: ins.error?.message || "Failed to create consultation" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (encounterId) {
-      await db.from("encounters")
-        .update({ consult_status: "in_consult" })
-        .eq("id", encounterId);
+      await db.from("encounters").update({ consult_status: "in_consult" }).eq("id", encounterId);
     }
 
     return NextResponse.json({ ok: true, consultation: { id: ins.data.id } });

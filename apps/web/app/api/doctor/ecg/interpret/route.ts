@@ -60,13 +60,17 @@ export async function POST(req: Request) {
     if (!extRow) {
       return NextResponse.json({ error: "External result not found" }, { status: 404 });
     }
-    const typeLabel = String(extRow.type || "").trim().toUpperCase();
-    const categoryLabel = String(extRow.category || "").trim().toUpperCase();
-    const subtypeLabel = String(extRow.subtype || "").trim().toUpperCase();
+    const typeLabel = String(extRow.type || "")
+      .trim()
+      .toUpperCase();
+    const categoryLabel = String(extRow.category || "")
+      .trim()
+      .toUpperCase();
+    const subtypeLabel = String(extRow.subtype || "")
+      .trim()
+      .toUpperCase();
     const isEcg =
-      typeLabel.startsWith("ECG") ||
-      categoryLabel === "ECG" ||
-      subtypeLabel.startsWith("ECG");
+      typeLabel.startsWith("ECG") || categoryLabel === "ECG" || subtypeLabel.startsWith("ECG");
 
     if (!isEcg) {
       return NextResponse.json({ error: "Result is not tagged as ECG" }, { status: 400 });
@@ -82,8 +86,16 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (encErr) throw encErr;
-    if (!encRow || String(encRow.patient_id || "").trim().toUpperCase() !== patientId) {
-      return NextResponse.json({ error: "Encounter does not belong to this patient" }, { status: 400 });
+    if (
+      !encRow ||
+      String(encRow.patient_id || "")
+        .trim()
+        .toUpperCase() !== patientId
+    ) {
+      return NextResponse.json(
+        { error: "Encounter does not belong to this patient" },
+        { status: 400 },
+      );
     }
 
     // Ensure no previous report exists (unique constraint guard)
@@ -95,7 +107,10 @@ export async function POST(req: Request) {
 
     if (existingErr) throw existingErr;
     if (existing?.id) {
-      return NextResponse.json({ error: "ECG strip already has a finalized interpretation" }, { status: 409 });
+      return NextResponse.json(
+        { error: "ECG strip already has a finalized interpretation" },
+        { status: 409 },
+      );
     }
 
     // Fetch doctor profile to snapshot
@@ -144,13 +159,16 @@ export async function POST(req: Request) {
       .from("ecg_reports")
       .insert(insertPayload)
       .select(
-        "id, encounter_id, doctor_id, interpreted_at, interpreted_name, interpreted_license, status, rhythm, heart_rate, pr_interval, qrs_duration, qtc, axis, findings, impression, recommendations"
+        "id, encounter_id, doctor_id, interpreted_at, interpreted_name, interpreted_license, status, rhythm, heart_rate, pr_interval, qrs_duration, qtc, axis, findings, impression, recommendations",
       )
       .maybeSingle();
 
     if (insErr) {
       if (insErr.code === "23505") {
-        return NextResponse.json({ error: "ECG strip already has a finalized interpretation" }, { status: 409 });
+        return NextResponse.json(
+          { error: "ECG strip already has a finalized interpretation" },
+          { status: 409 },
+        );
       }
       throw insErr;
     }
@@ -170,8 +188,8 @@ export async function POST(req: Request) {
       typeof e?.code === "string" && e.code === "23505"
         ? 409
         : message.toLowerCase().includes("duplicate")
-        ? 409
-        : 500;
+          ? 409
+          : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

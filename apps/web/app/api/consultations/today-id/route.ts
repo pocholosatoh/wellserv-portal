@@ -30,7 +30,7 @@ export async function GET(req: Request) {
 
     const ymd = todayYMD(); // Asia/Manila (or APP_TZ)
     const start = `${ymd}T00:00:00+08:00`;
-    const end   = `${ymd}T23:59:59.999+08:00`;
+    const end = `${ymd}T23:59:59.999+08:00`;
 
     const db = getSupabase();
     // 🔑 Do NOT filter by branch; grab the latest today for this patient

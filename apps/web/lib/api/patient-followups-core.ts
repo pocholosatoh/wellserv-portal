@@ -32,7 +32,7 @@ export type PatientFollowup = FollowupRow & {
 function formatDoctorName(
   doctor: DoctorRow | null,
   signing: string | null,
-  reliever: string | null
+  reliever: string | null,
 ) {
   const cred = doctor?.credentials?.trim();
   const base =
@@ -67,7 +67,7 @@ export async function getPatientFollowup(patientId: string): Promise<PatientFoll
         intended_outcome,
         expected_tests,
         status
-      `
+      `,
     )
     .eq("patient_id", patientId)
     .eq("status", "scheduled")
@@ -108,7 +108,7 @@ export async function getPatientFollowup(patientId: string): Promise<PatientFoll
   const doc = formatDoctorName(
     doctor,
     consult?.signing_doctor_name ?? null,
-    consult?.doctor_name_at_time ?? null
+    consult?.doctor_name_at_time ?? null,
   );
 
   return {

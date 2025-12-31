@@ -34,7 +34,7 @@ function ts(d: string | null | undefined): number {
     const y = m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10);
     const isDMY = a > 12;
     const month = (isDMY ? b : a) - 1;
-    const day   = isDMY ? a : b;
+    const day = isDMY ? a : b;
     return new Date(y, month, day).getTime();
   }
   return 0;
@@ -88,33 +88,33 @@ function adaptPatientForUI(p: any) {
   const vitals = adaptVitalsBlock(p?.vitals);
   return {
     patient_id: asStr(p?.patient_id),
-    full_name:  asStr(p?.full_name),
-    age:        asStr(p?.age),
-    sex:        asStr(p?.sex),
-    birthday:   asStr(p?.birthday),
-    contact:    asStr(p?.contact),
-    address:    asStr(p?.address),
-    email:      asStr(p?.email),
+    full_name: asStr(p?.full_name),
+    age: asStr(p?.age),
+    sex: asStr(p?.sex),
+    birthday: asStr(p?.birthday),
+    contact: asStr(p?.contact),
+    address: asStr(p?.address),
+    email: asStr(p?.email),
 
-    height_ft:    asStr(p?.height_ft),
-    height_inch:  asStr(p?.height_inch),
-    weight_kg:    asStr(p?.weight_kg),
-    systolic_bp:  asStr(p?.systolic_bp),
+    height_ft: asStr(p?.height_ft),
+    height_inch: asStr(p?.height_inch),
+    weight_kg: asStr(p?.weight_kg),
+    systolic_bp: asStr(p?.systolic_bp),
     diastolic_bp: asStr(p?.diastolic_bp),
 
     last_updated: asStr(p?.last_updated),
 
     present_illness_history: asStr(p?.present_illness_history),
-    past_medical_history:    asStr(p?.past_medical_history),
-    past_surgical_history:   asStr(p?.past_surgical_history),
-    chief_complaint:         asStr(p?.chief_complaint),
-    allergies_text:          asStr(p?.allergies_text),
+    past_medical_history: asStr(p?.past_medical_history),
+    past_surgical_history: asStr(p?.past_surgical_history),
+    chief_complaint: asStr(p?.chief_complaint),
+    allergies_text: asStr(p?.allergies_text),
 
-    medications_current:     asStr(p?.medications_current),
-    medications:             asStr(p?.medications ?? p?.medications_current),
+    medications_current: asStr(p?.medications_current),
+    medications: asStr(p?.medications ?? p?.medications_current),
 
-    family_hx:       asStr(p?.family_hx ?? p?.family_history),
-    family_history:  asStr(p?.family_history ?? p?.family_hx),
+    family_hx: asStr(p?.family_hx ?? p?.family_history),
+    family_history: asStr(p?.family_history ?? p?.family_hx),
 
     smoking_hx: asStr(p?.smoking_hx),
     alcohol_hx: asStr(p?.alcohol_hx),
@@ -127,68 +127,75 @@ function adaptReportForUI(report: any) {
     patient: adaptPatientForUI(report?.patient),
     visit: {
       date_of_test: asStr(report?.visit?.date_of_test),
-      barcode:      asStr(report?.visit?.barcode),
-      notes:        asStr(report?.visit?.notes),
-      branch:       asStr(report?.visit?.branch),
+      barcode: asStr(report?.visit?.barcode),
+      notes: asStr(report?.visit?.notes),
+      branch: asStr(report?.visit?.branch),
     },
-    sections: (report?.sections || []).map((sec: any) => {
-      const name = asStr(sec?.name);
-      const hideRF = name === "Urinalysis" || name === "Fecalysis";
-      return {
-        name,
-        items: (sec?.items || []).map((it: any) => {
-          const key = asStr(it?.key);
-          const label = asStr(it?.label);
-          const lowNum  = toNum(it?.ref_low);
-          const highNum = toNum(it?.ref_high);
-          const isHct = key.toLowerCase() === "hema_hct" || label.toLowerCase() === "hematocrit";
+    sections: (report?.sections || [])
+      .map((sec: any) => {
+        const name = asStr(sec?.name);
+        const hideRF = name === "Urinalysis" || name === "Fecalysis";
+        return {
+          name,
+          items: (sec?.items || [])
+            .map((it: any) => {
+              const key = asStr(it?.key);
+              const label = asStr(it?.label);
+              const lowNum = toNum(it?.ref_low);
+              const highNum = toNum(it?.ref_high);
+              const isHct =
+                key.toLowerCase() === "hema_hct" || label.toLowerCase() === "hematocrit";
 
-          let valueStr = asStr(it?.value);
-          let unitStr  = asStr(it?.unit);
-          let lowVal  = lowNum === null ? undefined : lowNum;
-          let highVal = highNum === null ? undefined : highNum;
-          let scaledValNum: number | null = null;
+              let valueStr = asStr(it?.value);
+              let unitStr = asStr(it?.unit);
+              let lowVal = lowNum === null ? undefined : lowNum;
+              let highVal = highNum === null ? undefined : highNum;
+              let scaledValNum: number | null = null;
 
-          if (isHct) {
-            const scaled = scaleHematocrit(valueStr);
-            if (scaled !== null) valueStr = String(scaled);
-            scaledValNum = scaled;
+              if (isHct) {
+                const scaled = scaleHematocrit(valueStr);
+                if (scaled !== null) valueStr = String(scaled);
+                scaledValNum = scaled;
 
-            const scaledLow = scaleHematocrit(lowVal);
-            if (scaledLow !== null) lowVal = scaledLow;
+                const scaledLow = scaleHematocrit(lowVal);
+                if (scaledLow !== null) lowVal = scaledLow;
 
-            const scaledHigh = scaleHematocrit(highVal);
-            if (scaledHigh !== null) highVal = scaledHigh;
+                const scaledHigh = scaleHematocrit(highVal);
+                if (scaledHigh !== null) highVal = scaledHigh;
 
-            if (!unitStr) unitStr = "%";
-          }
+                if (!unitStr) unitStr = "%";
+              }
 
-          let flag = hideRF ? "" : coerceFlag(it?.flag);
-          if (isHct && !hideRF) {
-            const vNum = scaledValNum ?? toNum(valueStr);
-            const lo = typeof lowVal === "number" ? lowVal : null;
-            const hi = typeof highVal === "number" ? highVal : null;
-            if (vNum != null) {
-              if (lo != null && vNum < lo) flag = "L";
-              else if (hi != null && vNum > hi) flag = "H";
-              else if (flag === "L" || flag === "H") flag = "";
-            }
-          }
+              let flag = hideRF ? "" : coerceFlag(it?.flag);
+              if (isHct && !hideRF) {
+                const vNum = scaledValNum ?? toNum(valueStr);
+                const lo = typeof lowVal === "number" ? lowVal : null;
+                const hi = typeof highVal === "number" ? highVal : null;
+                if (vNum != null) {
+                  if (lo != null && vNum < lo) flag = "L";
+                  else if (hi != null && vNum > hi) flag = "H";
+                  else if (flag === "L" || flag === "H") flag = "";
+                }
+              }
 
-          return {
-            key,
-            label,
-            value: valueStr,
-            unit:  unitStr,
-            flag,
-            ref: hideRF ? undefined : {
-              low:  lowVal,
-              high: highVal,
-            },
-          };
-        }).filter((it: any) => it.value && it.value.trim() !== ""),
-      };
-    }).filter((s: any) => s.items.length > 0),
+              return {
+                key,
+                label,
+                value: valueStr,
+                unit: unitStr,
+                flag,
+                ref: hideRF
+                  ? undefined
+                  : {
+                      low: lowVal,
+                      high: highVal,
+                    },
+              };
+            })
+            .filter((it: any) => it.value && it.value.trim() !== ""),
+        };
+      })
+      .filter((s: any) => s.items.length > 0),
   };
 }
 
@@ -198,8 +205,8 @@ async function buildAllReports(patient_id: string, limit?: number, specificDate?
   const visits = await provider.getVisits(patient_id);
 
   const dates = specificDate
-    ? visits.filter(v => v.date_of_test === specificDate).map(v => v.date_of_test)
-    : visits.map(v => v.date_of_test);
+    ? visits.filter((v) => v.date_of_test === specificDate).map((v) => v.date_of_test)
+    : visits.map((v) => v.date_of_test);
 
   const sorted = [...dates].sort((a, b) => ts(b) - ts(a)); // newest → oldest
   const trimmed = typeof limit === "number" ? sorted.slice(0, limit) : sorted;
