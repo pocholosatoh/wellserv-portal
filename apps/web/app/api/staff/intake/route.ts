@@ -2,6 +2,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { appendRunningRow } from "@/lib/sheetsdaily";
+import {
+  buildLabCatalogIndex,
+  expandTokensByPackageIds,
+  findIdCodeMismatch,
+  normalizeIdList,
+  resolveTokens,
+} from "@/lib/labSelection";
 
 function supa() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -31,6 +38,8 @@ function todayISOin(tz = process.env.APP_TZ || "Asia/Manila"): string {
   }).format(new Date());
 }
 
+const DISCOUNT_RATE = 0.2;
+
 export async function POST(req: Request) {
   const db = supa();
 
@@ -42,10 +51,13 @@ export async function POST(req: Request) {
       requested_tests_csv,
       yakap_flag = false,
       price_manual_add = 0,
+      discount_enabled,
       queue_now = false,
       encounter_id: encounterIdFromClient, // NEW
       source = "frontdesk",
     } = body || {};
+
+    const discountEnabled = typeof discount_enabled === "boolean" ? discount_enabled : false;
 
     // ----------------- GUARDRAILS (Hard validation) -----------------
     if (!branch_code || !["SI", "SL"].includes(branch_code)) {
@@ -199,98 +211,162 @@ export async function POST(req: Request) {
       );
     }
 
-    // ----------------- 3) Expand requested tokens -----------------
+    // ----------------- 3) Resolve selection (id-first) -----------------
     const tokens: string[] = (requested_tests_csv || "")
       .split(",")
       .map((s: string) => s.trim())
       .filter(Boolean);
 
-    let expanded = [...tokens];
+    const requestedPackageIds = normalizeIdList(body?.package_ids || body?.requested_package_ids);
+    const requestedTestIds = normalizeIdList(body?.test_ids || body?.requested_test_ids);
 
-    if (tokens.length) {
-      // try direct package codes
-      const { data: items1 } = await db
-        .from("package_items")
-        .select("package_code,test_code")
-        .in("package_code", tokens);
-
-      let items = items1 || [];
-
-      // fallback: map display_name -> package_code
-      if (items.length === 0) {
-        const { data: packsByName } = await db
-          .from("packages")
-          .select("package_code,display_name")
-          .in("display_name", tokens);
-
-        const codes = (packsByName || []).map((p) => p.package_code);
-        if (codes.length) {
-          const { data: items2 } = await db
-            .from("package_items")
-            .select("package_code,test_code")
-            .in("package_code", codes);
-          items = items2 || [];
-        }
-      }
-
-      if (items.length) {
-        const byPack = new Map<string, string[]>();
-        for (const r of items) {
-          const k = String((r as any).package_code || "").toUpperCase();
-          const arr = byPack.get(k) || [];
-          if ((r as any).test_code) arr.push(String((r as any).test_code));
-          byPack.set(k, arr);
-        }
-        expanded = tokens.flatMap((t: string) => byPack.get(t.toUpperCase()) ?? [t]);
-      }
-    }
-
-    // ----------------- 4) Server-side pricing -----------------
-    const [{ data: tests }, { data: packs }] = await Promise.all([
-      db.from("tests_catalog").select("test_code,default_price,is_active").eq("is_active", true),
-      db.from("packages").select("package_code,package_price"),
+    const [{ data: testsRaw }, { data: packs }] = await Promise.all([
+      db.from("tests_catalog").select("id,test_code,default_price,is_active"),
+      db.from("packages").select("id,package_code,display_name,package_price"),
     ]);
 
-    const testPrice = new Map<string, number>();
-    (tests || []).forEach((t) =>
-      testPrice.set(String(t.test_code).toUpperCase(), Number(t.default_price || 0)),
-    );
+    const activeTests = (testsRaw || []).filter((t) => t.is_active);
 
-    const packPrice = new Map<string, number>();
-    (packs || []).forEach((p) =>
-      packPrice.set(String(p.package_code).toUpperCase(), Number(p.package_price || 0)),
-    );
-
-    // package members
-    const { data: allItems } = await db.from("package_items").select("package_code,test_code");
-    const packMembers: Record<string, Set<string>> = {};
-    (allItems || []).forEach((it) => {
-      const p = String(it.package_code).toUpperCase();
-      const tc = String(it.test_code).toUpperCase();
-      if (!packMembers[p]) packMembers[p] = new Set();
-      packMembers[p].add(tc);
+    console.info("[intake] catalog loaded", {
+      tests: testsRaw?.length || 0,
+      active_tests: activeTests.length,
+      packages: packs?.length || 0,
     });
 
-    // compute
-    const tokenSet = new Set(expanded.map((t) => t.toUpperCase()));
-    const originalTokenSet = new Set(tokens.map((t) => t.toUpperCase()));
-    let autoTotal = 0;
+    const baseIndex = buildLabCatalogIndex(testsRaw || [], packs || [], []);
 
-    // add package prices + remove covered members
-    for (const tok of originalTokenSet) {
-      if (packPrice.has(tok)) {
-        autoTotal += packPrice.get(tok)!;
-        const members = packMembers[tok];
-        if (members) for (const m of members) tokenSet.delete(m);
+    const missingPackageIds = requestedPackageIds.filter((id) => !baseIndex.packageById.has(id));
+    if (missingPackageIds.length) {
+      console.warn("[intake] package_id not found", { missingPackageIds });
+      return NextResponse.json(
+        { ok: false, error: "package_id not found", missing_package_ids: missingPackageIds },
+        { status: 404 },
+      );
+    }
+
+    const missingTestIds = requestedTestIds.filter((id) => !baseIndex.testById.has(id));
+    if (missingTestIds.length) {
+      console.warn("[intake] test_id not found", { missingTestIds });
+      return NextResponse.json(
+        { ok: false, error: "test_id not found", missing_test_ids: missingTestIds },
+        { status: 404 },
+      );
+    }
+
+    const tokenResolution = resolveTokens(tokens, baseIndex, { allowNameFallback: true });
+    if (tokenResolution.errors.length) {
+      return NextResponse.json(
+        { ok: false, error: tokenResolution.errors[0] },
+        { status: 400 },
+      );
+    }
+
+    const mismatch = findIdCodeMismatch(tokens, requestedPackageIds, requestedTestIds, baseIndex);
+    if (mismatch) {
+      console.warn("[intake] id/code mismatch", mismatch);
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            mismatch.kind === "package"
+              ? "package_id does not match package_code in requested_tests_csv"
+              : "test_id does not match test_code in requested_tests_csv",
+          details: mismatch,
+        },
+        { status: 400 },
+      );
+    }
+
+    const selectedPackageIds = requestedPackageIds.length
+      ? requestedPackageIds
+      : tokenResolution.packageIds;
+    const selectedTestIds = requestedTestIds.length ? requestedTestIds : tokenResolution.testIds;
+
+    const { data: itemsRaw } =
+      selectedPackageIds.length > 0
+        ? await db
+            .from("package_items")
+            .select("package_id,test_id")
+            .in("package_id", selectedPackageIds)
+        : { data: [] };
+
+    const index = buildLabCatalogIndex(testsRaw || [], packs || [], itemsRaw || []);
+
+    console.info("[intake] lab selection", {
+      tokens: tokens.length,
+      packages: selectedPackageIds.length,
+      tests: selectedTestIds.length,
+      source: requestedPackageIds.length || requestedTestIds.length ? "ids" : "codes",
+    });
+
+    let expanded = expandTokensByPackageIds(tokenResolution.matches, index);
+    if (!expanded.length && (selectedPackageIds.length || selectedTestIds.length)) {
+      const derived: string[] = [];
+      for (const pkgId of selectedPackageIds) {
+        const members = index.packageItemsByPackageId.get(pkgId) || [];
+        for (const testId of members) {
+          const code = index.testCodeById.get(testId);
+          if (code) derived.push(code);
+        }
       }
-    }
-    // add remaining tests
-    for (const tok of tokenSet) {
-      if (testPrice.has(tok)) autoTotal += testPrice.get(tok)!;
+      for (const testId of selectedTestIds) {
+        const code = index.testCodeById.get(testId);
+        if (code) derived.push(code);
+      }
+      expanded = derived;
     }
 
-    const manualAdd = Math.max(0, Number(price_manual_add || 0));
-    const finalTotal = autoTotal + manualAdd;
+    console.info("[intake] package expansion", {
+      packages: selectedPackageIds.length,
+      expanded_tokens: expanded.length,
+    });
+
+    // ----------------- 4) Server-side pricing (id-based) -----------------
+    const testPriceById = new Map<string, number>();
+    (activeTests || []).forEach((t) =>
+      testPriceById.set(String(t.id), Number(t.default_price || 0)),
+    );
+
+    const packPriceById = new Map<string, number>();
+    (packs || []).forEach((p) =>
+      packPriceById.set(String(p.id), Number(p.package_price || 0)),
+    );
+
+    const packageMemberSet = new Set<string>();
+    let packageTotal = 0;
+    for (const pkgId of new Set(selectedPackageIds)) {
+      if (packPriceById.has(pkgId)) packageTotal += packPriceById.get(pkgId)!;
+      const members = index.packageItemsByPackageId.get(pkgId) || [];
+      for (const m of members) packageMemberSet.add(m);
+    }
+
+    const nonPackageTestIds = new Set<string>();
+    for (const testId of new Set(selectedTestIds)) {
+      if (packageMemberSet.has(testId)) continue;
+      if (testPriceById.has(testId)) nonPackageTestIds.add(testId);
+    }
+
+    let nonPackageTestsTotal = 0;
+    for (const testId of nonPackageTestIds) {
+      nonPackageTestsTotal += testPriceById.get(testId)!;
+    }
+
+    const manualRaw = Number(price_manual_add || 0);
+    const manualAdd = Math.max(0, Number.isFinite(manualRaw) ? manualRaw : 0);
+    const discountBase = nonPackageTestsTotal + manualAdd;
+    const discountAmount = discountEnabled ? Math.round(discountBase * DISCOUNT_RATE) : 0;
+
+    const grossTotal = packageTotal + nonPackageTestsTotal + manualAdd;
+    const autoTotal = Math.round(packageTotal + nonPackageTestsTotal);
+    const manualRounded = Math.round(manualAdd);
+    const finalTotal = Math.round(grossTotal - discountAmount);
+
+    console.info("[intake] pricing computed", {
+      source: requestedPackageIds.length || requestedTestIds.length ? "ids" : "codes",
+      package_total: packageTotal,
+      non_package_tests_total: nonPackageTestsTotal,
+      final_total: finalTotal,
+    });
 
     // save a single order_items row (compact)
     if (expanded.length) {
@@ -308,7 +384,10 @@ export async function POST(req: Request) {
       .from("encounters")
       .update({
         price_auto_total: autoTotal,
-        price_manual_add: manualAdd,
+        price_manual_add: manualRounded,
+        discount_enabled: discountEnabled,
+        discount_rate: DISCOUNT_RATE,
+        discount_amount: discountAmount,
         total_price: finalTotal,
       })
       .eq("id", encounter_id);
@@ -408,7 +487,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       encounter_id,
-      totals: { auto: autoTotal, manual: manualAdd, final: finalTotal },
+      totals: { auto: autoTotal, manual: manualRounded, final: finalTotal },
       sheet_status,
       sheet_reason,
       sheet_error,

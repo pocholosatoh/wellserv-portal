@@ -45,10 +45,55 @@ function flagOn(name: string) {
 
 /** Price helpers on client (for live display only; server recomputes for truth) */
 type Catalog = {
-  tests: { code: string; name: string; price?: number | null }[];
-  packages: { code: string; name: string; price?: number | null }[];
+  tests: { id: string; code: string; name: string; price?: number | null }[];
+  packages: { id: string; code: string; name: string; price?: number | null }[];
   packageMap: Record<string, string[]>;
+  packageMapById: Record<string, string[]>;
 };
+
+const DISCOUNT_RATE = 0.2;
+const QUICK_ADD_CODES = {
+  consult: { promo: "CONSULT-P", regular: "CONSULT-R" },
+  ecg: { promo: "ECG-P", regular: "ECG-R" },
+};
+
+function parseCsvTokens(value: string) {
+  return (value || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function serializeCsvTokens(tokens: string[]) {
+  return tokens.join(", ");
+}
+
+function removeTokenCodes(tokens: string[], codes: string[]) {
+  const removeSet = new Set(codes.map((c) => c.toUpperCase()));
+  return tokens.filter((t) => !removeSet.has(t.toUpperCase()));
+}
+
+function replaceTokenCodes(tokens: string[], codes: string[], nextCode: string) {
+  const removeSet = new Set(codes.map((c) => c.toUpperCase()));
+  let insertIndex = -1;
+  const next: string[] = [];
+
+  tokens.forEach((t) => {
+    if (removeSet.has(t.toUpperCase())) {
+      if (insertIndex === -1) insertIndex = next.length;
+      return;
+    }
+    next.push(t);
+  });
+
+  if (insertIndex === -1) {
+    next.push(nextCode);
+  } else {
+    next.splice(insertIndex, 0, nextCode);
+  }
+
+  return next;
+}
 
 export default function Reception() {
   const router = useRouter();
@@ -67,8 +112,11 @@ export default function Reception() {
   const [pid, setPid] = useState(""); // generated
   const [yakap, setYakap] = useState(false);
   const [queueNow, setQueueNow] = useState(false);
+  const [discountEnabled, setDiscountEnabled] = useState(false);
 
   const [requested, setRequested] = useState(""); // CSV string
+  const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
+  const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
   const [manualAdd, setManualAdd] = useState<number>(0);
   const [saving, setSaving] = useState(false);
   const [role, setRole] = useState<string>("");
@@ -79,9 +127,11 @@ export default function Reception() {
   const [editManual, setEditManual] = useState<number>(0);
   const [editSaving, setEditSaving] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [quickAddWarning, setQuickAddWarning] = useState<string | null>(null);
 
   // Konsulta / Claim toggles (Edit modal)
   const [editPhilhealth, setEditPhilhealth] = useState<boolean>(false);
+  const [editDiscountEnabled, setEditDiscountEnabled] = useState(false);
 
   async function openEdit(id: string) {
     try {
@@ -92,6 +142,7 @@ export default function Reception() {
       setEditCsv(j.row?.notes_frontdesk || "");
       setEditManual(Number(j.row?.price_manual_add || 0));
       setEditPhilhealth(!!(j.row?.yakap_flag || j.row?.is_philhealth_claim));
+      setEditDiscountEnabled(!!j.row?.discount_enabled);
       setEditOpen(true);
     } catch (e: any) {
       alert(e?.message || "Failed to open");
@@ -109,6 +160,7 @@ export default function Reception() {
           id: editRow.id,
           requested_tests_csv: editCsv,
           price_manual_add: editManual,
+          discount_enabled: editDiscountEnabled,
           yakap_flag: editPhilhealth,
           is_philhealth_claim: editPhilhealth,
         }),
@@ -231,36 +283,172 @@ export default function Reception() {
     };
   }, [pid]);
 
+  const requestedTokens = useMemo(() => parseCsvTokens(requested), [requested]);
+  const requestedTokenUpper = useMemo(
+    () => new Set(requestedTokens.map((t) => t.toUpperCase())),
+    [requestedTokens],
+  );
+  const packageIdByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    (catalog?.packages || []).forEach((p) => map.set(p.code.toUpperCase(), p.id));
+    return map;
+  }, [catalog]);
+
+  const testIdByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    (catalog?.tests || []).forEach((t) => map.set(t.code.toUpperCase(), t.id));
+    return map;
+  }, [catalog]);
+
+  const packagePriceById = useMemo(() => {
+    const map = new Map<string, number>();
+    (catalog?.packages || []).forEach((p) => map.set(p.id, Number(p.price || 0)));
+    return map;
+  }, [catalog]);
+
+  const testPriceById = useMemo(() => {
+    const map = new Map<string, number>();
+    (catalog?.tests || []).forEach((t) => map.set(t.id, Number(t.price || 0)));
+    return map;
+  }, [catalog]);
+
+  const hasPromoPackageSelected = useMemo(() => {
+    for (const pkgId of selectedPackageIds) {
+      const price = packagePriceById.get(pkgId);
+      if (price != null && price >= 999) return true;
+    }
+    return false;
+  }, [selectedPackageIds, packagePriceById]);
+
+  const consultChecked =
+    requestedTokenUpper.has(QUICK_ADD_CODES.consult.promo) ||
+    requestedTokenUpper.has(QUICK_ADD_CODES.consult.regular);
+  const ecgChecked =
+    requestedTokenUpper.has(QUICK_ADD_CODES.ecg.promo) ||
+    requestedTokenUpper.has(QUICK_ADD_CODES.ecg.regular);
+
+  useEffect(() => {
+    if (!consultChecked && !ecgChecked) return;
+    let nextTokens = requestedTokens;
+    let changed = false;
+
+    if (consultChecked) {
+      const target = hasPromoPackageSelected
+        ? QUICK_ADD_CODES.consult.promo
+        : QUICK_ADD_CODES.consult.regular;
+      if (!ensureQuickAddCodeExists(target)) return;
+      nextTokens = replaceTokenCodes(
+        nextTokens,
+        [QUICK_ADD_CODES.consult.promo, QUICK_ADD_CODES.consult.regular],
+        target,
+      );
+      changed = true;
+    }
+
+    if (ecgChecked) {
+      const target = hasPromoPackageSelected
+        ? QUICK_ADD_CODES.ecg.promo
+        : QUICK_ADD_CODES.ecg.regular;
+      if (!ensureQuickAddCodeExists(target)) return;
+      nextTokens = replaceTokenCodes(
+        nextTokens,
+        [QUICK_ADD_CODES.ecg.promo, QUICK_ADD_CODES.ecg.regular],
+        target,
+      );
+      changed = true;
+    }
+
+    const nextCsv = serializeCsvTokens(nextTokens);
+    if (nextCsv !== requested) setRequested(nextCsv);
+    if (changed) setQuickAddWarning(null);
+  }, [
+    consultChecked,
+    ecgChecked,
+    hasPromoPackageSelected,
+    requestedTokens,
+    requested,
+    packageIdByCode,
+    testIdByCode,
+  ]);
+
   // Live pricing preview
   const liveTotals = useMemo(() => {
-    if (!catalog) return { auto: 0, final: Math.max(0, Number(manualAdd || 0)) };
-    const tokens = (requested || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const tokenUpper = new Set(tokens.map((t) => t.toUpperCase()));
-
-    const packPrice = new Map<string, number>();
-    for (const p of catalog.packages) packPrice.set(p.code.toUpperCase(), Number(p.price || 0));
-    const testPrice = new Map<string, number>();
-    for (const t of catalog.tests) testPrice.set(t.code.toUpperCase(), Number(t.price || 0));
-
-    let auto = 0;
-    // packages first
-    for (const tok of Array.from(tokenUpper)) {
-      if (packPrice.has(tok)) {
-        auto += packPrice.get(tok)!;
-        const members = catalog.packageMap[tok];
-        if (members) for (const m of members) tokenUpper.delete(m.toUpperCase());
-      }
+    const packageMapById = catalog?.packageMapById || {};
+    let packageTotal = 0;
+    const packageMemberSet = new Set<string>();
+    for (const pkgId of selectedPackageIds) {
+      const price = packagePriceById.get(pkgId);
+      if (price != null) packageTotal += price;
+      const members = packageMapById[pkgId];
+      if (members) members.forEach((m) => packageMemberSet.add(String(m)));
     }
-    // remaining tests
-    for (const tok of tokenUpper) {
-      if (testPrice.has(tok)) auto += testPrice.get(tok)!;
+
+    const nonPackageTestIds = new Set<string>();
+    for (const testId of selectedTestIds) {
+      if (packageMemberSet.has(testId)) continue;
+      if (testPriceById.has(testId)) nonPackageTestIds.add(testId);
     }
-    const manual = Math.max(0, Number(manualAdd || 0));
-    return { auto, final: auto + manual };
-  }, [requested, manualAdd, catalog]);
+
+    let nonPackageTestsTotal = 0;
+    for (const testId of nonPackageTestIds) {
+      nonPackageTestsTotal += testPriceById.get(testId)!;
+    }
+
+    const manualRaw = Number(manualAdd || 0);
+    const manual = Math.max(0, Number.isFinite(manualRaw) ? manualRaw : 0);
+    const discountBase = nonPackageTestsTotal + manual;
+    const discount = discountEnabled ? Math.round(discountBase * DISCOUNT_RATE) : 0;
+
+    const grossTotal = packageTotal + nonPackageTestsTotal + manual;
+    const auto = Math.round(packageTotal + nonPackageTestsTotal);
+    const manualRounded = Math.round(manual);
+    const final = Math.round(grossTotal - discount);
+
+    return { auto, manual: manualRounded, discount, final };
+  }, [
+    catalog,
+    selectedPackageIds,
+    selectedTestIds,
+    packagePriceById,
+    testPriceById,
+    manualAdd,
+    discountEnabled,
+  ]);
+
+  function resolveQuickAddId(code: string) {
+    const key = code.toUpperCase();
+    return packageIdByCode.get(key) || testIdByCode.get(key) || null;
+  }
+
+  function ensureQuickAddCodeExists(code: string) {
+    if (!catalog) {
+      setQuickAddWarning("Catalog not loaded yet. Please retry.");
+      return false;
+    }
+    const id = resolveQuickAddId(code);
+    if (!id) {
+      setQuickAddWarning(`Quick add code "${code}" not found in catalog.`);
+      return false;
+    }
+    return true;
+  }
+
+  function updateQuickAdd(kind: "consult" | "ecg", nextChecked: boolean) {
+    const codes = QUICK_ADD_CODES[kind];
+    const removeCodes = [codes.promo, codes.regular];
+    let nextTokens = requestedTokens;
+
+    if (nextChecked) {
+      const target = hasPromoPackageSelected ? codes.promo : codes.regular;
+      if (!ensureQuickAddCodeExists(target)) return;
+      nextTokens = replaceTokenCodes(nextTokens, removeCodes, target);
+      setQuickAddWarning(null);
+    } else {
+      nextTokens = removeTokenCodes(nextTokens, removeCodes);
+    }
+
+    setRequested(serializeCsvTokens(nextTokens));
+  }
 
   // Data loaders
   const [list, setList] = useState<any[]>([]);
@@ -359,8 +547,11 @@ export default function Reception() {
         address,
       },
       requested_tests_csv: requested,
+      package_ids: selectedPackageIds,
+      test_ids: selectedTestIds,
       yakap_flag: yakap,
       price_manual_add: Number(manualAdd || 0),
+      discount_enabled: discountEnabled,
       queue_now: queueNow,
     };
 
@@ -435,9 +626,12 @@ export default function Reception() {
       setAddress("");
       setPid("");
       setRequested("");
+      setSelectedPackageIds([]);
+      setSelectedTestIds([]);
       setManualAdd(0);
       setYakap(false);
       setQueueNow(false);
+      setDiscountEnabled(false);
       setLookupBadge(null);
       setOpenForm(false);
 
@@ -578,14 +772,62 @@ export default function Reception() {
           {/* Tests Picker */}
           <label className="space-y-1 block">
             <span className="text-sm">Requested tests / packages</span>
-            <TestPicker value={requested} onChange={setRequested} />
+            <TestPicker
+              value={requested}
+              onChange={setRequested}
+              onSelectionChange={(next) => {
+                setSelectedPackageIds(next.packageIds);
+                setSelectedTestIds(next.testIds);
+              }}
+            />
           </label>
+
+          {/* Quick Add */}
+          <div className="rounded border bg-slate-50 p-3 space-y-2">
+            <div className="text-sm font-medium">Quick Add</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={consultChecked}
+                  onChange={(e) => updateQuickAdd("consult", e.target.checked)}
+                />
+                Consult{" "}
+                <span className="text-xs text-gray-500">
+                  ({hasPromoPackageSelected ? "Promo" : "Regular"})
+                </span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={ecgChecked}
+                  onChange={(e) => updateQuickAdd("ecg", e.target.checked)}
+                />
+                ECG{" "}
+                <span className="text-xs text-gray-500">
+                  ({hasPromoPackageSelected ? "Promo" : "Regular"})
+                </span>
+              </label>
+            </div>
+          <div className="text-xs text-gray-500">
+            Auto-uses promo when any package with price 999+ is selected.
+          </div>
+          {quickAddWarning && <div className="text-xs text-amber-700">{quickAddWarning}</div>}
+        </div>
 
           {/* PhilHealth + Queue */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={yakap} onChange={(e) => setYakap(e.target.checked)} />
               PhilHealth (YAKAP)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={discountEnabled}
+                onChange={(e) => setDiscountEnabled(e.target.checked)}
+              />
+              Apply Discount (Senior/PWD)
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -832,6 +1074,15 @@ export default function Reception() {
                   onChange={(e) => setEditPhilhealth(e.target.checked)}
                 />
                 <span>PhilHealth (YAKAP)</span>
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={editDiscountEnabled}
+                  onChange={(e) => setEditDiscountEnabled(e.target.checked)}
+                />
+                <span>Apply Discount (Senior/PWD)</span>
               </label>
             </div>
 

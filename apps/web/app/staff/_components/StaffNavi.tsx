@@ -25,6 +25,7 @@ export default function StaffNavi({
     { href: "/staff/patienthistory", label: "Patient Vitals and Hx" },
     { href: "/staff/prescriptions", label: "Prescriptions" },
     { href: "/staff/med-orders", label: "Med Orders" },
+    { href: "/staff/supplies", label: "Supplies" },
     { href: "/staff/medcerts", label: "Medical Certs" },
     { href: "/staff/rmt/hemaupload", label: "RMT Hema Upload" },
     ...(canManageAssignments

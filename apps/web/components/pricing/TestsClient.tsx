@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { CheckCircle2, Search } from "lucide-react";
 
 export type TestRow = {
+  id: string;
   test_code: string;
   display_name: string;
   default_price: number;
@@ -50,7 +51,7 @@ export default function TestsClient({ tests }: { tests: TestRow[] }) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((t) => (
           <div
-            key={t.test_code}
+            key={t.id}
             className="flex items-start justify-between gap-3 rounded-3xl border border-white/70 bg-white/80 p-5 shadow-lg backdrop-blur transition hover:-translate-y-1 hover:shadow-xl"
           >
             <div className="min-w-0 space-y-1">

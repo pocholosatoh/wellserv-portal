@@ -21,12 +21,19 @@ export const metadata = {
 };
 
 export type PackageRow = {
+  id: string;
   package_code: string;
   display_name: string;
   package_price: number;
 };
-export type PackageItemRow = { package_code: string; test_code: string };
+export type PackageItemRow = {
+  package_id: string | null;
+  test_id: string | null;
+  package_code?: string | null;
+  test_code?: string | null;
+};
 export type CatalogTestRow = {
+  id: string;
   test_code: string;
   display_name: string;
   default_price: number;
@@ -66,20 +73,33 @@ async function getData() {
     sbFetch<CatalogTestRow[]>("tests_catalog", { select: "*" }),
   ]);
 
-  const testByCode = new Map<string, CatalogTestRow>(tests.map((t) => [t.test_code.trim(), t]));
+  const testById = new Map<string, CatalogTestRow>(tests.map((t) => [t.id, t]));
+  const testByCode = new Map<string, CatalogTestRow>(
+    tests.map((t) => [t.test_code.trim().toUpperCase(), t]),
+  );
+  const packageIdByCode = new Map<string, string>(
+    packages.map((p) => [p.package_code.trim().toUpperCase(), p.id]),
+  );
 
   const itemsByPkg = new Map<string, { code: string; name: string }[]>();
   for (const it of items) {
-    const t = testByCode.get(it.test_code.trim());
-    const arr = itemsByPkg.get(it.package_code) ?? [];
-    arr.push({ code: it.test_code, name: t?.display_name ?? it.test_code });
-    itemsByPkg.set(it.package_code, arr);
+    const test =
+      (it.test_id ? testById.get(it.test_id) : undefined) ||
+      (it.test_code ? testByCode.get(it.test_code.trim().toUpperCase()) : undefined);
+    const pkgId =
+      it.package_id ||
+      (it.package_code ? packageIdByCode.get(it.package_code.trim().toUpperCase()) : undefined);
+    if (!pkgId) continue;
+    const arr = itemsByPkg.get(pkgId) ?? [];
+    const code = test?.test_code || it.test_code || "";
+    arr.push({ code, name: test?.display_name ?? code });
+    itemsByPkg.set(pkgId, arr);
   }
 
   const packagesWithItems: PackageWithItems[] = packages
     .map((p) => ({
       ...p,
-      items: (itemsByPkg.get(p.package_code) || []).sort((a, b) => a.name.localeCompare(b.name)),
+      items: (itemsByPkg.get(p.id) || []).sort((a, b) => a.name.localeCompare(b.name)),
       isFeatured: p.package_code === "COMP999" || p.package_code === "DIA1599",
     }))
     .sort(
@@ -90,6 +110,7 @@ async function getData() {
     .filter((t) => t.is_active)
     .sort((a, b) => a.display_name.localeCompare(b.display_name))
     .map((t) => ({
+      id: t.id,
       test_code: t.test_code,
       display_name: t.display_name,
       default_price: t.default_price,
@@ -230,11 +251,11 @@ export default async function PriceListPage() {
               </a>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              {packages
-                .filter((p) => p.isFeatured)
-                .map((p) => (
-                  <div
-                    key={p.package_code}
+                  {packages
+                    .filter((p) => p.isFeatured)
+                    .map((p) => (
+                      <div
+                        key={p.id}
                     className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur transition hover:-translate-y-1 hover:shadow-2xl"
                   >
                     <div className="absolute -top-32 right-0 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
@@ -276,11 +297,11 @@ export default async function PriceListPage() {
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {packages
-                .filter((p) => !p.isFeatured)
-                .map((p) => (
-                  <div
-                    key={p.package_code}
+                {packages
+                  .filter((p) => !p.isFeatured)
+                  .map((p) => (
+                    <div
+                      key={p.id}
                     className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-lg backdrop-blur transition hover:-translate-y-1 hover:shadow-xl"
                   >
                     <div className="flex items-start justify-between gap-3">

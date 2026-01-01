@@ -3,26 +3,31 @@
 import { useEffect, useMemo, useState } from "react";
 
 type LabTest = {
+  id: string;
   code: string;
   name: string;
   price?: number | null;
 };
 
 type LabPackage = {
+  id: string;
   code: string;
   name: string;
   price?: number | null;
 };
 
+type Selection = { packageIds: string[]; testIds: string[] };
+
 type Props = {
   value: string;
   onChange: (next: string) => void;
+  onSelectionChange?: (next: Selection) => void;
 };
 
-export default function LabTestQuickSearch({ value, onChange }: Props) {
+export default function LabTestQuickSearch({ value, onChange, onSelectionChange }: Props) {
   const [tests, setTests] = useState<LabTest[]>([]);
   const [packages, setPackages] = useState<LabPackage[]>([]);
-  const [packageMap, setPackageMap] = useState<Record<string, string[]>>({});
+  const [packageMapById, setPackageMapById] = useState<Record<string, string[]>>({});
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,12 +44,14 @@ export default function LabTestQuickSearch({ value, onChange }: Props) {
           throw new Error(data.error || "Failed to load lab catalog");
         }
         if (!cancelled) {
-          const items: LabTest[] = (data.tests || []).filter((t: any) => t.code && t.name);
+          const items: LabTest[] = (data.tests || []).filter((t: any) => t.id && t.code && t.name);
           setTests(items);
-          const pkgs: LabPackage[] = (data.packages || []).filter((p: any) => p.code && p.name);
+          const pkgs: LabPackage[] = (data.packages || []).filter(
+            (p: any) => p.id && p.code && p.name,
+          );
           setPackages(pkgs);
-          if (data.packageMap && typeof data.packageMap === "object") {
-            setPackageMap(data.packageMap);
+          if (data.packageMapById && typeof data.packageMapById === "object") {
+            setPackageMapById(data.packageMapById);
           }
         }
       } catch (err: any) {
@@ -67,6 +74,50 @@ export default function LabTestQuickSearch({ value, onChange }: Props) {
     [value],
   );
 
+  const packageIdByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    packages.forEach((p) => map.set(p.code.toUpperCase(), p.id));
+    return map;
+  }, [packages]);
+
+  const packageIdByName = useMemo(() => {
+    const map = new Map<string, string>();
+    packages.forEach((p) => map.set(p.name.toUpperCase(), p.id));
+    return map;
+  }, [packages]);
+
+  const testIdByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    tests.forEach((t) => map.set(t.code.toUpperCase(), t.id));
+    return map;
+  }, [tests]);
+
+  const testCodeById = useMemo(() => {
+    const map = new Map<string, string>();
+    tests.forEach((t) => map.set(t.id, t.code));
+    return map;
+  }, [tests]);
+
+  const selection = useMemo<Selection>(() => {
+    const packageIds = new Set<string>();
+    const testIds = new Set<string>();
+    tokens.forEach((t) => {
+      const key = t.toUpperCase();
+      const pkgId = packageIdByCode.get(key) || packageIdByName.get(key);
+      if (pkgId) {
+        packageIds.add(pkgId);
+        return;
+      }
+      const testId = testIdByCode.get(key);
+      if (testId) testIds.add(testId);
+    });
+    return { packageIds: Array.from(packageIds), testIds: Array.from(testIds) };
+  }, [tokens, packageIdByCode, packageIdByName, testIdByCode]);
+
+  useEffect(() => {
+    onSelectionChange?.(selection);
+  }, [selection, onSelectionChange]);
+
   const filteredTests = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return [];
@@ -85,16 +136,22 @@ export default function LabTestQuickSearch({ value, onChange }: Props) {
 
   const coverageHints = useMemo(() => {
     if (!tokens.length) return [];
-    const covered = new Set<string>();
+    const coveredTestIds = new Set<string>();
     tokens.forEach((token) => {
-      const members = packageMap[token.toUpperCase()];
-      if (members) {
-        members.forEach((m) => covered.add(String(m).toUpperCase()));
-      }
+      const key = token.toUpperCase();
+      const pkgId = packageIdByCode.get(key) || packageIdByName.get(key);
+      if (!pkgId) return;
+      const members = packageMapById[pkgId];
+      if (members) members.forEach((m) => coveredTestIds.add(String(m)));
     });
-    if (!covered.size) return [];
-    return tokens.filter((token) => covered.has(token.toUpperCase()));
-  }, [tokens, packageMap]);
+    if (!coveredTestIds.size) return [];
+    const coveredCodes = new Set<string>();
+    coveredTestIds.forEach((id) => {
+      const code = testCodeById.get(id);
+      if (code) coveredCodes.add(code.toUpperCase());
+    });
+    return tokens.filter((token) => coveredCodes.has(token.toUpperCase()));
+  }, [tokens, packageIdByCode, packageIdByName, packageMapById, testCodeById]);
 
   function setTokens(next: string[]) {
     onChange(next.join(", "));
@@ -160,11 +217,15 @@ export default function LabTestQuickSearch({ value, onChange }: Props) {
                   Packages
                 </div>
                 {filteredPackages.map((pkg) => {
-                  const members = packageMap[pkg.code.toUpperCase()] || [];
-                  const preview = members.slice(0, 4).join(", ");
+                  const members = packageMapById[pkg.id] || [];
+                  const preview = members
+                    .map((id) => testCodeById.get(id))
+                    .filter(Boolean)
+                    .slice(0, 4)
+                    .join(", ");
                   return (
                     <button
-                      key={`pkg-${pkg.code}`}
+                      key={`pkg-${pkg.id}`}
                       type="button"
                       onClick={() => addToken(pkg.code)}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
@@ -198,7 +259,7 @@ export default function LabTestQuickSearch({ value, onChange }: Props) {
                 </div>
                 {filteredTests.map((test) => (
                   <button
-                    key={`test-${test.code}`}
+                    key={`test-${test.id}`}
                     type="button"
                     onClick={() => addToken(test.code)}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"

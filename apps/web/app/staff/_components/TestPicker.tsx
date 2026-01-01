@@ -2,21 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Test = { code: string; name: string; price?: number | null };
-type Pack = { code: string; name: string; price?: number | null };
-type WindowWithLabPackageMap = Window & {
-  __labPackageMap?: Record<string, string[]>;
-};
+type Test = { id: string; code: string; name: string; price?: number | null };
+type Pack = { id: string; code: string; name: string; price?: number | null };
+type Selection = { packageIds: string[]; testIds: string[] };
 
 type Props = {
   value: string; // comma-separated tokens
   onChange: (next: string) => void;
+  onSelectionChange?: (next: Selection) => void;
 };
 
-export default function TestPicker({ value, onChange }: Props) {
+export default function TestPicker({ value, onChange, onSelectionChange }: Props) {
   const [q, setQ] = useState("");
   const [tests, setTests] = useState<Test[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
+  const [packageMapById, setPackageMapById] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,8 +26,11 @@ export default function TestPicker({ value, onChange }: Props) {
         const res = await fetch("/api/catalog/lab");
         const j = await res.json();
         if (res.ok) {
-          setTests((j.tests || []).filter((t: any) => t.code && t.name));
-          setPacks((j.packages || []).filter((p: any) => p.code && p.name));
+          setTests((j.tests || []).filter((t: any) => t.id && t.code && t.name));
+          setPacks((j.packages || []).filter((p: any) => p.id && p.code && p.name));
+          if (j.packageMapById && typeof j.packageMapById === "object") {
+            setPackageMapById(j.packageMapById);
+          }
         }
       } finally {
         setLoading(false);
@@ -43,6 +46,50 @@ export default function TestPicker({ value, onChange }: Props) {
         .filter(Boolean),
     [value],
   );
+
+  const packageIdByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    packs.forEach((p) => map.set(p.code.toUpperCase(), p.id));
+    return map;
+  }, [packs]);
+
+  const packageIdByName = useMemo(() => {
+    const map = new Map<string, string>();
+    packs.forEach((p) => map.set(p.name.toUpperCase(), p.id));
+    return map;
+  }, [packs]);
+
+  const testIdByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    tests.forEach((t) => map.set(t.code.toUpperCase(), t.id));
+    return map;
+  }, [tests]);
+
+  const testCodeById = useMemo(() => {
+    const map = new Map<string, string>();
+    tests.forEach((t) => map.set(t.id, t.code));
+    return map;
+  }, [tests]);
+
+  const selection = useMemo<Selection>(() => {
+    const packageIds = new Set<string>();
+    const testIds = new Set<string>();
+    tokens.forEach((t) => {
+      const key = t.toUpperCase();
+      const pkgId = packageIdByCode.get(key) || packageIdByName.get(key);
+      if (pkgId) {
+        packageIds.add(pkgId);
+        return;
+      }
+      const testId = testIdByCode.get(key);
+      if (testId) testIds.add(testId);
+    });
+    return { packageIds: Array.from(packageIds), testIds: Array.from(testIds) };
+  }, [tokens, packageIdByCode, packageIdByName, testIdByCode]);
+
+  useEffect(() => {
+    onSelectionChange?.(selection);
+  }, [selection, onSelectionChange]);
 
   function setTokens(next: string[]) {
     onChange(next.join(", "));
@@ -75,36 +122,29 @@ export default function TestPicker({ value, onChange }: Props) {
 
   // …inside TestPicker component, after `const tokens = …` and before the return:
   const coverageHints = (() => {
-    // Show which tokens are covered by any selected package
-    const toks = (value || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const chosenUpper = new Set(toks.map((t) => t.toUpperCase()));
+    if (!tokens.length) return [] as string[];
+    const coveredTestIds = new Set<string>();
+    const packageIds = tokens
+      .map((t) => {
+        const key = t.toUpperCase();
+        return packageIdByCode.get(key) || packageIdByName.get(key);
+      })
+      .filter(Boolean) as string[];
 
-    // Build quick maps
-    const packCodes = new Set((packs || []).map((p) => p.code.toUpperCase()));
-    const covered = new Set<string>();
-
-    // If you loaded packageMap from /api/catalog/lab, thread it via props
-    // If not available in this file, skip hints silently.
-    const pm: Record<string, string[]> | undefined =
-      typeof window !== "undefined" &&
-      typeof (window as WindowWithLabPackageMap).__labPackageMap === "object"
-        ? (window as WindowWithLabPackageMap).__labPackageMap
-        : undefined;
-
-    if (!pm) return [] as string[];
-
-    for (const tok of chosenUpper) {
-      if (packCodes.has(tok)) {
-        const members = pm[tok];
-        if (members) members.forEach((m) => covered.add(m.toUpperCase()));
-      }
+    for (const pkgId of packageIds) {
+      const members = packageMapById[pkgId];
+      if (members) members.forEach((m) => coveredTestIds.add(m));
     }
 
-    // list tests that are covered & also present in tokens
-    const duplicates = toks.filter((t) => covered.has(t.toUpperCase()));
+    if (!coveredTestIds.size) return [] as string[];
+
+    const coveredCodes = new Set<string>();
+    coveredTestIds.forEach((id) => {
+      const code = testCodeById.get(id);
+      if (code) coveredCodes.add(code.toUpperCase());
+    });
+
+    const duplicates = tokens.filter((t) => coveredCodes.has(t.toUpperCase()));
     return Array.from(new Set(duplicates));
   })();
 
@@ -148,7 +188,7 @@ export default function TestPicker({ value, onChange }: Props) {
               <div className="text-xs text-gray-500 px-1">Packages</div>
               {filteredPacks.map((p) => (
                 <button
-                  key={"P:" + p.code}
+                  key={"P:" + p.id}
                   type="button"
                   onClick={() => addToken(p.code)} // store package_code
                   className="w-full text-left px-2 py-1 hover:bg-gray-50 rounded"
@@ -164,7 +204,7 @@ export default function TestPicker({ value, onChange }: Props) {
               <div className="text-xs text-gray-500 px-1 mt-1">Tests</div>
               {filteredTests.map((t) => (
                 <button
-                  key={"T:" + t.code}
+                  key={"T:" + t.id}
                   type="button"
                   onClick={() => addToken(t.code)} // store test_code
                   className="w-full text-left px-2 py-1 hover:bg-gray-50 rounded"
