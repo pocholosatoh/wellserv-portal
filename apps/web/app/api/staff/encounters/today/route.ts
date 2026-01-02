@@ -8,6 +8,8 @@ export async function GET(req: Request) {
     const branch = (url.searchParams.get("branch") || "SI").toUpperCase();
     const consultOnly = url.searchParams.get("consultOnly") === "1";
     const includeDone = url.searchParams.get("includeDone") === "1"; // 👈 NEW
+    const sortRaw = (url.searchParams.get("sort") || "").toLowerCase();
+    const sort = sortRaw === "surname" ? "surname" : "latest";
     if (!["SI", "SL"].includes(branch)) {
       return NextResponse.json({ error: "Invalid branch" }, { status: 400 });
     }
@@ -16,6 +18,7 @@ export async function GET(req: Request) {
       branch: branch as "SI" | "SL",
       consultOnly,
       includeDone,
+      sort,
     });
 
     return NextResponse.json({ rows });

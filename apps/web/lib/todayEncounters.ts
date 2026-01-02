@@ -20,6 +20,8 @@ export type TodayEncounterRow = {
   contact: string | null;
 };
 
+type TodaySort = "latest" | "surname";
+
 export function todayISOin(tz = DEFAULT_TZ) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
@@ -33,15 +35,18 @@ type FetchOpts = {
   branch: "SI" | "SL";
   consultOnly?: boolean;
   includeDone?: boolean;
+  sort?: TodaySort;
 };
 
 export async function readTodayEncounters({
   branch,
   consultOnly = false,
   includeDone = false,
+  sort = "latest",
 }: FetchOpts): Promise<TodayEncounterRow[]> {
   const supabase = getSupabase();
   const today = todayISOin();
+  const resolvedSort: TodaySort = sort === "surname" ? "surname" : "latest";
 
   let query = supabase
     .from("encounters")
@@ -60,7 +65,11 @@ export async function readTodayEncounters({
       .in("consult_status", states)
       .order("queue_number", { ascending: true, nullsFirst: false });
   } else {
-    query = query.order("priority", { ascending: false });
+    if (resolvedSort === "latest") {
+      query = query.order("created_at", { ascending: false }).order("id", { ascending: false });
+    } else {
+      query = query.order("id", { ascending: false });
+    }
   }
 
   const { data: encs, error: encError } = await query;
@@ -99,7 +108,7 @@ export async function readTodayEncounters({
       })
     : rows;
 
-  return list.map((r: any) => ({
+  const mapped = list.map((r: any) => ({
     id: r.id,
     patient_id: r.patient_id,
     branch_code: r.branch_code,
@@ -116,4 +125,34 @@ export async function readTodayEncounters({
     full_name: patientMap.get(r.patient_id)?.full_name || "",
     contact: patientMap.get(r.patient_id)?.contact || "",
   }));
+
+  if (consultOnly || resolvedSort !== "surname") return mapped;
+
+  const nameParts = (fullName: string) => {
+    const normalized = (fullName || "").trim().toUpperCase();
+    if (!normalized) return { surname: "", firstname: "" };
+    const commaIdx = normalized.indexOf(",");
+    if (commaIdx >= 0) {
+      return {
+        surname: normalized.slice(0, commaIdx).trim(),
+        firstname: normalized.slice(commaIdx + 1).trim(),
+      };
+    }
+    const parts = normalized.split(/\s+/);
+    if (parts.length <= 1) return { surname: normalized, firstname: "" };
+    return {
+      surname: parts[parts.length - 1],
+      firstname: parts.slice(0, -1).join(" "),
+    };
+  };
+
+  return [...mapped].sort((a, b) => {
+    const aName = nameParts(a.full_name);
+    const bName = nameParts(b.full_name);
+    const surCmp = aName.surname.localeCompare(bName.surname);
+    if (surCmp) return surCmp;
+    const firstCmp = aName.firstname.localeCompare(bName.firstname);
+    if (firstCmp) return firstCmp;
+    return String(b.id).localeCompare(String(a.id));
+  });
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import TestPicker from "@/app/staff/_components/TestPicker";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 /** Helpers */
 function readCookie(name: string) {
@@ -51,6 +51,8 @@ type Catalog = {
   packageMapById: Record<string, string[]>;
 };
 
+type TodaySort = "latest" | "surname";
+
 const DISCOUNT_RATE = 0.2;
 const QUICK_ADD_CODES = {
   consult: { promo: "CONSULT-P", regular: "CONSULT-R" },
@@ -97,6 +99,11 @@ function replaceTokenCodes(tokens: string[], codes: string[], nextCode: string) 
 
 export default function Reception() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const sortParam = (searchParams.get("sort") || "").toLowerCase();
+  const resolvedSort: TodaySort = sortParam === "surname" ? "surname" : "latest";
+  const [todaySort, setTodaySort] = useState<TodaySort>(resolvedSort);
 
   // branch lock
   const [branch, setBranch] = useState<"SI" | "SL" | "">("");
@@ -206,6 +213,10 @@ export default function Reception() {
     setRole((getCookie("staff_role") || "").toLowerCase());
   }, []);
 
+  useEffect(() => {
+    setTodaySort(resolvedSort);
+  }, [resolvedSort]);
+
   // UI toggles
   const [openForm, setOpenForm] = useState(false);
   const [lookupBadge, setLookupBadge] = useState<null | string>(null);
@@ -238,6 +249,11 @@ export default function Reception() {
   useEffect(() => {
     if (branch === "SI" || branch === "SL") {
       loadTodayList(branch);
+    }
+  }, [branch, todaySort]);
+
+  useEffect(() => {
+    if (branch === "SI" || branch === "SL") {
       loadConsultQueue(branch);
     }
   }, [branch]);
@@ -454,7 +470,10 @@ export default function Reception() {
   const [list, setList] = useState<any[]>([]);
   async function loadTodayList(b: "SI" | "SL") {
     try {
-      const res = await fetch(`/api/staff/encounters/today?branch=${b}`, { cache: "no-store" });
+      const res = await fetch(
+        `/api/staff/encounters/today?branch=${b}&sort=${encodeURIComponent(todaySort)}`,
+        { cache: "no-store" },
+      );
       const j = await res.json();
       if (res.ok) setList(j.rows || []);
     } catch {}
@@ -489,6 +508,14 @@ export default function Reception() {
     } finally {
       setCqBusy(false);
     }
+  }
+
+  function updateTodaySort(next: TodaySort) {
+    setTodaySort(next);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("sort", next);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
   function makeReorderedIds(list: any[], idx: number, dir: "up" | "down") {
@@ -876,7 +903,20 @@ export default function Reception() {
 
       {/* Today list (Reception view-only) */}
       <section className="space-y-2">
-        <h2 className="font-semibold">Today’s Patients</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Today’s Patients</h2>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <span className="text-xs text-gray-500">Sort</span>
+            <select
+              value={todaySort}
+              onChange={(e) => updateTodaySort(e.target.value as TodaySort)}
+              className="border rounded px-2 py-1 text-sm"
+            >
+              <option value="latest">Latest encounter</option>
+              <option value="surname">A-Z (surname)</option>
+            </select>
+          </label>
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
