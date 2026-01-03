@@ -149,6 +149,9 @@ export default function HomePage() {
                 <a className="hover:underline" href="/pricelist">
                   Price List
                 </a>
+                <a className="hover:underline" href="/privacy">
+                  Privacy Policy
+                </a>
                 <a
                   className="hover:underline"
                   href="https://facebook.com/wellservmedicalcorporation"

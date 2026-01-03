@@ -1,6 +1,7 @@
 // app/layout.tsx
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import CookieNotice from "@/components/CookieNotice";
 
 const SITE = "https://www.wellserv.co"; // primary domain (www)
 
@@ -49,7 +50,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="font-sans">
-      <body className="min-h-screen bg-[#f8fafb] antialiased">{children}</body>
+      <body className="min-h-screen bg-[#f8fafb] antialiased">
+        {children}
+        <CookieNotice />
+      </body>
     </html>
   );
 }

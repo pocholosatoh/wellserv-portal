@@ -12,11 +12,11 @@
     "test": "echo \"No app-specific tests yet\" && exit 0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.74.0",
+    "@vercel/analytics": "^1.5.0",
     "@wellserv/core": "workspace:*",
     "@wellserv/data": "workspace:*",
     "@wellserv/theme": "workspace:*",
-    "@supabase/supabase-js": "^2.74.0",
-    "@vercel/analytics": "^1.5.0",
     "bcryptjs": "^3.0.2",
     "framer-motion": "^12.23.24",
     "google-auth-library": "^10.3.0",
@@ -29,6 +29,7 @@
     "papaparse": "^5.5.3",
     "react": "19.1.2",
     "react-dom": "19.1.2",
+    "react-markdown": "^10.1.0",
     "styled-jsx": "^5.1.7",
     "zod": "^4.1.12"
   },
@@ -40,8 +41,8 @@
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.10",
     "eslint": "8.57.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-config-next": "15.5.7",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.19.4"
