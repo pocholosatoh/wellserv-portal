@@ -3,6 +3,8 @@ import { Stack, useRouter } from "expo-router";
 import * as Location from "expo-location";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -10,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { colors, radii, spacing } from "@wellserv/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getApiBaseUrl } from "../lib/api";
 import { apiFetch } from "../lib/http";
 import { useSession } from "../providers/SessionProvider";
@@ -75,6 +78,7 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = () => {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mode, setMode] = useState<"register" | "order">("register");
   const contentContainerStyle = patientTabsContentContainerStyle;
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     setMode(hasAddress(deliveryQuery.data) ? "order" : "register");
@@ -97,6 +101,21 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = () => {
     if (mode === "register") return "Register your delivery address so we can reach you.";
     return "Review your saved address and request a delivery.";
   }, [mode]);
+
+  const scrollContentStyle = useMemo(() => {
+    const basePaddingBottom =
+      typeof contentContainerStyle.paddingBottom === "number"
+        ? contentContainerStyle.paddingBottom
+        : spacing.xl;
+    return [
+      contentContainerStyle,
+      {
+        flexGrow: 1,
+        paddingBottom:
+          basePaddingBottom + (Platform.OS === "android" ? spacing.lg + insets.bottom : 0),
+      },
+    ];
+  }, [contentContainerStyle, insets.bottom]);
 
   if (sessionLoading || deliveryQuery.isLoading || !patientId || deliveryQuery.error) {
     const body = () => {
@@ -262,50 +281,62 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = () => {
         options={{ title: "Medication Delivery", headerShown: false, headerShadowVisible: false }}
       />
       <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <ScrollView contentContainerStyle={contentContainerStyle}>
-          <View
-            style={{
-              backgroundColor: "#f3f4f6",
-              borderRadius: 22,
-              padding: spacing.lg,
-              borderWidth: 1,
-              borderColor: colors.gray[200],
-              marginBottom: spacing.md,
-            }}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <ScrollView
+            contentContainerStyle={scrollContentStyle}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
           >
-            <Text style={{ fontSize: 22, fontWeight: "700", color: colors.gray[900] }}>
-              Medication Delivery
-            </Text>
-            <Text style={{ color: colors.gray[600], marginTop: spacing.xs }}>{headerSubtitle}</Text>
-          </View>
+            <View
+              style={{
+                backgroundColor: "#f3f4f6",
+                borderRadius: 22,
+                padding: spacing.lg,
+                borderWidth: 1,
+                borderColor: colors.gray[200],
+                marginBottom: spacing.md,
+              }}
+            >
+              <Text style={{ fontSize: 22, fontWeight: "700", color: colors.gray[900] }}>
+                Medication Delivery
+              </Text>
+              <Text style={{ color: colors.gray[600], marginTop: spacing.xs }}>
+                {headerSubtitle}
+              </Text>
+            </View>
 
-          {mode === "register" ? (
-            <AddressForm
-              patient={patient}
-              onSaved={() => {
-                handleSaved();
-              }}
-              onError={(message) => showToast(message)}
-            />
-          ) : (
-            <DeliveryOrderScreen
-              patient={patient}
-              onOrderSuccess={() => {
-                handleOrderSuccess();
-              }}
-              onEditAddress={() => setMode("register")}
-              onError={(message) => showToast(message)}
-            />
-          )}
-        </ScrollView>
+            {mode === "register" ? (
+              <AddressForm
+                patient={patient}
+                onSaved={() => {
+                  handleSaved();
+                }}
+                onError={(message) => showToast(message)}
+              />
+            ) : (
+              <DeliveryOrderScreen
+                patient={patient}
+                onOrderSuccess={() => {
+                  handleOrderSuccess();
+                }}
+                onEditAddress={() => setMode("register")}
+                onError={(message) => showToast(message)}
+              />
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
 
         {toast && (
           <View
             style={{
               position: "absolute",
-              left: spacing.lg,
-              right: spacing.lg,
-              bottom: spacing.lg,
+              left: spacing.lg + insets.left,
+              right: spacing.lg + insets.right,
+              bottom: spacing.lg + insets.bottom,
               backgroundColor: "rgba(20,20,20,0.92)",
               padding: 14,
               borderRadius: 16,

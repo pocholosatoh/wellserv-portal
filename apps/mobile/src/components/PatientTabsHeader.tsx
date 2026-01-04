@@ -1,5 +1,13 @@
 import { useEffect, useRef } from "react";
-import { ScrollView, Text, TouchableOpacity, View, ViewStyle, TextStyle } from "react-native";
+import {
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+  TextStyle,
+} from "react-native";
 import { colors, spacing } from "@wellserv/theme";
 
 export type PatientTabKey =
@@ -53,6 +61,8 @@ export function PatientTabsHeader({ activeTab, onTabPress }: PatientTabsHeaderPr
         contentInsetAdjustmentBehavior="never"
         automaticallyAdjustContentInsets={false}
         scrollEventThrottle={16}
+        nestedScrollEnabled={Platform.OS === "android"}
+        overScrollMode={Platform.OS === "android" ? "never" : undefined}
         onLayout={(event) => {
           containerWidthRef.current = event.nativeEvent.layout.width;
         }}
@@ -62,15 +72,13 @@ export function PatientTabsHeader({ activeTab, onTabPress }: PatientTabsHeaderPr
         onScroll={(event) => {
           scrollXRef.current = event.nativeEvent.contentOffset.x;
         }}
-        style={{
-          paddingHorizontal: spacing.lg,
-          paddingTop: 0,
-          paddingBottom: spacing.sm,
-        }}
+        style={{ paddingTop: 0 }}
         contentContainerStyle={{
           flexDirection: "row",
           gap: spacing.sm,
           alignItems: "center",
+          paddingHorizontal: spacing.lg,
+          paddingBottom: spacing.sm,
         }}
       >
         {tabs.map((tab) => {

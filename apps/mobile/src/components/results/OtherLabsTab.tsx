@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   Modal,
+  Platform,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -13,7 +14,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
   runOnUI,
   useAnimatedReaction,
@@ -98,6 +99,7 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
   const insets = useSafeAreaInsets();
   const minScale = 1;
   const maxScale = 6;
+  const ModalRoot = Platform.OS === "android" ? GestureHandlerRootView : View;
   const scale = useSharedValue(1);
   const pinchScale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -307,122 +309,127 @@ function ImagePreviewModal({ uri, onClose, imgSize }: ImagePreviewModalProps) {
 
   return (
     <Modal visible transparent={false} animationType="fade" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }}>
-        <View style={{ flex: 1 }}>
-          <TouchableOpacity
-            onPress={onClose}
-            style={{
-              position: "absolute",
-              top: insets.top + spacing.sm,
-              right: insets.right + spacing.sm,
-              backgroundColor: "rgba(255,255,255,0.9)",
-              paddingHorizontal: 14,
-              paddingVertical: 10,
-              borderRadius: 20,
-              zIndex: 2,
-            }}
-            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
-          >
-            <Text style={{ color: colors.gray[800], fontWeight: "600" }}>Close</Text>
-          </TouchableOpacity>
-          <View
-            style={{
-              position: "absolute",
-              right: insets.right + spacing.sm,
-              bottom: insets.bottom + spacing.sm,
-              zIndex: 2,
-              gap: spacing.xs,
-            }}
-          >
+      <ModalRoot style={{ flex: 1 }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }}>
+          <View style={{ flex: 1 }}>
             <TouchableOpacity
-              onPress={handleRotate}
+              onPress={onClose}
               style={{
+                position: "absolute",
+                top: insets.top + spacing.sm,
+                right: insets.right + spacing.sm,
                 backgroundColor: "rgba(255,255,255,0.9)",
-                paddingHorizontal: 12,
+                paddingHorizontal: 14,
                 paddingVertical: 10,
-                borderRadius: 18,
-                alignItems: "center",
+                borderRadius: 20,
+                zIndex: 2,
               }}
-              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
             >
-              <Text style={{ color: colors.gray[800], fontWeight: "700" }}>Rotate</Text>
+              <Text style={{ color: colors.gray[800], fontWeight: "600" }}>Close</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => handleZoom("in")}
+            <View
               style={{
-                backgroundColor: "rgba(255,255,255,0.9)",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                borderRadius: 18,
-                alignItems: "center",
+                position: "absolute",
+                right: insets.right + spacing.sm,
+                bottom: insets.bottom + spacing.sm,
+                zIndex: 2,
+                gap: spacing.xs,
               }}
-              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
             >
-              <Text style={{ color: colors.gray[800], fontWeight: "700" }}>+</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => handleZoom("out")}
-              style={{
-                backgroundColor: "rgba(255,255,255,0.9)",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                borderRadius: 18,
-                alignItems: "center",
+              <TouchableOpacity
+                onPress={handleRotate}
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.9)",
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  borderRadius: 18,
+                  alignItems: "center",
+                }}
+                hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              >
+                <Text style={{ color: colors.gray[800], fontWeight: "700" }}>Rotate</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleZoom("in")}
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.9)",
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  borderRadius: 18,
+                  alignItems: "center",
+                }}
+                hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              >
+                <Text style={{ color: colors.gray[800], fontWeight: "700" }}>+</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleZoom("out")}
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.9)",
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  borderRadius: 18,
+                  alignItems: "center",
+                }}
+                hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              >
+                <Text style={{ color: colors.gray[800], fontWeight: "700" }}>–</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleReset}
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.9)",
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  borderRadius: 18,
+                  alignItems: "center",
+                }}
+                hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              >
+                <Text style={{ color: colors.gray[800], fontWeight: "700" }}>Reset</Text>
+              </TouchableOpacity>
+            </View>
+            <View
+              style={{ flex: 1 }}
+              onLayout={(event) => {
+                const nextWidth = Math.round(event.nativeEvent.layout.width);
+                const nextHeight = Math.round(event.nativeEvent.layout.height);
+                if (nextWidth !== containerSize.width || nextHeight !== containerSize.height) {
+                  setContainerSize({ width: nextWidth, height: nextHeight });
+                  runOnUI((width: number, height: number) => {
+                    "worklet";
+                    viewportW.value = width;
+                    viewportH.value = height;
+                  })(nextWidth, nextHeight);
+                  resetView();
+                }
               }}
-              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
             >
-              <Text style={{ color: colors.gray[800], fontWeight: "700" }}>–</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleReset}
-              style={{
-                backgroundColor: "rgba(255,255,255,0.9)",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                borderRadius: 18,
-                alignItems: "center",
-              }}
-              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-            >
-              <Text style={{ color: colors.gray[800], fontWeight: "700" }}>Reset</Text>
-            </TouchableOpacity>
+              <GestureDetector gesture={composedGesture}>
+                <Animated.View
+                  style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+                  collapsable={false}
+                >
+                  {/* eslint-disable-next-line jsx-a11y/alt-text -- React Native Image uses accessibilityLabel instead of alt */}
+                  <Animated.Image
+                    source={{ uri }}
+                    style={[
+                      {
+                        width: containerSize.width,
+                        height: containerSize.height,
+                      },
+                      animatedStyle,
+                    ]}
+                    resizeMode="contain"
+                    accessibilityLabel="Other lab image preview"
+                  />
+                </Animated.View>
+              </GestureDetector>
+            </View>
           </View>
-          <View
-            style={{ flex: 1 }}
-            onLayout={(event) => {
-              const nextWidth = Math.round(event.nativeEvent.layout.width);
-              const nextHeight = Math.round(event.nativeEvent.layout.height);
-              if (nextWidth !== containerSize.width || nextHeight !== containerSize.height) {
-                setContainerSize({ width: nextWidth, height: nextHeight });
-                runOnUI((width: number, height: number) => {
-                  "worklet";
-                  viewportW.value = width;
-                  viewportH.value = height;
-                })(nextWidth, nextHeight);
-                resetView();
-              }
-            }}
-          >
-            <GestureDetector gesture={composedGesture}>
-              <Animated.View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                {/* eslint-disable-next-line jsx-a11y/alt-text -- React Native Image uses accessibilityLabel instead of alt */}
-                <Animated.Image
-                  source={{ uri }}
-                  style={[
-                    {
-                      width: containerSize.width,
-                      height: containerSize.height,
-                    },
-                    animatedStyle,
-                  ]}
-                  resizeMode="contain"
-                  accessibilityLabel="Other lab image preview"
-                />
-              </Animated.View>
-            </GestureDetector>
-          </View>
-        </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </ModalRoot>
     </Modal>
   );
 }
