@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 import { getStoredSessionToken, notifySessionExpired } from "./sessionStorage";
 
 type ApiFetchInit = RequestInit & {
@@ -9,6 +11,20 @@ let devBaseWarned = false;
 
 function isValidBaseUrl(value: string) {
   return /^https?:\/\//i.test(value);
+}
+
+function resolveAndroidLocalhost(baseUrl: string) {
+  if (Platform.OS !== "android") return baseUrl;
+  try {
+    const parsed = new URL(baseUrl);
+    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+      parsed.hostname = "10.0.2.2";
+      return parsed.toString().replace(/\/$/, "");
+    }
+  } catch {
+    return baseUrl;
+  }
+  return baseUrl;
 }
 
 export async function apiFetch(path: string, init?: ApiFetchInit) {
@@ -28,14 +44,15 @@ export async function apiFetch(path: string, init?: ApiFetchInit) {
       "API base URL missing or invalid. Set EXPO_PUBLIC_API_BASE_URL to a full http(s) URL.",
     );
   }
+  const resolvedBase = resolveAndroidLocalhost(base);
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const url = `${base}${normalizedPath}`;
+  const url = `${resolvedBase}${normalizedPath}`;
 
   const method = init?.method?.toUpperCase() ?? "GET";
   if (__DEV__) console.log("[apiFetch]", method, url);
   if (__DEV__ && !baseUrlLogged) {
     baseUrlLogged = true;
-    console.log("[apiFetch] base URL", base || "(empty)");
+    console.log("[apiFetch] base URL", resolvedBase || "(empty)");
   }
 
   const headers = new Headers(init?.headers ?? {});
