@@ -1,4 +1,12 @@
 import { NextResponse } from "next/server";
+import {
+  auditActionForRequest,
+  isPhiRoute,
+  logAuditEvent,
+  type AuditActorRole,
+  type AuditResult,
+} from "@/lib/audit/logAuditEvent";
+import { getRequestIp } from "@/lib/auth/rateLimit";
 import { getSession } from "@/lib/session";
 import { getDoctorSession } from "@/lib/doctorSession";
 import { getMobilePatient } from "@/lib/mobileAuth";
@@ -53,6 +61,14 @@ function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
+type AuditContext = {
+  route: string;
+  method: string;
+  action: ReturnType<typeof auditActionForRequest>;
+  ip: string | null;
+  user_agent: string | null;
+};
+
 async function readJson(req: Request) {
   const ct = req.headers.get("content-type") || "";
   if (!ct.includes("application/json")) return {};
@@ -76,6 +92,97 @@ function readFromKeys(
     }
   }
   return null;
+}
+
+function normalizeAuditId(value?: string | null): string | null {
+  const out = String(value || "").trim();
+  return out ? out : null;
+}
+
+function buildAuditContext(req: Request): AuditContext | null {
+  try {
+    const route = new URL(req.url).pathname;
+    if (!route || !isPhiRoute(route)) return null;
+    const method = req.method || "GET";
+    const action = auditActionForRequest(route, method);
+    const ipRaw = getRequestIp(req);
+    const ip = ipRaw && ipRaw !== "unknown" ? ipRaw : null;
+    const user_agent = req.headers.get("user-agent") || null;
+    return { route, method, action, ip, user_agent };
+  } catch {
+    return null;
+  }
+}
+
+function resolveAuditActor(actor: Actor | null, patientId?: string) {
+  if (!actor) {
+    return {
+      actor_role: "unknown" as AuditActorRole,
+      actor_id: null,
+      patient_id: normalizeAuditId(patientId),
+    };
+  }
+
+  if (actor.kind === "patient") {
+    const pid = normalizeAuditId(actor.patient_id);
+    return {
+      actor_role: "patient" as AuditActorRole,
+      actor_id: pid,
+      patient_id: normalizeAuditId(patientId) || pid,
+    };
+  }
+
+  if (actor.kind === "staff") {
+    return {
+      actor_role: "staff" as AuditActorRole,
+      actor_id: normalizeAuditId(actor.id),
+      patient_id: normalizeAuditId(patientId),
+    };
+  }
+
+  return {
+    actor_role: "doctor" as AuditActorRole,
+    actor_id: normalizeAuditId(actor.id),
+    patient_id: normalizeAuditId(patientId),
+  };
+}
+
+function emitAuditEvent(
+  ctx: AuditContext | null,
+  opts: {
+    actor: Actor | null;
+    patientId?: string;
+    result: AuditResult;
+    statusCode?: number;
+    reason?: string;
+  },
+) {
+  if (!ctx) return;
+
+  const actorInfo = resolveAuditActor(opts.actor, opts.patientId);
+  const meta =
+    opts.reason != null
+      ? {
+          reason: opts.reason,
+          source: "guard",
+        }
+      : undefined;
+
+  void logAuditEvent({
+    actor_role: actorInfo.actor_role,
+    actor_id: actorInfo.actor_id,
+    actor_user_id: null,
+    patient_id: actorInfo.patient_id,
+    branch_id: null,
+    route: ctx.route,
+    method: ctx.method,
+    action: ctx.action,
+    result: opts.result,
+    status_code: opts.statusCode ?? null,
+    ip: ctx.ip,
+    user_agent: ctx.user_agent,
+    meta,
+  });
 }
 
 async function resolveActor(req: Request, allowMobileToken: boolean) {
@@ -122,65 +229,122 @@ async function resolveActor(req: Request, allowMobileToken: boolean) {
 }
 
 export async function guard(req: Request, opts: GuardOptions = {}): Promise<GuardResult> {
-  const actor = await resolveActor(req, !!opts.allowMobileToken);
-  if (!actor) {
-    return { ok: false, response: jsonError("Unauthorized", 401) };
-  }
-
-  if (opts.allow && !opts.allow.includes(actor.kind)) {
-    return { ok: false, response: jsonError("Forbidden", 403) };
-  }
-
+  const auditCtx = buildAuditContext(req);
+  let actor: Actor | null = null;
   let patientId: string | undefined;
-  if (opts.requirePatientId) {
-    if (actor.kind === "patient") {
-      patientId = actor.patient_id;
+  let branch: BranchCode | undefined;
 
-      const url = new URL(req.url);
-      const body = await readJson(req);
-      const requested =
-        readFromKeys(url.searchParams, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS) ||
-        readFromKeys(body, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS);
-      if (requested && requested !== actor.patient_id) {
+  try {
+    actor = await resolveActor(req, !!opts.allowMobileToken);
+    if (!actor) {
+      emitAuditEvent(auditCtx, { actor, patientId, result: "DENY", statusCode: 401 });
+      return { ok: false, response: jsonError("Unauthorized", 401) };
+    }
+
+    if (opts.allow && !opts.allow.includes(actor.kind)) {
+      emitAuditEvent(auditCtx, {
+        actor,
+        patientId,
+        result: "DENY",
+        statusCode: 403,
+        reason: "Forbidden",
+      });
+      return { ok: false, response: jsonError("Forbidden", 403) };
+    }
+
+    if (opts.requirePatientId) {
+      if (actor.kind === "patient") {
+        patientId = actor.patient_id;
+
+        const url = new URL(req.url);
+        const body = await readJson(req);
+        const requested =
+          readFromKeys(url.searchParams, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS) ||
+          readFromKeys(body, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS);
+        if (requested && requested !== actor.patient_id) {
+          emitAuditEvent(auditCtx, {
+            actor,
+            patientId,
+            result: "DENY",
+            statusCode: 403,
+            reason: "Forbidden",
+          });
+          return { ok: false, response: jsonError("Forbidden", 403) };
+        }
+      } else {
+        const url = new URL(req.url);
+        const body = await readJson(req);
+        const requested =
+          readFromKeys(url.searchParams, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS) ||
+          readFromKeys(body, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS);
+        if (!requested) {
+          emitAuditEvent(auditCtx, {
+            actor,
+            patientId,
+            result: "DENY",
+            statusCode: 400,
+            reason: "patient_id required",
+          });
+          return { ok: false, response: jsonError("patient_id required", 400) };
+        }
+        patientId = requested;
+      }
+    }
+
+    if (opts.requireBranch) {
+      if (actor.kind === "patient") {
+        emitAuditEvent(auditCtx, {
+          actor,
+          patientId,
+          result: "DENY",
+          statusCode: 403,
+          reason: "Forbidden",
+        });
         return { ok: false, response: jsonError("Forbidden", 403) };
       }
-    } else {
+      if (actor.kind === "doctor") {
+        branch = actor.branch;
+      } else if (actor.kind === "staff") {
+        if (!actor.branch) {
+          emitAuditEvent(auditCtx, {
+            actor,
+            patientId,
+            result: "DENY",
+            statusCode: 400,
+            reason: "Branch not set",
+          });
+          return { ok: false, response: jsonError("Branch not set", 400) };
+        }
+        branch = actor.branch;
+      }
+
       const url = new URL(req.url);
       const body = await readJson(req);
       const requested =
-        readFromKeys(url.searchParams, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS) ||
-        readFromKeys(body, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS);
-      if (!requested) {
-        return { ok: false, response: jsonError("patient_id required", 400) };
+        readFromKeys(url.searchParams, opts.branchKeys || DEFAULT_BRANCH_KEYS) ||
+        readFromKeys(body, opts.branchKeys || DEFAULT_BRANCH_KEYS);
+      const requestedBranch = normalizeBranch(requested || "");
+      if (requestedBranch && branch && branch !== "ALL" && requestedBranch !== branch) {
+        emitAuditEvent(auditCtx, {
+          actor,
+          patientId,
+          result: "DENY",
+          statusCode: 403,
+          reason: "Forbidden",
+        });
+        return { ok: false, response: jsonError("Forbidden", 403) };
       }
-      patientId = requested;
     }
+
+    emitAuditEvent(auditCtx, { actor, patientId, result: "ALLOW" });
+    return { ok: true, actor, patientId, branch };
+  } catch (error) {
+    emitAuditEvent(auditCtx, {
+      actor,
+      patientId,
+      result: "ERROR",
+      reason: "guard_exception",
+    });
+    throw error;
   }
-
-  let branch: BranchCode | undefined;
-  if (opts.requireBranch) {
-    if (actor.kind === "patient") {
-      return { ok: false, response: jsonError("Forbidden", 403) };
-    }
-    if (actor.kind === "doctor") {
-      branch = actor.branch;
-    } else if (actor.kind === "staff") {
-      if (!actor.branch) {
-        return { ok: false, response: jsonError("Branch not set", 400) };
-      }
-      branch = actor.branch;
-    }
-
-    const url = new URL(req.url);
-    const body = await readJson(req);
-    const requested =
-      readFromKeys(url.searchParams, opts.branchKeys || DEFAULT_BRANCH_KEYS) ||
-      readFromKeys(body, opts.branchKeys || DEFAULT_BRANCH_KEYS);
-    const requestedBranch = normalizeBranch(requested || "");
-    if (requestedBranch && branch && branch !== "ALL" && requestedBranch !== branch) {
-      return { ok: false, response: jsonError("Forbidden", 403) };
-    }
-  }
-
-  return { ok: true, actor, patientId, branch };
 }

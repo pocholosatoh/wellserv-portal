@@ -70,6 +70,12 @@ pnpm test   # currently placeholder
 
 Create a `.env.local` with the server variables above (don’t commit it). In Vercel, set the same in Project → Settings → Environment Variables.
 
+## Audit logging (PHI)
+
+- Logged (metadata only): actor role/id, patient_id when known, route + method, action/result, status_code, IP/user agent when available, minimal reason/source meta.
+- Not logged: request bodies, patient names, diagnoses, notes, lab values, prescription fields, raw headers, or tokens.
+- Dev smoke check: make one authorized request to a guarded PHI route and one unauthorized request, then confirm rows in `public.audit_log` with no PHI in `meta`.
+
 ## Development
 
 ```bash
