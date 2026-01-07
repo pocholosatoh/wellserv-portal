@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { getDoctorSession } from "@/lib/doctorSession";
+import { guard } from "@/lib/auth/guard";
 
 function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
   return new Intl.DateTimeFormat("en-CA", {
@@ -18,9 +18,8 @@ function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
 export async function POST(req: Request) {
   const db = getSupabase();
   try {
-    // Auth: doctor session (as in your original)
-    const sess = await getDoctorSession();
-    if (!sess) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
 
     const body = await req.json().catch(() => ({}));
     const consultation_id = String(body?.consultation_id || body?.consultationId || "").trim();

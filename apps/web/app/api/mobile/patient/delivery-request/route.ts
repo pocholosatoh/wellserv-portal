@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getMobilePatient } from "@/lib/mobileAuth";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,13 +24,15 @@ function hasAddress(row: any) {
 
 export async function POST(req: Request) {
   try {
-    const actor = await getMobilePatient(req);
-    if (!actor?.patient_id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, {
+      allow: ["patient"],
+      allowMobileToken: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
 
     const body = (await req.json().catch(() => ({}))) as Body;
-    const patientId = actor.patient_id || body?.patientId || body?.patient_id;
+    const patientId = auth.patientId || body?.patientId || body?.patient_id;
     if (!patientId) {
       return NextResponse.json({ error: "patientId required" }, { status: 400 });
     }

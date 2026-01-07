@@ -7,6 +7,8 @@ import { getSupabase } from "@/lib/supabase";
 import { parseStaffLoginCode, staffRoleFromPrefix } from "@/lib/auth/staffCode";
 import { verifyPin } from "@/lib/auth/pinHash";
 import { setSession } from "@/lib/session";
+import { setSignedCookie, clearSignedCookie } from "@/lib/auth/signedCookies";
+import { checkRateLimit, getRequestIp } from "@/lib/auth/rateLimit";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -30,10 +32,17 @@ function setCookie(
     maxAge: number;
   }> = {},
 ) {
-  res.cookies.set({
-    name,
-    value,
-    httpOnly: opts.httpOnly ?? false,
+  if (opts.maxAge === 0) {
+    clearSignedCookie(res, name, {
+      httpOnly: opts.httpOnly ?? true,
+      secure: opts.secure ?? isProd,
+      sameSite: opts.sameSite ?? "lax",
+      path: opts.path ?? "/",
+    });
+    return;
+  }
+  setSignedCookie(res, name, value, {
+    httpOnly: opts.httpOnly ?? true,
     secure: opts.secure ?? isProd,
     sameSite: opts.sameSite ?? "lax",
     path: opts.path ?? "/",
@@ -48,6 +57,16 @@ export async function POST(req: Request) {
     const rawPin = String(body?.pin ?? "").trim();
     const remember = !!body?.remember;
     const branch = normalizeBranch(body?.branch);
+
+    const ip = getRequestIp(req);
+    const key = `login:staff:${ip}:${rawCode || "unknown"}`;
+    const limited = await checkRateLimit({ key, limit: 5, windowMs: 10 * 60 * 1000 });
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429 },
+      );
+    }
 
     if (!rawCode || !rawPin) {
       return NextResponse.json({ error: "Login code and PIN are required." }, { status: 400 });

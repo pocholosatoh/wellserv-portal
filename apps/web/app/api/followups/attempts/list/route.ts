@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getSession } from "@/lib/session";
+import { guard } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    const s = await getSession();
-    if (!s || s.role !== "staff") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["staff"], requireBranch: true });
+    if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(req.url);
     const fid = String(searchParams.get("followup_id") || "").trim();

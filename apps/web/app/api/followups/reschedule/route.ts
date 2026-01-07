@@ -4,9 +4,13 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 export async function POST(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["staff"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+
     const supa = getSupabase();
     const body = await req.json();
     const {

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { getSupabase } from "@/lib/supabase";
 import { parseStaffLoginCode } from "@/lib/auth/staffCode";
 import { hashPin } from "@/lib/auth/pinHash";
+import { checkRateLimit, getRequestIp } from "@/lib/auth/rateLimit";
 
 const LookupSchema = z.object({
   login_code: z.string().min(1),
@@ -23,6 +24,16 @@ function normalizeBirthday(raw: string) {
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req);
+    const key = `public:staff-set-pin:${ip}`;
+    const limited = await checkRateLimit({ key, limit: 30, windowMs: 60 * 1000 });
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 },
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const hasPin = typeof body?.pin === "string" && body.pin.trim() !== "";
     const base = (hasPin ? PinSchema : LookupSchema).parse(body);

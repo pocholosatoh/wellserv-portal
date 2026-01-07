@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { guard } from "@/lib/auth/guard";
 
 function supa() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -31,6 +32,8 @@ function todayISOin(tz = process.env.APP_TZ || "Asia/Manila"): string {
 }
 
 export async function POST(req: Request) {
+  const auth = await guard(req, { allow: ["staff"] });
+  if (!auth.ok) return auth.response;
   const db = supa();
   try {
     const body = await req.json().catch(() => ({}));

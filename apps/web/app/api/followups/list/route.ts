@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 
 type DoctorRow = {
   doctor_id: string;
@@ -52,10 +52,8 @@ Behavior:
 
 export async function GET(req: Request) {
   try {
-    const actor = await requireActor(); // doctor/staff/patient
-    if (!actor) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["doctor", "staff"], requireBranch: true });
+    if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(req.url);
     const start = (searchParams.get("start") || "").trim(); // YYYY-MM-DD
@@ -83,11 +81,13 @@ export async function GET(req: Request) {
     // Branch logic:
     // - If a branch is specified (SI/SL), match code OR legacy text.
     // - If empty: no branch filter (shows all).
-    if (branchParam === "SI" || branchParam === "SL") {
-      const legacyText = branchParam === "SL" ? "San Leonardo%" : "San Isidro%";
+    const resolvedBranch =
+      auth.branch && auth.branch !== "ALL" ? auth.branch : (branchParam as any);
+    if (resolvedBranch === "SI" || resolvedBranch === "SL") {
+      const legacyText = resolvedBranch === "SL" ? "San Leonardo%" : "San Isidro%";
       q = q.or(
         [
-          `return_branch.eq.${branchParam}`, // code
+          `return_branch.eq.${resolvedBranch}`, // code
           `return_branch.ilike.${legacyText}`, // legacy free text
         ].join(","),
       );

@@ -1,6 +1,8 @@
 // app/api/auth/logout/route.ts
 import { NextResponse } from "next/server";
 import { getSession, clearSession } from "@/lib/session";
+import { clearSignedCookie } from "@/lib/auth/signedCookies";
+import { checkRateLimit, getRequestIp } from "@/lib/auth/rateLimit";
 
 function pickDest(req: Request, explicit?: string | null, role?: string | null) {
   if (explicit) {
@@ -16,6 +18,16 @@ function pickDest(req: Request, explicit?: string | null, role?: string | null) 
 }
 
 async function handle(req: Request) {
+  const ip = getRequestIp(req);
+  const key = `public:auth-logout:${ip}`;
+  const limited = await checkRateLimit({ key, limit: 30, windowMs: 60 * 1000 });
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 },
+    );
+  }
+
   const url = new URL(req.url);
   const who = url.searchParams.get("who");
 
@@ -30,7 +42,12 @@ async function handle(req: Request) {
   clearSession(res);
 
   // also clear the optional portal flag if present
-  res.cookies.set("staff_portal_ok", "", { path: "/", maxAge: 0 });
+  clearSignedCookie(res, "staff_portal_ok", {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
 
   return res;
 }

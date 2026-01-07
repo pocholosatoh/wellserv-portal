@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getDoctorSession } from "@/lib/doctorSession";
+import { guard } from "@/lib/auth/guard";
 
 const Payload = z.object({
   external_result_id: z.string().uuid(),
@@ -36,6 +37,9 @@ function sanitise(value: string | null | undefined) {
 
 export async function POST(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+
     const doctorSession = await getDoctorSession().catch(() => null);
     if (!doctorSession?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -11,6 +11,7 @@ import {
   generateQrToken,
   generateVerificationCode,
 } from "@/lib/medicalCertificates";
+import { guard } from "@/lib/auth/guard";
 
 function normalizePatientId(value?: string | null) {
   if (!value) return null;
@@ -76,6 +77,13 @@ type DoctorProfileRow = {
 
 export async function POST(req: Request) {
   try {
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -92,7 +100,7 @@ export async function POST(req: Request) {
       supporting_data: supportingDataInput,
     } = body ?? {};
 
-    const patientId = normalizePatientId(body?.patient_id);
+    const patientId = normalizePatientId(auth.patientId);
     const encounterId = (body?.encounter_id || "").toString().trim();
     const consultationId = (body?.consultation_id || "").toString().trim();
 

@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getDoctorSession } from "@/lib/doctorSession";
+import { guard } from "@/lib/auth/guard";
 import {
   generateCertificateNo,
   generateQrToken,
@@ -117,13 +118,20 @@ function calcAge(birthday?: string | null) {
 
 export async function GET(req: Request) {
   try {
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const url = new URL(req.url);
-    const patientId = normalizePatientId(url.searchParams.get("patient_id"));
+    const patientId = normalizePatientId(auth.patientId);
     const consultationId = url.searchParams.get("consultation_id")?.trim() || null;
     const limit = Math.min(20, Math.max(1, Number(url.searchParams.get("limit") || 10) || 10));
 
@@ -181,6 +189,13 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -188,7 +203,7 @@ export async function POST(req: Request) {
     const isFullDoctor = isUuid(doctor.doctorId);
 
     const body = await req.json().catch(() => ({}));
-    const patientId = normalizePatientId(body.patient_id || body.patientId);
+    const patientId = normalizePatientId(auth.patientId);
     const consultationId = (body.consultation_id || body.consultationId || "").trim();
     const encounterId = (body.encounter_id || body.encounterId || "").trim();
 

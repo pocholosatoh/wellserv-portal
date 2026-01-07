@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getMobilePatient } from "@/lib/mobileAuth";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,13 +32,11 @@ function round6(n: number) {
 
 export async function POST(req: Request) {
   try {
-    const actor = await getMobilePatient(req);
-    if (!actor?.patient_id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["patient"], allowMobileToken: true, requirePatientId: true });
+    if (!auth.ok) return auth.response;
 
     const body = (await req.json().catch(() => ({}))) as Body;
-    const patientId = actor.patient_id || body?.patientId || body?.patient_id;
+    const patientId = auth.patientId || body?.patientId || body?.patient_id;
     if (!patientId) {
       return NextResponse.json({ error: "patientId required" }, { status: 400 });
     }
@@ -94,5 +92,33 @@ export async function POST(req: Request) {
   } catch (e: any) {
     console.error("[mobile] delivery-address error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    const auth = await guard(req, { allow: ["patient"], allowMobileToken: true, requirePatientId: true });
+    if (!auth.ok) return auth.response;
+
+    const patientId = auth.patientId;
+    if (!patientId) {
+      return NextResponse.json({ error: "patientId required" }, { status: 400 });
+    }
+
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from("patients")
+      .select(
+        "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at",
+      )
+      .eq("patient_id", patientId)
+      .maybeSingle();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
+
+    return NextResponse.json({ patient: data }, { status: 200 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }

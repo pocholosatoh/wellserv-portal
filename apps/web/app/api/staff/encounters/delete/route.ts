@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 export async function POST(req: Request) {
+  const auth = await guard(req, { allow: ["staff"] });
+  if (!auth.ok) return auth.response;
   const db = getSupabase();
   try {
     const body = await req.json().catch(() => ({}));

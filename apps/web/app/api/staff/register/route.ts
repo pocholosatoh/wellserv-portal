@@ -7,6 +7,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/session";
+import { guard } from "@/lib/auth/guard";
+import { readSignedCookie } from "@/lib/auth/signedCookies";
 import { parseStaffLoginCode } from "@/lib/auth/staffCode";
 
 const StaffSchema = z.object({
@@ -28,17 +30,23 @@ async function requireAdmin() {
   const c = await cookies();
   const prefix = (
     session?.staff_role_prefix ||
-    c.get("staff_role_prefix")?.value ||
+    readSignedCookie(c, "staff_role_prefix") ||
     ""
   ).toUpperCase();
-  const staffRole = (session?.staff_role || c.get("staff_role")?.value || "").toLowerCase();
-  const staffId = session?.staff_id || c.get("staff_id")?.value || "";
+  const staffRole = (
+    session?.staff_role ||
+    readSignedCookie(c, "staff_role") ||
+    ""
+  ).toLowerCase();
+  const staffId = session?.staff_id || readSignedCookie(c, "staff_id") || "";
   const isAdmin = prefix === "ADM" || staffRole === "admin";
   return { isAdmin, staffId };
 }
 
 export async function POST(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["staff"] });
+    if (!auth.ok) return auth.response;
     const { isAdmin, staffId } = await requireAdmin();
     if (!isAdmin) {
       return NextResponse.json({ error: "Admins only." }, { status: 403 });

@@ -3,18 +3,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { requireActor } from "@/lib/api-actor";
 import { getSupabase } from "@/lib/supabase";
-
-function ensureStaff(actor: Awaited<ReturnType<typeof requireActor>>) {
-  return actor && actor.kind === "staff";
-}
+import { guard } from "@/lib/auth/guard";
 
 export async function GET(req: Request) {
-  const actor = await requireActor();
-  if (!ensureStaff(actor)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await guard(req, { allow: ["staff"] });
+  if (!auth.ok) return auth.response;
 
   try {
     const supabase = getSupabase();
@@ -74,10 +68,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const actor = await requireActor();
-  if (!ensureStaff(actor)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await guard(req, { allow: ["staff"] });
+  if (!auth.ok) return auth.response;
 
   const body = (await req.json().catch(() => ({}))) as { patient_id?: string };
   const patient_id = String(body.patient_id || "")

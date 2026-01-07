@@ -3,14 +3,12 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 
 export async function POST(req: Request) {
   try {
-    const actor = await requireActor();
-    if (!actor || actor.kind === "patient") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
 
     const { consultation_id, code } = await req.json();
     if (!consultation_id || !code) {

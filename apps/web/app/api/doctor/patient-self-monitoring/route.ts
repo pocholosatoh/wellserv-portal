@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabase } from "@/lib/supabase";
 import { getDoctorSession } from "@/lib/doctorSession";
+import { guard } from "@/lib/auth/guard";
 
 const ParameterKeySchema = z.enum(["bp", "weight", "glucose"]);
 
@@ -20,10 +21,6 @@ const PayloadSchema = z.object({
   consultation_id: z.string().min(1),
   encounter_id: z.string().uuid().optional().nullable(),
   items: z.array(ItemSchema).min(1),
-});
-
-const QuerySchema = z.object({
-  patient_id: z.string().min(1),
 });
 
 function escapeLikeExact(s: string) {
@@ -44,22 +41,20 @@ function cleanText(value: unknown) {
 
 export async function GET(req: Request) {
   try {
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const parsed = QuerySchema.safeParse({
-      patient_id: searchParams.get("patient_id") || searchParams.get("patientId"),
-    });
-
-    if (!parsed.success) {
-      return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
-    }
-
     const supa = getSupabase();
-    const pid = escapeLikeExact(normalizePatientId(parsed.data.patient_id));
+    const pid = escapeLikeExact(normalizePatientId(auth.patientId));
 
     const { data, error } = await supa
       .from("patient_self_monitoring")
@@ -77,6 +72,13 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -84,7 +86,7 @@ export async function POST(req: Request) {
 
     const raw = await req.json().catch(() => ({}));
     const parsed = PayloadSchema.safeParse({
-      patient_id: raw?.patient_id ?? raw?.patientId,
+      patient_id: auth.patientId,
       consultation_id: raw?.consultation_id ?? raw?.consultationId,
       encounter_id: raw?.encounter_id ?? raw?.encounterId ?? null,
       items: Array.isArray(raw?.items)

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { sanitizeHemaRows, assertHemaHeaders, toSheetRow, OUTPUT_ORDER } from "@/lib/hema";
 import { resolveSpreadsheetId, getTabNameForBranch } from "@/lib/branches";
+import { checkRateLimit, getRequestIp } from "@/lib/auth/rateLimit";
 
 // Only write these columns for existing rows (skip patient_id so we don't overwrite it)
 const WRITE_HEADERS = OUTPUT_ORDER.filter((h) => h !== "patient_id");
@@ -78,6 +79,16 @@ export async function POST(req: Request) {
   let tabName = "Database";
 
   try {
+    const ip = getRequestIp(req);
+    const rateKey = `public:rmt-hema-import:${ip}`;
+    const limited = await checkRateLimit({ key: rateKey, limit: 30, windowMs: 60 * 1000 });
+    if (!limited.ok) {
+      return NextResponse.json(
+        { ok: false, error: "Too many requests. Please try again later." },
+        { status: 429 },
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     // Accept either: sheetKey ("SI" | "SL" | "GC" | env name | raw ID | URL) OR branch ("SI" | "SL" | "GC")
     const { sheetKey, branch, rows, secret, sheetName } = body || {};

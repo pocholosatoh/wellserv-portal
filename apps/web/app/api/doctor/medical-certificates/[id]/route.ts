@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase";
 import { getDoctorSession } from "@/lib/doctorSession";
 import { signDoctorSignature } from "@/lib/medicalCertificates";
 import { normalizePhysicalExam, SupportingDataEntry } from "@/lib/medicalCertificateSchema";
+import { guard } from "@/lib/auth/guard";
 
 function isUuid(v?: string | null) {
   if (!v) return false;
@@ -15,6 +16,9 @@ function isUuid(v?: string | null) {
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -92,6 +96,9 @@ function normalizeSupportingData(list: any): SupportingDataEntry[] {
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -3,8 +3,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { requireActor } from "@/lib/api-actor";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 type ParameterKey = "bp" | "weight" | "glucose";
 
@@ -27,10 +27,6 @@ type MonitoringRow = {
   last_set_by_user: string | null;
 };
 
-function ensureStaff(actor: Awaited<ReturnType<typeof requireActor>>) {
-  return actor && actor.kind === "staff";
-}
-
 const PARAM_ORDER: ParameterKey[] = ["bp", "weight", "glucose"];
 const PARAM_SET = new Set(PARAM_ORDER);
 
@@ -45,11 +41,9 @@ function normalizeName(value?: string | null) {
   return s || null;
 }
 
-export async function GET() {
-  const actor = await requireActor();
-  if (!ensureStaff(actor)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(req: Request) {
+  const auth = await guard(req, { allow: ["staff"] });
+  if (!auth.ok) return auth.response;
 
   try {
     const supa = getSupabase();

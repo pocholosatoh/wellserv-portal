@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { getDoctorSession } from "@/lib/doctorSession";
+import { guard } from "@/lib/auth/guard";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession().catch(() => null);
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

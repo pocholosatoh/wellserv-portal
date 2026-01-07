@@ -1,6 +1,7 @@
 // app/api/staff/encounters/consult/toggle/route.ts
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 /** YYYY-MM-DD in Asia/Manila by default */
 function todayISOin(tz = process.env.APP_TZ || "Asia/Manila") {
@@ -43,6 +44,8 @@ async function nextQueueNumber(
  * }
  */
 export async function POST(req: Request) {
+  const auth = await guard(req, { allow: ["staff"], requireBranch: true });
+  if (!auth.ok) return auth.response;
   const db = getSupabase();
   try {
     const { encounter_id, branch, enable } = await req.json();

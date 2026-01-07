@@ -5,9 +5,13 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { DEFAULT_RX_VALID_DAYS } from "@/lib/rx";
+import { guard } from "@/lib/auth/guard";
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+
     const { consultationId } = await req.json();
     if (!consultationId) {
       return NextResponse.json({ error: "consultationId required" }, { status: 400 });

@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getDoctorSession } from "@/lib/doctorSession";
+import { guard } from "@/lib/auth/guard";
 import {
   createDefaultPhysicalExam,
   PHYSICAL_EXAM_SECTIONS,
@@ -70,6 +71,13 @@ function formatDate(iso?: string | null) {
 
 export async function GET(req: Request) {
   try {
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -77,7 +85,7 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
 
-    const patientId = normalizePatientId(url.searchParams.get("patient_id"));
+    const patientId = normalizePatientId(auth.patientId);
     const consultationId = url.searchParams.get("consultation_id")?.trim() || null;
     const encounterId = url.searchParams.get("encounter_id")?.trim() || null;
 

@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 
 type Body = {
   delivery_address_label?: string;
@@ -27,9 +27,10 @@ function toNumber(value: any): number | null {
 
 export async function POST(req: Request) {
   try {
-    const actor = await requireActor();
-    if (!actor || actor.kind !== "patient") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await guard(req, { allow: ["patient"] });
+    if (!auth.ok) return auth.response;
+    if (auth.actor.kind !== "patient") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = (await req.json().catch(() => ({}))) as Body;
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
         last_delivery_used_at: now,
         last_delivery_success_at: null,
       })
-      .eq("patient_id", actor.patient_id)
+      .eq("patient_id", auth.actor.patient_id)
       .select(
         "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at",
       )

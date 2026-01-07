@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { requireActor, getTargetPatientId } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 import { getSession } from "@/lib/session";
 import { getPatientPrescriptions } from "@/lib/api/patient-prescriptions-core";
 
@@ -24,23 +24,10 @@ export async function GET(req: Request) {
       return NextResponse.json(json);
     }
 
-    // Accept patient portal, doctor, or staff (requires patient_id)
-    const actor = await requireActor();
-    if (!actor) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["patient", "staff", "doctor"], requirePatientId: true });
+    if (!auth.ok) return auth.response;
 
-    // Resolve patient_id:
-    // - patient portal: from session
-    // - doctor/staff:   from query ?patient_id= or ?pid=
-    const patient_id =
-      actor.kind === "patient" ? actor.patient_id : getTargetPatientId(actor, { searchParams });
-
-    if (!patient_id) {
-      return NextResponse.json({ error: "patient_id required" }, { status: 400 });
-    }
-
-    const json = await getPatientPrescriptions(patient_id);
+    const json = await getPatientPrescriptions(auth.patientId as string);
     return NextResponse.json(json);
   } catch (e: any) {
     console.error("[patient/prescriptions] unexpected:", e);

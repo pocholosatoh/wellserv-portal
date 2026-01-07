@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 export async function GET(req: Request) {
+  const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+  if (!auth.ok) return auth.response;
+
   const { searchParams } = new URL(req.url);
   const encId = (searchParams.get("encounter_id") || "").trim();
   if (!encId) return NextResponse.json({ error: "encounter_id required" }, { status: 400 });

@@ -162,21 +162,20 @@ export default async function DoctorHome({ searchParams }: Props) {
           <form
             action={async (formData: FormData) => {
               "use server";
-              const { cookies, headers } = await import("next/headers");
+              const { cookies } = await import("next/headers");
+              const { setSignedCookie } = await import("@/lib/auth/signedCookies");
 
               const b = String(formData.get("branch") || "SI").toUpperCase();
               const isProd = process.env.NODE_ENV === "production";
 
               // Set/overwrite the cookie on the server (no API call needed)
               const c = await cookies();
-              c.set({
-                name: "doctor_branch",
-                value: b === "SL" ? "SL" : "SI",
+              setSignedCookie({ cookies: c } as any, "doctor_branch", b === "SL" ? "SL" : "SI", {
                 httpOnly: true,
                 sameSite: "lax",
                 secure: isProd,
                 path: "/",
-                maxAge: 60 * 60 * 12, // 12 hours
+                maxAge: 60 * 60 * 12,
               });
 
               // Force a reload so the queue refetches for the new branch

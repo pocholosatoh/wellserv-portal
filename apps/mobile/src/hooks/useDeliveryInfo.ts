@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "../providers/SessionProvider";
+import { apiFetch } from "../lib/http";
 
 export type PatientDeliveryInfo = {
   patient_id: string;
@@ -14,39 +15,30 @@ export type PatientDeliveryInfo = {
 };
 
 export function useDeliveryInfo() {
-  const { client, session, isLoading } = useSession();
+  const { session, isLoading } = useSession();
   const patientId = session?.patientId;
 
   return useQuery<PatientDeliveryInfo | null>({
     queryKey: ["delivery-info", patientId],
-    enabled: Boolean(client && patientId) && !isLoading,
+    enabled: Boolean(patientId) && !isLoading,
     queryFn: async () => {
-      if (!client || !patientId) return null;
-      const timeoutMs = 12_000;
-      let timeoutId: ReturnType<typeof setTimeout> | null = null;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => {
-          const err = new Error("Request timed out");
-          err.name = "TimeoutError";
-          reject(err);
-        }, timeoutMs);
-      });
-
+      if (!patientId) return null;
       try {
-        const { data, error } = await Promise.race([
-          client
-            .from("patients")
-            .select(
-              "patient_id, full_name, delivery_address_label, delivery_address_text, delivery_lat, delivery_lng, delivery_notes, last_delivery_used_at, last_delivery_success_at",
-            )
-            .eq("patient_id", patientId)
-            .maybeSingle(),
-          timeoutPromise,
-        ]);
-        if (error) throw error;
-        return (data as PatientDeliveryInfo | null) ?? null;
-      } finally {
-        if (timeoutId) clearTimeout(timeoutId);
+        const res = await apiFetch("/api/mobile/patient/delivery-address", { method: "GET" });
+        let json: { patient?: PatientDeliveryInfo | null; error?: string } = {};
+        try {
+          json = (await res.json()) as { patient?: PatientDeliveryInfo | null; error?: string };
+        } catch (error) {
+          if (__DEV__) {
+            console.warn("[delivery-info] response parse failed", res.status);
+          }
+        }
+        if (!res.ok || json.error) {
+          throw new Error(json.error || "Failed to load delivery info");
+        }
+        return json.patient ?? null;
+      } catch (error) {
+        throw error;
       }
     },
   });

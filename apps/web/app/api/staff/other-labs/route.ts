@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getSession } from "@/lib/session";
+import { guard } from "@/lib/auth/guard";
 
 const BUCKET = process.env.NEXT_PUBLIC_PATIENT_BUCKET?.trim() || "patient-files";
 
@@ -17,14 +17,11 @@ function getExpiry(sp: URLSearchParams) {
 
 export async function GET(req: Request) {
   try {
-    const s = await getSession();
-    if (!s || s.role !== "staff") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["staff"], requirePatientId: true });
+    if (!auth.ok) return auth.response;
 
     const url = new URL(req.url);
-    const pid = toUpperId(url.searchParams.get("patient_id"));
-    if (!pid) return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
+    const pid = toUpperId(auth.patientId);
     const expiresIn = getExpiry(url.searchParams);
 
     const sb = supabaseAdmin();

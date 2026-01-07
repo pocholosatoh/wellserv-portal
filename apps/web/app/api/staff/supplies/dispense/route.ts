@@ -2,41 +2,19 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getSession } from "@/lib/session";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
-function normalizeBranch(raw?: string | null) {
-  const value = String(raw || "")
-    .trim()
-    .toUpperCase();
-  if (value === "SI" || value === "SL") return value;
-  return "";
-}
-
-async function getStaffContext() {
-  const session = await getSession().catch(() => null);
-  if (!session || session.role !== "staff") {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
-  const c = await cookies();
-  const branch = normalizeBranch(session.staff_branch || c.get("staff_branch")?.value);
-  if (!branch) {
-    return {
-      error: NextResponse.json(
-        { error: "Branch not set. Please select a branch in the header." },
-        { status: 400 },
-      ),
-    };
-  }
-
-  const staffId = session.staff_id || c.get("staff_id")?.value || null;
-  return { branch, staffId };
+function isUuid(value?: string | null) {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 export async function POST(req: Request) {
-  const ctx = await getStaffContext();
-  if ("error" in ctx) return ctx.error;
+  const auth = await guard(req, { allow: ["staff"], requireBranch: true });
+  if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => ({}));
   const item_id = String(body?.item_id || "").trim();
@@ -54,8 +32,8 @@ export async function POST(req: Request) {
   }
 
   const supabase = getSupabase();
-  const branchCode = ctx.branch;
-  const staffId = ctx.staffId ?? null;
+  const branchCode = auth.branch === "ALL" ? "SI" : auth.branch;
+  const staffId = auth.actor.kind === "staff" && isUuid(auth.actor.id) ? auth.actor.id : null;
   const patientId = patient_id ?? null;
   const encounterId = encounter_id ?? null;
 

@@ -1,10 +1,15 @@
 // lib/staffBranchClient.ts
 export type StaffBranch = "SI" | "SL" | "ALL";
 
-function readCookie(name: string) {
-  if (typeof document === "undefined") return "";
-  const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  return m ? decodeURIComponent(m[2]) : "";
+const STORAGE_KEY = "staff_branch_local";
+
+function readLocalBranch() {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -12,7 +17,7 @@ function readCookie(name: string) {
  * Defaults to the provided branch when missing/invalid.
  */
 export function getLoginBranch(defaultBranch: StaffBranch = "SI"): StaffBranch {
-  const raw = readCookie("staff_branch");
+  const raw = readLocalBranch();
   const upper = (raw || "").toUpperCase();
   if (upper === "SI" || upper === "SL" || upper === "ALL") return upper as StaffBranch;
   return defaultBranch;

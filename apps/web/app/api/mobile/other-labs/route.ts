@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchOtherLabsForPatient, getOtherLabsBucket, getOtherLabsExpiry } from "@/lib/otherLabs";
-import { getMobilePatient } from "@/lib/mobileAuth";
+import { guard } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,13 +8,15 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const endpoint = "/api/mobile/other-labs";
   try {
-    const actor = await getMobilePatient(req);
-    if (!actor?.patient_id) {
-      return NextResponse.json({ error: "Login required" }, { status: 401 });
-    }
+    const auth = await guard(req, {
+      allow: ["patient"],
+      allowMobileToken: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
 
     const url = new URL(req.url);
-    const patientId = String(actor.patient_id).trim().toUpperCase();
+    const patientId = String(auth.patientId || "").trim().toUpperCase();
     const bucket = getOtherLabsBucket();
     const expiresIn = getOtherLabsExpiry(url.searchParams);
 

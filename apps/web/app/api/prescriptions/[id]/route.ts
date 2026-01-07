@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 // Build a signed, absolute URL string for a private signature file.
 // Always return a STRING (never an object), or null.
@@ -56,7 +57,10 @@ function splitDisplayName(display?: string | null) {
 }
 
 // NOTE: Next 15 => params is a Promise. Await it.
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const auth = await guard(req, { allow: ["staff", "doctor", "patient"] });
+  if (!auth.ok) return auth.response;
+
   const { id: rxId } = await ctx.params;
 
   const db = getSupabase();
@@ -74,6 +78,10 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   }
   if (!rx.data) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (auth.actor.kind === "patient" && rx.data.patient_id !== auth.actor.patient_id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   // 2) Items

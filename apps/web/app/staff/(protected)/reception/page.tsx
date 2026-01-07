@@ -5,10 +5,6 @@ import TestPicker from "@/app/staff/_components/TestPicker";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 /** Helpers */
-function readCookie(name: string) {
-  const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  return m ? decodeURIComponent(m[2]) : "";
-}
 function maskMMDDYYYY(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 8);
   const mm = digits.slice(0, 2);
@@ -30,16 +26,11 @@ function toMMDDYY(mmddyyyy: string): string {
 function up(s?: string) {
   return (s || "").toUpperCase();
 }
-function getCookie(name: string) {
-  const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  return m ? decodeURIComponent(m[2]) : "";
-}
-
 function flagOn(name: string) {
   return (
     (typeof window !== "undefined" ? (window as any)?.__env__?.[name] : undefined) ??
     (typeof process !== "undefined" ? (process.env as any)?.[name] : undefined) ??
-    (getCookie(name) || "")
+    ""
   );
 }
 
@@ -210,10 +201,6 @@ export default function Reception() {
   }
 
   useEffect(() => {
-    setRole((getCookie("staff_role") || "").toLowerCase());
-  }, []);
-
-  useEffect(() => {
     setTodaySort(resolvedSort);
   }, [resolvedSort]);
 
@@ -225,15 +212,25 @@ export default function Reception() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
 
   useEffect(() => {
-    // branch from cookies (guard ALL => require explicit choice)
-    const b = (readCookie("staff_branch") || "").toUpperCase();
-    if (b === "SI" || b === "SL") {
-      setBranch(b as "SI" | "SL");
-      setBranchLocked(true);
-    } else {
-      setBranch(""); // require selection
-      setBranchLocked(false);
-    }
+    // fetch staff session (role + branch)
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
+        const json = await res.json();
+        if (!res.ok) return;
+        const actor = json?.actor;
+        const nextRole = String(actor?.role || "");
+        const nextBranch = String(actor?.branch || "").toUpperCase();
+        setRole(nextRole.toLowerCase());
+        if (nextBranch === "SI" || nextBranch === "SL") {
+          setBranch(nextBranch as "SI" | "SL");
+          setBranchLocked(true);
+        } else {
+          setBranch(""); // require selection
+          setBranchLocked(false);
+        }
+      } catch {}
+    })();
 
     // fetch catalog
     (async () => {

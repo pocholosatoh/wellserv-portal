@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 
 const MAX_IDS = 50;
 
@@ -49,10 +49,9 @@ function parseIds(searchParams: URLSearchParams) {
 
 export async function GET(req: Request) {
   try {
-    const actor = await requireActor();
-    if (!actor) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["doctor", "staff", "patient"] });
+    if (!auth.ok) return auth.response;
+    const actor = auth.actor;
 
     const url = new URL(req.url);
     const ids = parseIds(url.searchParams);

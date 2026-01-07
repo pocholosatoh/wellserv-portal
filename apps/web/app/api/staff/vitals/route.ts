@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
+import { readSignedCookie } from "@/lib/auth/signedCookies";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 
 type SnapshotBody = {
@@ -31,16 +32,11 @@ function toNullableNumber(v: any): number | null {
 }
 
 export async function GET(req: Request) {
-  const actor = await requireActor();
-  if (!actor || (actor.kind !== "staff" && actor.kind !== "doctor")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await guard(req, { allow: ["staff", "doctor"], requirePatientId: true });
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
-  const patient_id = searchParams.get("patient_id")?.trim();
-  if (!patient_id) {
-    return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
-  }
+  const patient_id = String(auth.patientId || "").trim();
 
   const supa = getSupabaseServer();
   let query = supa
@@ -67,10 +63,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const [actor, cookieStore] = await Promise.all([requireActor(), cookies()]);
-  if (!actor || (actor.kind !== "staff" && actor.kind !== "doctor")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const [auth, cookieStore] = await Promise.all([
+    guard(req, { allow: ["staff", "doctor"] }),
+    cookies(),
+  ]);
+  if (!auth.ok) return auth.response;
 
   const body = (await req.json().catch(() => ({}))) as Partial<SnapshotBody>;
   const patient_id = String(body.patient_id || "")
@@ -203,13 +200,15 @@ export async function POST(req: Request) {
     o2sat: toNullableNumber(body.o2sat),
   };
 
+  const actorId =
+    auth.actor.kind === "doctor" || auth.actor.kind === "staff" ? auth.actor.id : "";
   const initials =
-    cookieStore.get("staff_initials")?.value ||
-    cookieStore.get("staff_id")?.value ||
-    cookieStore.get("staff_role")?.value ||
-    cookieStore.get("doctor_initials")?.value ||
-    cookieStore.get("doctor_code")?.value ||
-    actor.id;
+    readSignedCookie(cookieStore, "staff_initials") ||
+    readSignedCookie(cookieStore, "staff_id") ||
+    readSignedCookie(cookieStore, "staff_role") ||
+    readSignedCookie(cookieStore, "doctor_initials") ||
+    readSignedCookie(cookieStore, "doctor_code") ||
+    actorId;
 
   const payload = {
     patient_id,

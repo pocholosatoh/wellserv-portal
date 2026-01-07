@@ -8,6 +8,7 @@ import { getSupabase } from "@/lib/supabase";
 import { verifyPin } from "@/lib/auth/pinHash";
 import { setSession } from "@/lib/session";
 import { signMobileToken } from "@/lib/mobileAuth";
+import { checkRateLimit, getRequestIp } from "@/lib/auth/rateLimit";
 
 const RequestSchema = z.object({
   patient_id: z.string().min(1),
@@ -31,6 +32,18 @@ export async function POST(req: Request) {
       patient_id: body?.patient_id ?? body?.patientId,
       pin: body?.pin,
     });
+
+    const ip = getRequestIp(req);
+    const key = `login:mobile-patient:${ip}:${String(body?.patient_id || body?.patientId || "unknown")
+      .trim()
+      .toUpperCase()}`;
+    const limited = await checkRateLimit({ key, limit: 5, windowMs: 10 * 60 * 1000 });
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429 },
+      );
+    }
 
     if (!parsed.success) {
       const msg = parsed.error.issues?.[0]?.message || "Invalid input";

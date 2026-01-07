@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 function isoToMMDDYYYY(iso?: string | null) {
   if (!iso) return "";
@@ -12,8 +13,10 @@ function isoToMMDDYYYY(iso?: string | null) {
 }
 
 export async function GET(req: Request) {
+  const auth = await guard(req, { allow: ["staff"], requirePatientId: true });
+  if (!auth.ok) return auth.response;
   const url = new URL(req.url);
-  const pid = (url.searchParams.get("patient_id") || "").toUpperCase().trim();
+  const pid = String(auth.patientId || "").toUpperCase().trim();
   if (!pid) return NextResponse.json({ found: false });
 
   const db = getSupabase();

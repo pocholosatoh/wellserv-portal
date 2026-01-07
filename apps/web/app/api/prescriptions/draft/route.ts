@@ -1,8 +1,12 @@
 // app/api/prescriptions/draft/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase"; // your server client
+import { guard } from "@/lib/auth/guard";
 
 export async function GET(req: NextRequest) {
+  const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+  if (!auth.ok) return auth.response;
+
   const supabase = getSupabase();
   const { searchParams } = new URL(req.url);
   const consultationId = searchParams.get("consultation_id");
@@ -48,6 +52,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+  if (!auth.ok) return auth.response;
+
   const supabase = getSupabase();
   const body = await req.json().catch(() => ({}));
   const consultationId = body?.consultationId || body?.consultation_id;

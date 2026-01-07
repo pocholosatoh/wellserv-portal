@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 /**
  * GET /api/consultations/list?patient_id=SATOH010596
@@ -11,11 +12,10 @@ import { getSupabase } from "@/lib/supabase";
  */
 export async function GET(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["staff", "doctor"], requirePatientId: true });
+    if (!auth.ok) return auth.response;
     const url = new URL(req.url);
-    const raw = (url.searchParams.get("patient_id") || "").trim();
-    if (!raw) {
-      return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
-    }
+    const raw = (auth.patientId || "").trim();
     // Normalize to uppercase so it matches how upsert-today inserts
     const patientId = raw.toUpperCase();
 

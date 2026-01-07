@@ -1,0 +1,91 @@
+import { NextResponse } from "next/server";
+import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
+
+const EDITABLE_FIELDS = new Set([
+  "sex",
+  "contact",
+  "address",
+  "email",
+  "chief_complaint",
+  "present_illness_history",
+  "past_medical_history",
+  "past_surgical_history",
+  "allergies_text",
+  "medications_current",
+  "family_hx",
+  "smoking_hx",
+  "alcohol_hx",
+]);
+
+const PATIENT_FIELDS = [
+  "patient_id",
+  "full_name",
+  "age",
+  "sex",
+  "birthday",
+  "contact",
+  "address",
+  "email",
+  "height_ft",
+  "height_inch",
+  "weight_kg",
+  "systolic_bp",
+  "diastolic_bp",
+  "chief_complaint",
+  "present_illness_history",
+  "past_medical_history",
+  "past_surgical_history",
+  "allergies_text",
+  "medications_current",
+  "family_hx",
+  "smoking_hx",
+  "alcohol_hx",
+  "last_updated",
+  "created_at",
+  "updated_at",
+].join(",");
+
+export async function POST(req: Request) {
+  try {
+    const auth = await guard(req, { allow: ["staff"], requirePatientId: true });
+    if (!auth.ok) return auth.response;
+
+    const patientId = String(auth.patientId || "").trim();
+    if (!patientId) {
+      return NextResponse.json({ error: "patient_id required" }, { status: 400 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const updates: Record<string, any> = {};
+
+    for (const key of Object.keys(body || {})) {
+      if (EDITABLE_FIELDS.has(key)) {
+        updates[key] = body[key];
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No updates provided" }, { status: 400 });
+    }
+
+    const db = getSupabase();
+    const { data, error } = await db
+      .from("patients")
+      .update(updates)
+      .eq("patient_id", patientId)
+      .select(PATIENT_FIELDS)
+      .maybeSingle();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    if (!data) {
+      return NextResponse.json({ error: "Patient ID not found." }, { status: 404 });
+    }
+
+    return NextResponse.json({ patient: data });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
+  }
+}

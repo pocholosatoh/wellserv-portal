@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { readSignedCookie } from "@/lib/auth/signedCookiesEdge";
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const url = req.nextUrl;
   const { pathname, search } = url;
   const isStaffPublic =
@@ -14,10 +15,10 @@ export function middleware(req: NextRequest) {
     const legacySession = req.cookies.get("session")?.value;
 
     // New staff cookies (set via /api/auth/staff/login)
-    const staffRole = req.cookies.get("staff_role")?.value || "";
-    const staffInitials = req.cookies.get("staff_initials")?.value || "";
-    const staffId = req.cookies.get("staff_id")?.value || "";
-    const staffCode = req.cookies.get("staff_login_code")?.value || "";
+    const staffRole = (await readSignedCookie(req.cookies, "staff_role")) || "";
+    const staffInitials = (await readSignedCookie(req.cookies, "staff_initials")) || "";
+    const staffId = (await readSignedCookie(req.cookies, "staff_id")) || "";
+    const staffCode = (await readSignedCookie(req.cookies, "staff_login_code")) || "";
     // Optional extra gate:
     // const portalOK = req.cookies.get("staff_portal_ok")?.value === "1";
 
@@ -34,7 +35,7 @@ export function middleware(req: NextRequest) {
   /* ---------- PATIENT GUARD ---------- */
   // Protect /patient and all nested routes.
   if (pathname.startsWith("/patient")) {
-    const role = req.cookies.get("role")?.value || "";
+    const role = (await readSignedCookie(req.cookies, "role")) || "";
     const isPatient = role === "patient";
 
     if (!isPatient) {

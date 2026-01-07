@@ -2,7 +2,6 @@
 
 import React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 import { resolveScopedBranch } from "@/lib/staffBranchClient";
 
 type Branch = "SI" | "SL";
@@ -24,16 +23,6 @@ type Props = {
   onSelectPatient?: (patientId: string) => void;
 };
 
-function todayPhilippinesISODate() {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Manila",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return formatter.format(new Date()); // returns YYYY-MM-DD
-}
-
 export function TodayPatientsQuickList({
   className = "",
   targetPath,
@@ -44,46 +33,33 @@ export function TodayPatientsQuickList({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const supabase = React.useMemo(() => getSupabaseBrowser(), []);
-
   const [branch, setBranch] = React.useState<Branch>(() => resolveScopedBranch());
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [patients, setPatients] = React.useState<TodayPatient[]>([]);
 
-  const loadPatients = React.useCallback(
-    async (branchCode: Branch) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const today = todayPhilippinesISODate();
-        const { data, error: sbError } = await supabase
-          .from("encounters")
-          .select("id, patient_id, queue_number, status, consult_status, patients(full_name)")
-          .eq("visit_date_local", today)
-          .eq("branch_code", branchCode)
-          .order("queue_number", { ascending: true })
-          .limit(40);
-        if (sbError) throw sbError;
-        const rows =
-          data?.map((row: any) => ({
-            encounter_id: row.id,
-            patient_id: row.patient_id,
-            full_name: row.patients?.full_name ?? null,
-            queue_number: row.queue_number ?? null,
-            status: row.status ?? null,
-            consult_status: row.consult_status ?? null,
-          })) ?? [];
-        setPatients(rows);
-      } catch (e: any) {
-        setError(e?.message || "Failed to load today's patients");
-        setPatients([]);
-      } finally {
-        setLoading(false);
+  const loadPatients = React.useCallback(async (branchCode: Branch) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      params.set("view", "quick");
+      params.set("branch", branchCode);
+      const res = await fetch(`/api/staff/encounters/today?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const json = await res.json();
+      if (!res.ok || json?.error) {
+        throw new Error(json?.error || "Failed to load today's patients");
       }
-    },
-    [supabase],
-  );
+      setPatients((json?.rows as TodayPatient[]) || []);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load today's patients");
+      setPatients([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   React.useEffect(() => {
     loadPatients(branch);

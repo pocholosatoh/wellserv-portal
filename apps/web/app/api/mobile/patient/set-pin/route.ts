@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabase } from "@/lib/supabase";
 import { hashPin } from "@/lib/auth/pinHash";
+import { checkRateLimit, getRequestIp } from "@/lib/auth/rateLimit";
 
 const RequestSchema = z.object({
   patient_id: z.string().min(1),
@@ -51,6 +52,16 @@ function isTrivialPin(pin: string) {
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req);
+    const key = `public:mobile-set-pin:${ip}`;
+    const limited = await checkRateLimit({ key, limit: 30, windowMs: 60 * 1000 });
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 },
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const parsed = RequestSchema.safeParse({
       patient_id: body?.patient_id ?? body?.patientId,

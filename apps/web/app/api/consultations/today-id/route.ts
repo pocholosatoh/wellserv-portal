@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 
 function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
   return new Intl.DateTimeFormat("en-CA", {
@@ -17,13 +17,15 @@ function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
 
 export async function GET(req: Request) {
   try {
-    const actor = await requireActor();
-    if (!actor || actor.kind !== "doctor") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(req.url);
-    const patientId = (searchParams.get("patient_id") || "").trim();
+    const patientId = String(auth.patientId || "").trim();
     if (!patientId) {
       return NextResponse.json({ error: "patient_id required" }, { status: 400 });
     }

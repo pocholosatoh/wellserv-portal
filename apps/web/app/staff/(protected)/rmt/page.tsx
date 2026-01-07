@@ -1,5 +1,6 @@
 // app/staff/(protected)/rmt/page.tsx
 import { cookies } from "next/headers";
+import { readSignedCookie } from "@/lib/auth/signedCookies";
 import RmtBoardClient from "@/app/staff/_components/RmtBoardClient";
 import { getSupabase } from "@/lib/supabase";
 
@@ -76,9 +77,9 @@ function StatusPill({ s }: { s: Row["status"] }) {
 
 export default async function RmtBoard() {
   const c = await cookies();
-  const cookieBranch = (c.get("staff_branch")?.value || "SI").toUpperCase();
+  const cookieBranch = (readSignedCookie(c, "staff_branch") || "SI").toUpperCase();
   const branch = (cookieBranch === "ALL" ? "SI" : cookieBranch) as "SI" | "SL";
-  const role = (c.get("staff_role")?.value || "").toLowerCase();
+  const role = (readSignedCookie(c, "staff_role") || "").toLowerCase();
 
   const items = await loadToday(branch);
 

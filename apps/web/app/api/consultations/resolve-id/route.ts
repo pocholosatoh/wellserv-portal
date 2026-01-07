@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 
 /*
   GET /api/consultations/resolve-id?patient_id=...&scope=latest|today&branchOnly=1
@@ -23,13 +23,14 @@ function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
 
 export async function GET(req: Request) {
   try {
-    const actor = await requireActor();
-    if (!actor || actor.kind !== "doctor") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
     const url = new URL(req.url);
-    const patientId = (url.searchParams.get("patient_id") || "").trim();
+    const patientId = String(auth.patientId || "").trim();
     const scope = (url.searchParams.get("scope") || "latest").toLowerCase(); // latest|today
     const branchOnly = url.searchParams.get("branchOnly") === "1";
 
@@ -40,8 +41,8 @@ export async function GET(req: Request) {
     const db = getSupabase();
     let q = db.from("consultations").select("id, visit_at, branch").eq("patient_id", patientId);
 
-    if (branchOnly && actor.branch) {
-      q = q.eq("branch", actor.branch);
+    if (branchOnly && auth.branch) {
+      q = q.eq("branch", auth.branch);
     }
 
     if (scope === "today") {

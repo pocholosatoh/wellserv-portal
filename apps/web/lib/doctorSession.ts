@@ -1,5 +1,6 @@
 // lib/doctorSession.ts
 import { cookies as getCookies } from "next/headers";
+import { readSignedCookie } from "@/lib/auth/signedCookies";
 
 export type DoctorSession = {
   id: string; // cookie doctor_id (UUID or "relief_xxx")
@@ -23,20 +24,20 @@ export async function getDoctorSession(): Promise<DoctorSession | null> {
   // Next 15: in your env this returns a Promise, so await it
   const c = await getCookies();
 
-  const id = c.get("doctor_id")?.value || null;
+  const id = readSignedCookie(c, "doctor_id");
   if (!id) return null;
 
-  const code = c.get("doctor_code")?.value || "";
-  const name = c.get("doctor_name")?.value || "";
-  const role = (c.get("doctor_role")?.value || "regular") as "regular" | "relief";
-  const credentials = c.get("doctor_credentials")?.value || undefined;
-  const display_name = c.get("doctor_display_name")?.value || undefined;
-  const prc_no = c.get("doctor_prc_no")?.value || undefined;
-  const philhealth_md_id = c.get("doctor_philhealth_md_id")?.value || undefined;
+  const code = readSignedCookie(c, "doctor_code") || "";
+  const name = readSignedCookie(c, "doctor_name") || "";
+  const role = (readSignedCookie(c, "doctor_role") || "regular") as "regular" | "relief";
+  const credentials = readSignedCookie(c, "doctor_credentials") || undefined;
+  const display_name = readSignedCookie(c, "doctor_display_name") || undefined;
+  const prc_no = readSignedCookie(c, "doctor_prc_no") || undefined;
+  const philhealth_md_id = readSignedCookie(c, "doctor_philhealth_md_id") || undefined;
 
   const rawBranch = (
-    c.get("doctor_branch")?.value ||
-    c.get("staff_branch")?.value ||
+    readSignedCookie(c, "doctor_branch") ||
+    readSignedCookie(c, "staff_branch") ||
     "SI"
   ).toUpperCase();
 

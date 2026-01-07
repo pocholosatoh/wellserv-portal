@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPatientPrescriptions } from "@/lib/api/patient-prescriptions-core";
-import { getMobilePatient } from "@/lib/mobileAuth";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +28,8 @@ export async function POST(req: Request) {
         hasCookie: !!req.headers.get("cookie"),
       });
     }
-    const actor = await getMobilePatient(req);
+    const auth = await guard(req, { allow: ["patient"], allowMobileToken: true });
+    const actor = auth.ok && auth.actor.kind === "patient" ? auth.actor : null;
     if (process.env.NODE_ENV !== "production") {
       console.log("[mobile] prescriptions", { hasActor: !!actor });
     }

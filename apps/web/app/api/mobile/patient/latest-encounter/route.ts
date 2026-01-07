@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getMobilePatient } from "@/lib/mobileAuth";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,13 +11,11 @@ function escapeLikeExact(s: string) {
 
 export async function GET(req: Request) {
   try {
-    const actor = await getMobilePatient(req);
-    if (!actor?.patient_id) {
-      return NextResponse.json({ error: "Login required" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["patient"], allowMobileToken: true, requirePatientId: true });
+    if (!auth.ok) return auth.response;
 
     const supa = getSupabase();
-    const pid = escapeLikeExact(String(actor.patient_id || "").trim());
+    const pid = escapeLikeExact(String(auth.patientId || "").trim());
 
     const { data, error } = await supa
       .from("encounters")

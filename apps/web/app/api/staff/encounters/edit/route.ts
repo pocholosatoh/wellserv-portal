@@ -7,10 +7,13 @@ import {
   normalizeIdList,
   resolveTokens,
 } from "@/lib/labSelection";
+import { guard } from "@/lib/auth/guard";
 
 const DISCOUNT_RATE = 0.2;
 
 export async function POST(req: Request) {
+  const auth = await guard(req, { allow: ["staff"] });
+  if (!auth.ok) return auth.response;
   const db = getSupabase();
   try {
     const body = await req.json().catch(() => ({}));

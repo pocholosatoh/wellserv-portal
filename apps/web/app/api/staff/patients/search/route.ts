@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 function isoToMMDDYYYY(iso?: string | null) {
   if (!iso) return "";
@@ -12,6 +13,8 @@ function isoToMMDDYYYY(iso?: string | null) {
 }
 
 export async function GET(req: Request) {
+  const auth = await guard(req, { allow: ["staff"] });
+  if (!auth.ok) return auth.response;
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") || "").trim();
   const limit = Number(url.searchParams.get("limit") || 5);

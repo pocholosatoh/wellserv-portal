@@ -21,13 +21,6 @@ function parseExpectedTokens(raw?: string | null) {
     .filter(Boolean);
 }
 
-function readCookie(name: string) {
-  if (typeof document === "undefined") return "";
-  const match = document.cookie.split("; ").find((row) => row.startsWith(`${name}=`));
-  if (!match) return "";
-  return decodeURIComponent(match.split("=").slice(1).join("="));
-}
-
 function isUuid(v?: string | null) {
   return (
     !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
@@ -36,8 +29,7 @@ function isUuid(v?: string | null) {
 
 function getDoctorId(explicitId?: string | null) {
   if (explicitId && isUuid(explicitId)) return explicitId;
-  const raw = readCookie("doctor_id");
-  return isUuid(raw) ? raw : null;
+  return null;
 }
 
 export default function FollowUpPanel({

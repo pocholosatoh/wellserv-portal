@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 
 import { getSupabaseServer } from "@/lib/supabaseServer";
-import { getSession } from "@/lib/session";
+import { guard } from "@/lib/auth/guard";
 
 const Category = z.enum(["imaging", "cytology", "microbiology", "ecg", "in_vitro", "other"]);
 
@@ -34,31 +33,6 @@ function getExpectedSecret() {
   return (process.env.RMT_UPLOAD_SECRET || process.env.NEXT_PUBLIC_RMT_UPLOAD_SECRET || "").trim();
 }
 
-async function requireStaffIdentity() {
-  const session = await getSession().catch(() => null);
-  const c = await cookies();
-
-  const roleCookie = c.get("role")?.value || "";
-  const staffRole = session?.staff_role || c.get("staff_role")?.value || "";
-  const staffInitials = session?.staff_initials || c.get("staff_initials")?.value || "";
-  const staffId = session?.staff_id || c.get("staff_id")?.value || "";
-  const staffCode = session?.staff_login_code || c.get("staff_login_code")?.value || "";
-
-  const isStaff =
-    (session?.role || roleCookie) === "staff" || !!staffRole || !!staffId || !!staffCode;
-
-  if (!isStaff) return null;
-
-  const identifier = staffId || staffCode || staffInitials || staffRole;
-  if (!identifier) return null;
-
-  return {
-    id: identifier,
-    role: staffRole || "staff",
-    initials: staffInitials || null,
-  } as const;
-}
-
 function isSecretAuthorized(req: Request) {
   const expected = getExpectedSecret();
   if (!expected) return false;
@@ -69,7 +43,15 @@ function isSecretAuthorized(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const staff = await requireStaffIdentity();
+    const auth = await guard(req, { allow: ["staff"] });
+    const staff =
+      auth.ok && auth.actor.kind === "staff"
+        ? {
+            id: auth.actor.id,
+            role: auth.actor.role || "staff",
+            initials: auth.actor.initials || null,
+          }
+        : null;
     const secretOk = isSecretAuthorized(req);
 
     if (!staff && !secretOk) {

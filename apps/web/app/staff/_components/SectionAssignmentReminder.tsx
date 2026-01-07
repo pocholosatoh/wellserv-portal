@@ -3,16 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const COOKIE_NAME = "section_assignment_reminder";
-
-function readCookie(name: string) {
-  const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  return m ? decodeURIComponent(m[2]) : "";
-}
-
-function writeCookie(name: string, value: string, maxAgeSeconds = 60 * 60 * 24) {
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}`;
-}
+const STORAGE_KEY = "section_assignment_reminder";
 
 export default function SectionAssignmentReminder({ rolePrefix }: { rolePrefix?: string | null }) {
   const router = useRouter();
@@ -21,15 +12,21 @@ export default function SectionAssignmentReminder({ rolePrefix }: { rolePrefix?:
   useEffect(() => {
     const prefix = (rolePrefix || "").toUpperCase();
     if (prefix !== "RMT") return;
-    const flag = readCookie(COOKIE_NAME);
-    if (flag && flag !== "seen") {
+    try {
+      const flag = window.localStorage.getItem(STORAGE_KEY) || "pending";
+      if (flag && flag !== "seen") {
+        setOpen(true);
+        window.localStorage.setItem(STORAGE_KEY, "seen");
+      }
+    } catch {
       setOpen(true);
-      writeCookie(COOKIE_NAME, "seen");
     }
   }, [rolePrefix]);
 
   function close() {
-    writeCookie(COOKIE_NAME, "seen");
+    try {
+      window.localStorage.setItem(STORAGE_KEY, "seen");
+    } catch {}
     setOpen(false);
   }
 

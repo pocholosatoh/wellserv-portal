@@ -4,8 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { requireActor } from "@/lib/api-actor";
 import { getDoctorSession } from "@/lib/doctorSession";
+import { guard } from "@/lib/auth/guard";
 
 function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
   return new Intl.DateTimeFormat("en-CA", {
@@ -23,17 +23,20 @@ function isUuid(v?: string | null) {
 
 export async function POST(req: Request) {
   try {
-    const actor = await requireActor();
-    if (!actor || actor.kind !== "doctor") {
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
+    const actor = auth.actor;
+    if (actor.kind !== "doctor") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const docSession = await getDoctorSession().catch(() => null);
 
-    const body = await req.json().catch(() => ({}));
-    const patientId = String(body?.patientId || body?.patient_id || "")
-      .trim()
-      .toUpperCase();
+    const patientId = String(auth.patientId || "").trim().toUpperCase();
     if (!patientId) {
       return NextResponse.json({ error: "patientId required" }, { status: 400 });
     }

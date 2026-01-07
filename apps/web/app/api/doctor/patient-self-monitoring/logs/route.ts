@@ -2,14 +2,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { getSupabase } from "@/lib/supabase";
 import { getDoctorSession } from "@/lib/doctorSession";
-
-const QuerySchema = z.object({
-  patient_id: z.string().min(1),
-  limit: z.coerce.number().int().positive().max(50).optional(),
-});
+import { guard } from "@/lib/auth/guard";
 
 function escapeLikeExact(s: string) {
   return s.replace(/[%_]/g, (m) => `\\${m}`);
@@ -23,24 +18,24 @@ function normalizePatientId(raw: unknown) {
 
 export async function GET(req: Request) {
   try {
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
-    const parsed = QuerySchema.safeParse({
-      patient_id: searchParams.get("patient_id") || searchParams.get("patientId"),
-      limit: searchParams.get("limit") ?? undefined,
-    });
-
-    if (!parsed.success) {
-      return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
-    }
-
-    const limit = parsed.data.limit ?? 10;
+    const limitRaw = searchParams.get("limit");
+    const parsedLimit = limitRaw ? Number(limitRaw) : 10;
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 10;
     const supa = getSupabase();
-    const pid = escapeLikeExact(normalizePatientId(parsed.data.patient_id));
+    const pid = escapeLikeExact(normalizePatientId(auth.patientId));
 
     const base = () =>
       supa

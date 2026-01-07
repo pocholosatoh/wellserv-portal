@@ -2,11 +2,6 @@
 import React from "react";
 import type { VitalsSnapshot } from "@/lib/data/data-provider";
 
-// OLD (problematic: pointed to mixed server/client file)
-// import { getSupabaseBrowser } from "@/lib/supabase";
-
-// NEW (safe)
-import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 import StaffNavi from "@/app/staff/_components/StaffNavi";
 import { resolveScopedBranch } from "@/lib/staffBranchClient";
 
@@ -15,7 +10,6 @@ const BTN =
   "hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#44969b] " +
   "disabled:opacity-50 disabled:cursor-not-allowed";
 
-const supabase = getSupabaseBrowser();
 
 function toPH(s?: string | null) {
   if (!s) return "";
@@ -283,52 +277,39 @@ export default function PatientHistoryPage() {
 
   const loadEncounters = React.useCallback(async (pid: string) => {
     if (!pid) return;
-    const { data, error } = await supabase
-      .from("encounters")
-      .select("id, visit_date_local, branch_code, status, queue_number")
-      .eq("patient_id", pid)
-      .order("visit_date_local", { ascending: false })
-      .limit(12);
-    if (!error && Array.isArray(data)) {
-      setEncounters(data as any);
-    } else {
+    try {
+      const res = await fetch(
+        `/api/staff/patients/encounters?patient_id=${encodeURIComponent(pid)}&limit=12`,
+        { cache: "no-store" },
+      );
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || "Failed to load encounters");
+      setEncounters((json.rows || []) as any);
+    } catch {
       setEncounters([]);
     }
   }, []);
 
-  const loadTodayPatients = React.useCallback(
-    async (branch: Branch) => {
-      setTodayLoading(true);
-      setTodayError(null);
-      try {
-        const today = todayPhilippinesISODate();
-        const { data, error } = await supabase
-          .from("encounters")
-          .select("id, patient_id, queue_number, status, consult_status, patients(full_name)")
-          .eq("visit_date_local", today)
-          .eq("branch_code", branch)
-          .order("queue_number", { ascending: true })
-          .limit(40);
-        if (error) throw error;
-        const rows =
-          data?.map((row: any) => ({
-            encounter_id: row.id,
-            patient_id: row.patient_id,
-            full_name: row.patients?.full_name ?? null,
-            queue_number: row.queue_number ?? null,
-            status: row.status ?? null,
-            consult_status: row.consult_status ?? null,
-          })) ?? [];
-        setTodayPatients(rows);
-      } catch (e: any) {
-        setTodayError(e?.message || "Failed to load today's patients");
-        setTodayPatients([]);
-      } finally {
-        setTodayLoading(false);
-      }
-    },
-    [supabase],
-  );
+  const loadTodayPatients = React.useCallback(async (branch: Branch) => {
+    setTodayLoading(true);
+    setTodayError(null);
+    try {
+      const params = new URLSearchParams();
+      params.set("view", "quick");
+      params.set("branch", branch);
+      const res = await fetch(`/api/staff/encounters/today?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || "Failed to load today's patients");
+      setTodayPatients(json.rows || []);
+    } catch (e: any) {
+      setTodayError(e?.message || "Failed to load today's patients");
+      setTodayPatients([]);
+    } finally {
+      setTodayLoading(false);
+    }
+  }, []);
 
   React.useEffect(() => {
     loadTodayPatients(branchFilter);
@@ -379,16 +360,6 @@ export default function PatientHistoryPage() {
     const dt = new Date(local);
     if (Number.isNaN(dt.getTime())) return new Date().toISOString();
     return dt.toISOString();
-  }
-
-  function todayPhilippinesISODate() {
-    const formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Manila",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-    return formatter.format(new Date()); // returns YYYY-MM-DD
   }
 
   const onSaveVitals = async () => {
@@ -449,30 +420,32 @@ export default function PatientHistoryPage() {
     }
 
     setLoading(true);
-    const { data, error } = await supabase
-      .from("patients")
-      .select("*")
-      .eq("patient_id", target) // exact match (we already uppercase the input)
-      .single();
-    setLoading(false);
+    try {
+      const res = await fetch(
+        `/api/staff/patients/details?patient_id=${encodeURIComponent(target)}`,
+        { cache: "no-store" },
+      );
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        throw new Error(json.error || "Patient ID not found.");
+      }
+      if (!json.patient) {
+        throw new Error("Patient ID not found.");
+      }
 
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    if (!data) {
-      setError("Patient ID not found.");
-      return;
-    }
+      setFound(true);
+      setInitial(json.patient as Patient);
 
-    setFound(true);
-    setInitial(data as Patient);
-
-    const copy: Partial<Patient> = {};
-    for (const k of [...EDITABLE_FIELDS, ...READONLY_FIELDS]) {
-      copy[k] = (data as any)[k] ?? null;
+      const copy: Partial<Patient> = {};
+      for (const k of [...EDITABLE_FIELDS, ...READONLY_FIELDS]) {
+        copy[k] = (json.patient as any)[k] ?? null;
+      }
+      setForm(copy);
+    } catch (e: any) {
+      setError(e?.message || "Patient ID not found.");
+    } finally {
+      setLoading(false);
     }
-    setForm(copy);
   };
 
   const onVitalsChange = (field: keyof typeof vitalsForm, value: string) => {
@@ -537,28 +510,30 @@ export default function PatientHistoryPage() {
     }
 
     setSaving(true);
-    const { data, error } = await supabase
-      .from("patients")
-      .update(updates)
-      .eq("patient_id", initial.patient_id)
-      .select("*");
-
-    setSaving(false);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    if (data && data[0]) {
-      setInitial(data[0] as Patient);
-      // Refresh the form with saved values
-      const copy: Partial<Patient> = {};
-      for (const k of [...EDITABLE_FIELDS, ...READONLY_FIELDS]) {
-        copy[k] = (data[0] as any)[k] ?? null;
+    try {
+      const res = await fetch("/api/staff/patients/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patient_id: initial.patient_id, ...updates }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        throw new Error(json.error || "Failed to update patient.");
       }
-      setForm(copy);
-      alert("Patient updated successfully.");
+
+      if (json.patient) {
+        setInitial(json.patient as Patient);
+        const copy: Partial<Patient> = {};
+        for (const k of [...EDITABLE_FIELDS, ...READONLY_FIELDS]) {
+          copy[k] = (json.patient as any)[k] ?? null;
+        }
+        setForm(copy);
+        alert("Patient updated successfully.");
+      }
+    } catch (e: any) {
+      setError(e?.message || "Failed to update patient.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -633,16 +608,19 @@ export default function PatientHistoryPage() {
                     // 1) Check for an existing person (exact name + birthday)
                     const fullName = `${SUR}, ${FST}`;
                     {
-                      const { data: dupRows, error: dupErr } = await supabase
-                        .from("patients")
-                        .select("patient_id, full_name, birthday")
-                        .eq("full_name", fullName)
-                        .eq("birthday", bdayISO)
-                        .limit(1);
-                      if (dupErr) throw dupErr;
+                      const dupRes = await fetch(
+                        `/api/staff/patients/check-duplicate?full_name=${encodeURIComponent(
+                          fullName,
+                        )}&birthday=${encodeURIComponent(bdayISO)}`,
+                        { cache: "no-store" },
+                      );
+                      const dupJson = await dupRes.json();
+                      if (!dupRes.ok && dupJson?.error) {
+                        throw new Error(dupJson.error || "Failed to check duplicates");
+                      }
 
-                      if (dupRows && dupRows.length > 0) {
-                        const existingId = dupRows[0].patient_id;
+                      if (dupJson?.match?.patient_id) {
+                        const existingId = dupJson.match.patient_id;
                         const open = window.confirm(
                           `Mukhang existing na ang pasyente na ito (ID: ${existingId}).\n\n` +
                             `Open existing record instead? (OK = Open, Cancel = Create new anyway)`,
@@ -667,12 +645,15 @@ export default function PatientHistoryPage() {
                     let suffix = 0;
 
                     async function idExists(id: string) {
-                      const { count, error } = await supabase
-                        .from("patients")
-                        .select("patient_id", { count: "exact", head: true })
-                        .eq("patient_id", id);
-                      if (error) throw error;
-                      return (count ?? 0) > 0;
+                      const res = await fetch(
+                        `/api/staff/patients/id-exists?patient_id=${encodeURIComponent(id)}`,
+                        { cache: "no-store" },
+                      );
+                      const json = await res.json();
+                      if (!res.ok || json?.error) {
+                        throw new Error(json?.error || "Failed to check patient ID");
+                      }
+                      return !!json.exists;
                     }
 
                     if (await idExists(candidate)) {
@@ -693,16 +674,19 @@ export default function PatientHistoryPage() {
                     }
 
                     // 3) Insert minimal row (birthday as DATE ISO)
-                    const { data: ins, error: insErr } = await supabase
-                      .from("patients")
-                      .insert({
+                    const createRes = await fetch("/api/staff/patients/create", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
                         patient_id: candidate,
                         full_name: fullName,
-                        birthday: bdayISO, // DATE column expects YYYY-MM-DD
-                      })
-                      .select("*")
-                      .single();
-                    if (insErr) throw insErr;
+                        birthday: bdayISO,
+                      }),
+                    });
+                    const createJson = await createRes.json();
+                    if (!createRes.ok || createJson?.error) {
+                      throw new Error(createJson?.error || "Failed to create patient");
+                    }
 
                     // 4) Load the editor for the new patient
                     setSearchId(candidate);
@@ -711,10 +695,10 @@ export default function PatientHistoryPage() {
                     setNewFirstname("");
                     setNewBirthday("");
 
-                    setInitial(ins as Patient);
+                    setInitial(createJson.patient as Patient);
                     const copy: Partial<Patient> = {};
                     for (const k of [...EDITABLE_FIELDS, ...READONLY_FIELDS]) {
-                      copy[k] = (ins as any)[k] ?? null;
+                      copy[k] = (createJson.patient as any)[k] ?? null;
                     }
                     setForm(copy);
 

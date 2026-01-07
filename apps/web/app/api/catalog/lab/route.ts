@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { buildLabCatalogIndex } from "@/lib/labSelection";
+import { guard } from "@/lib/auth/guard";
 
-export async function GET() {
+export async function GET(req: Request) {
   const db = getSupabase();
   try {
+    const auth = await guard(req, { allow: ["doctor", "staff"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+
     const { data: testsRaw, error: te } = await db
       .from("tests_catalog")
       .select("id, test_code, display_name, default_price, is_active")

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { getDoctorSession } from "@/lib/doctorSession";
+import { guard } from "@/lib/auth/guard";
 
 const Payload = z.object({
   action: z.enum(["save", "sign"]),
@@ -46,6 +47,9 @@ function resolveSignatureLicense(input: string | null, doctor: DoctorSession | n
 
 export async function POST(req: Request, context: RouteContext) {
   try {
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession().catch(() => null);
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

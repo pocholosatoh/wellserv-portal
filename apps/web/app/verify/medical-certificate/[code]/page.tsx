@@ -1,5 +1,5 @@
 // app/verify/medical-certificate/[code]/page.tsx
-import { getSupabase } from "@/lib/supabase";
+import { headers } from "next/headers";
 
 type CertificateVerifyRow = {
   certificate_no: string | null;
@@ -17,31 +17,24 @@ type CertificateVerifyRow = {
 };
 
 async function fetchByCode(code: string) {
-  const db = getSupabase();
-  const cert = await db
-    .from("medical_certificates")
-    .select(
-      [
-        "certificate_no",
-        "patient_full_name",
-        "patient_birthdate",
-        "patient_age",
-        "patient_sex",
-        "issued_at",
-        "valid_until",
-        "status",
-        "verification_code",
-        "doctor_snapshot",
-        "diagnosis_text",
-        "remarks",
-      ].join(", "),
-    )
-    .eq("verification_code", code)
-    .maybeSingle();
-  if (cert.error) {
-    throw new Error(cert.error.message);
+  const h = await headers();
+  const host =
+    h.get("x-forwarded-host") ??
+    h.get("host") ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+  const base = `${proto}://${host}`;
+
+  const res = await fetch(
+    `${base}/api/verify/medical-certificate?code=${encodeURIComponent(code)}`,
+    { cache: "no-store", headers: h },
+  );
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || json?.error) {
+    throw new Error(json?.error || "Verification failed");
   }
-  return cert.data as CertificateVerifyRow | null;
+  return (json?.certificate as CertificateVerifyRow | null) ?? null;
 }
 
 function formatDate(iso?: string | null) {

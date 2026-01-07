@@ -2,8 +2,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { DEFAULT_RX_VALID_DAYS, normalizeValidDays } from "@/lib/rx";
+import { guard } from "@/lib/auth/guard";
 
 export async function POST(req: NextRequest) {
+  const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+  if (!auth.ok) return auth.response;
+
   const supabase = getSupabase();
   const { consultationId, patientId, notesForPatient, items, validDays } = await req.json();
 

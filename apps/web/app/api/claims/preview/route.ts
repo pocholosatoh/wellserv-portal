@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 // ---- Facility header constants for the XML exporter
 const FACILITY = {
@@ -15,6 +16,9 @@ const FACILITY = {
 
 export async function GET(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["doctor", "staff"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+
     const sb = getSupabase();
     const { searchParams } = new URL(req.url);
     const encounterId = (searchParams.get("encounter_id") || "").trim();

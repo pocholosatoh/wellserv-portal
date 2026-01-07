@@ -1,8 +1,10 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 async function handleUpdate(req: Request) {
+  const auth = await guard(req, { allow: ["staff"] });
+  if (!auth.ok) return auth.response;
   const db = getSupabase();
   try {
     const ct = req.headers.get("content-type") || "";
@@ -30,9 +32,8 @@ async function handleUpdate(req: Request) {
     if (error) throw error;
 
     // Stamp last event with actor + optional note
-    const c = await cookies();
-    const actor_role = (c.get("staff_role")?.value || "").toLowerCase();
-    const actor_id = c.get("staff_initials")?.value || "";
+    const actor_role = auth.actor.kind === "staff" ? auth.actor.role : "";
+    const actor_id = auth.actor.kind === "staff" ? auth.actor.initials : "";
 
     const { data: ev } = await db
       .from("encounter_events")

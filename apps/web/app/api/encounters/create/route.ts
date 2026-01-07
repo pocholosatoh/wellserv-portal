@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabaseServer";
+import { guard } from "@/lib/auth/guard";
 
 export async function POST(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["staff", "doctor"], requirePatientId: true });
+    if (!auth.ok) return auth.response;
     const { patient_id } = await req.json();
     if (!patient_id) return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
 

@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { requireActor } from "@/lib/api-actor"; // ← accept doctor or staff (not patients)
+import { guard } from "@/lib/auth/guard";
 
 // tiny helper: is a string a v4/v1 uuid?
 function isUuid(v?: string | null) {
@@ -24,11 +24,9 @@ type UpsertBody = {
 
 export async function POST(req: Request) {
   try {
-    // Auth: allow DOCTOR or STAFF; deny patient
-    const actor = await requireActor();
-    if (!actor || actor.kind === "patient") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["doctor", "staff"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+    const actor = auth.actor;
 
     const db = getSupabase();
 

@@ -4,7 +4,9 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { setSignedCookie, clearSignedCookie } from "@/lib/auth/signedCookies";
 import bcrypt from "bcryptjs";
+import { checkRateLimit, getRequestIp } from "@/lib/auth/rateLimit";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -20,14 +22,21 @@ function setCookie(
     maxAge: number;
   }> = {},
 ) {
-  res.cookies.set({
-    name,
-    value,
+  if (opts.maxAge === 0) {
+    clearSignedCookie(res, name, {
+      httpOnly: opts.httpOnly ?? true,
+      secure: opts.secure ?? isProd,
+      sameSite: opts.sameSite ?? "lax",
+      path: opts.path ?? "/",
+    });
+    return;
+  }
+  setSignedCookie(res, name, value, {
     httpOnly: opts.httpOnly ?? true,
     secure: opts.secure ?? isProd,
     sameSite: opts.sameSite ?? "lax",
     path: opts.path ?? "/",
-    maxAge: opts.maxAge ?? 60 * 60 * 24 * 30, // 30 days
+    maxAge: opts.maxAge ?? 60 * 60 * 24 * 30,
   });
 }
 
@@ -39,6 +48,16 @@ export async function POST(req: Request) {
     const branchOverride = String(body?.branch || "")
       .trim()
       .toUpperCase(); // optional "SI" | "SL" | "ALL"
+
+    const ip = getRequestIp(req);
+    const key = `login:doctor:${ip}:${rawCode || "unknown"}`;
+    const limited = await checkRateLimit({ key, limit: 5, windowMs: 10 * 60 * 1000 });
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429 },
+      );
+    }
 
     if (!rawCode || !rawPin) {
       return NextResponse.json({ error: "Missing code or pin" }, { status: 400 });

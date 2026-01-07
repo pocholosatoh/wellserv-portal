@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { requireActor, getTargetPatientId } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 import { fetchOtherLabsForPatient, getOtherLabsBucket, getOtherLabsExpiry } from "@/lib/otherLabs";
 
 const BUCKET = getOtherLabsBucket();
@@ -10,14 +10,10 @@ const BUCKET = getOtherLabsBucket();
 export async function GET(req: Request) {
   const url = new URL(req.url);
   try {
-    const actor = await requireActor();
-    if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await guard(req, { allow: ["patient", "staff", "doctor"], requirePatientId: true });
+    if (!auth.ok) return auth.response;
 
-    const pidRaw = getTargetPatientId(actor, { searchParams: url.searchParams });
-    if (!pidRaw)
-      return NextResponse.json({ error: "patient_id query param required" }, { status: 400 });
-
-    const patient_id = String(pidRaw).trim().toUpperCase();
+    const patient_id = String(auth.patientId || "").trim().toUpperCase();
     const expiresIn = getOtherLabsExpiry(url.searchParams);
     const items = await fetchOtherLabsForPatient(patient_id, { expiresIn, bucket: BUCKET });
 

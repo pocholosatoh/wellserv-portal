@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabase } from "@/lib/supabase";
+import { checkRateLimit, getRequestIp } from "@/lib/auth/rateLimit";
 
 const RequestSchema = z.object({
   patient_id: z.string().min(1),
@@ -49,6 +50,13 @@ const GENERIC_ERROR = "Unable to verify details.";
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req);
+    const key = `public:mobile-forgot-pin-verify:${ip}`;
+    const limited = await checkRateLimit({ key, limit: 30, windowMs: 60 * 1000 });
+    if (!limited.ok) {
+      return NextResponse.json({ error: GENERIC_ERROR }, { status: 429 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const parsed = RequestSchema.safeParse({
       patient_id: body?.patient_id ?? body?.patientId,

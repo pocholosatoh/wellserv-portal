@@ -7,6 +7,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/session";
+import { guard } from "@/lib/auth/guard";
+import { readSignedCookie } from "@/lib/auth/signedCookies";
 
 type StaffContext = {
   isAdmin: boolean;
@@ -28,13 +30,11 @@ async function getStaffContext(): Promise<StaffContext> {
   const c = await cookies();
 
   const prefix = (
-    session?.staff_role_prefix ||
-    c.get("staff_role_prefix")?.value ||
-    ""
+    session?.staff_role_prefix || readSignedCookie(c, "staff_role_prefix") || ""
   ).toUpperCase();
-  const role = (session?.staff_role || c.get("staff_role")?.value || "").toLowerCase();
-  const branch = normalizeHub(session?.staff_branch || c.get("staff_branch")?.value || "");
-  const staffId = session?.staff_id || c.get("staff_id")?.value || "";
+  const role = (session?.staff_role || readSignedCookie(c, "staff_role") || "").toLowerCase();
+  const branch = normalizeHub(session?.staff_branch || readSignedCookie(c, "staff_branch") || "");
+  const staffId = session?.staff_id || readSignedCookie(c, "staff_id") || "";
 
   const isAdmin = prefix === "ADM" || role === "admin";
   const isRmt = prefix === "RMT" || role === "rmt";
@@ -48,6 +48,8 @@ function jsonError(message: string, status = 400) {
 
 export async function GET(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["staff"] });
+    if (!auth.ok) return auth.response;
     const ctx = await getStaffContext();
     if (!ctx.isAdmin && !ctx.isRmt) {
       return jsonError("Access denied", 403);
@@ -129,6 +131,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["staff"] });
+    if (!auth.ok) return auth.response;
     const ctx = await getStaffContext();
     if (!ctx.isAdmin && !ctx.isRmt) {
       return jsonError("Access denied", 403);

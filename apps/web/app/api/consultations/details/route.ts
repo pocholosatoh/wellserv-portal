@@ -4,9 +4,12 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 export async function GET(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["staff", "doctor"] });
+    if (!auth.ok) return auth.response;
     const url = new URL(req.url);
     const id = url.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });

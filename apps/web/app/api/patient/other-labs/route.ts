@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireActor, getTargetPatientId } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 
 const BUCKET = "patient-files"; // <-- MUST match your private bucket exactly
 
@@ -17,15 +17,15 @@ export async function GET(req: Request) {
   const debug = url.searchParams.get("debug") === "1";
 
   try {
-    const actor = await requireActor();
-    if (!actor) {
-      const r = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await guard(req, { allow: ["patient", "staff", "doctor"], requirePatientId: true });
+    if (!auth.ok) {
+      const r = auth.response;
       r.headers.set("x-route-version", "patient/other-labs:v2-signed");
       r.headers.set("x-bucket", BUCKET);
       return r;
     }
 
-    const patientId = getTargetPatientId(actor, { searchParams: url.searchParams });
+    const patientId = auth.patientId;
     if (!patientId) {
       const r = NextResponse.json({ error: "patient_id query param required" }, { status: 400 });
       r.headers.set("x-route-version", "patient/other-labs:v2-signed");

@@ -1,10 +1,14 @@
 // app/api/meds/search/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { guard } from "@/lib/auth/guard";
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export async function GET(req: Request) {
+  const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+  if (!auth.ok) return auth.response;
+
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
 

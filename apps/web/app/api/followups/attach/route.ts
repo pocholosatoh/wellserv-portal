@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 
 function isUuid(v?: string | null) {
   return (
@@ -31,7 +31,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const actor = await requireActor().catch(() => null);
+    const auth = await guard(req, { allow: ["doctor", "staff"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+    const actor = auth.actor;
     const actorDoctorId = actor && actor.kind === "doctor" && isUuid(actor.id) ? actor.id : null;
     const updatedBy = updated_by ?? actorDoctorId ?? null;
 

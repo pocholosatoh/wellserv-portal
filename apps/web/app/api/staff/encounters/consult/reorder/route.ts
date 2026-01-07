@@ -1,6 +1,7 @@
 // app/api/staff/encounters/consult/reorder/route.ts
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 /**
  * POST body:
@@ -12,6 +13,8 @@ import { getSupabase } from "@/lib/supabase";
  * Only applies to rows with consult_status in ('queued_for_consult','in_consult') for that branch.
  */
 export async function POST(req: Request) {
+  const auth = await guard(req, { allow: ["staff"], requireBranch: true });
+  if (!auth.ok) return auth.response;
   const db = getSupabase();
   try {
     const { branch, ids } = await req.json();

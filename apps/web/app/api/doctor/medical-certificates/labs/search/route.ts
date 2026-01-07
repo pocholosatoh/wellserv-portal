@@ -11,6 +11,7 @@ import {
   formatLabEntrySummary,
   normalizeLabKey,
 } from "@/lib/medicalCertificateLabs";
+import { guard } from "@/lib/auth/guard";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-PH", {
   timeZone: process.env.APP_TZ || "Asia/Manila",
@@ -28,13 +29,20 @@ function formatDate(iso?: string | null) {
 
 export async function GET(req: Request) {
   try {
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const url = new URL(req.url);
-    const patientId = (url.searchParams.get("patient_id") || "").trim().toUpperCase();
+    const patientId = String(auth.patientId || "").trim().toUpperCase();
     const query = (url.searchParams.get("q") || "").trim();
     if (!patientId) {
       return NextResponse.json({ error: "patient_id is required" }, { status: 400 });

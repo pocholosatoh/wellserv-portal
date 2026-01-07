@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { setSession } from "@/lib/session";
 import { createClient } from "@supabase/supabase-js";
+import { checkRateLimit, getRequestIp } from "@/lib/auth/rateLimit";
 
 type PatientRow = {
   patient_id?: string | null;
@@ -103,6 +104,16 @@ export async function POST(req: Request) {
   let timeout: NodeJS.Timeout | null = null;
   try {
     const { patient_id: rawPid, access_code, remember } = await req.json();
+
+    const ip = getRequestIp(req);
+    const key = `login:patient:${ip}:${String(rawPid || "unknown").trim().toUpperCase()}`;
+    const limited = await checkRateLimit({ key, limit: 5, windowMs: 10 * 60 * 1000 });
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429 },
+      );
+    }
 
     if (!rawPid || !access_code) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });

@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 
 type TemplateType = "SOAP" | "MARKDOWN";
 
@@ -43,8 +43,10 @@ function sortTemplates(list: NoteTemplate[]) {
 
 export async function GET(req: Request) {
   try {
-    const actor = await requireActor();
-    if (!actor || actor.kind !== "doctor") {
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+    const actor = auth.actor;
+    if (actor.kind !== "doctor") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -93,8 +95,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const actor = await requireActor();
-    if (!actor || actor.kind !== "doctor") {
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+    const actor = auth.actor;
+    if (actor.kind !== "doctor") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

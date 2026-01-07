@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 import crypto from "crypto";
 
 function supaAdmin() {
@@ -21,8 +21,10 @@ function parseDataUrlPng(dataUrl?: string | null): { buf: Buffer; ext: string } 
 
 export async function POST(req: NextRequest) {
   try {
-    const actor = await requireActor();
-    if (!actor || actor.kind !== "doctor") {
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+    const actor = auth.actor;
+    if (actor.kind !== "doctor") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const db = supaAdmin();

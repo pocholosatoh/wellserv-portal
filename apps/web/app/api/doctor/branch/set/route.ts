@@ -3,16 +3,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { getDoctorSession } from "@/lib/doctorSession";
+import { guard } from "@/lib/auth/guard";
+import { setSignedCookie } from "@/lib/auth/signedCookies";
 
 const isProd = process.env.NODE_ENV === "production";
 
 export async function POST(req: Request) {
   try {
-    const session = await getDoctorSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["doctor"] });
+    if (!auth.ok) return auth.response;
 
     const { branch } = await req.json().catch(() => ({}));
     const b = String(branch || "").toUpperCase();
@@ -21,14 +20,12 @@ export async function POST(req: Request) {
     }
 
     const res = NextResponse.json({ ok: true, branch: b });
-    res.cookies.set({
-      name: "doctor_branch",
-      value: b,
+    setSignedCookie(res, "doctor_branch", b, {
       httpOnly: true,
       sameSite: "lax",
       secure: isProd,
       path: "/",
-      maxAge: 60 * 60 * 12, // 12 hours
+      maxAge: 60 * 60 * 12,
     });
     return res;
   } catch (e: any) {

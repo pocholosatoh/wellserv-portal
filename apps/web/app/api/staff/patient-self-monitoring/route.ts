@@ -2,8 +2,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 function escapeLikeExact(s: string) {
   return s.replace(/[%_]/g, (m) => `\\${m}`);
@@ -17,18 +17,11 @@ function normalizePatientId(raw: unknown) {
 
 export async function GET(req: Request) {
   try {
-    const s = await getSession();
-    if (!s || s.role !== "staff") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["staff"], requirePatientId: true });
+    if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(req.url);
-    const patientId = normalizePatientId(
-      searchParams.get("patient_id") || searchParams.get("patientId"),
-    );
-    if (!patientId) {
-      return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
-    }
+    const patientId = normalizePatientId(auth.patientId);
 
     const supa = getSupabase();
     const pid = escapeLikeExact(patientId);

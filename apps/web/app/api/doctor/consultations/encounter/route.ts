@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 import { getSupabase } from "@/lib/supabase";
 import { phTodayYMD } from "@/lib/time";
 
@@ -11,13 +11,18 @@ function up(v?: string | null) {
 }
 
 export async function GET(req: Request) {
-  const actor = await requireActor();
-  if (!actor || actor.kind !== "doctor") {
+  const auth = await guard(req, {
+    allow: ["doctor"],
+    requireBranch: true,
+    requirePatientId: true,
+  });
+  if (!auth.ok) return auth.response;
+  const actor = auth.actor;
+  if (actor.kind !== "doctor") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const url = new URL(req.url);
-  const patientId = up(url.searchParams.get("patient_id"));
+  const patientId = up(auth.patientId);
   if (!patientId) {
     return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
   }
@@ -46,13 +51,19 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const actor = await requireActor();
-  if (!actor || actor.kind !== "doctor") {
+  const auth = await guard(req, {
+    allow: ["doctor"],
+    requireBranch: true,
+    requirePatientId: true,
+  });
+  if (!auth.ok) return auth.response;
+  const actor = auth.actor;
+  if (actor.kind !== "doctor") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await req.json().catch(() => ({}));
-  const patientId = up(body?.patient_id || body?.patientId);
+  const patientId = up(auth.patientId);
   const consultationId = String(body?.consultation_id || body?.consultationId || "").trim();
   const requestedEncounterId = String(body?.encounter_id || body?.encounterId || "").trim();
   const createNew = !!body?.create_new || !requestedEncounterId;

@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { requireActor } from "@/lib/api-actor";
+import { guard } from "@/lib/auth/guard";
 import { getDoctorSession } from "@/lib/doctorSession";
 import { computeValidUntil, DEFAULT_RX_VALID_DAYS, parseValidDays } from "@/lib/rx";
 
@@ -41,8 +41,10 @@ export async function POST(req: NextRequest) {
     const db = getSupabase();
 
     // 1) Auth
-    const actor = await requireActor().catch(() => null);
-    if (!actor || actor.kind !== "doctor") {
+    const auth = await guard(req, { allow: ["doctor"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+    const actor = auth.actor;
+    if (actor.kind !== "doctor") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const doctorId = isUuid(actor.id) ? (actor.id as string) : null;

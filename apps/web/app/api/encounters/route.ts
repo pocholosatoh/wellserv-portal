@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabaseServer";
+import { guard } from "@/lib/auth/guard";
 
 export async function GET(req: Request) {
   try {
-    const url = new URL(req.url);
-    const patient_id = url.searchParams.get("patient_id");
-    if (!patient_id) {
-      return NextResponse.json({ error: "patient_id is required" }, { status: 400 });
-    }
+    const auth = await guard(req, { allow: ["patient", "staff", "doctor"], requirePatientId: true });
+    if (!auth.ok) return auth.response;
 
     const supa = getSupabaseServer();
 
@@ -15,7 +13,7 @@ export async function GET(req: Request) {
     const { data, error } = await supa
       .from("encounters") // <— change this table name if you use a different one
       .select("*")
-      .eq("patient_id", patient_id)
+      .eq("patient_id", auth.patientId)
       .order("created_at", { ascending: false })
       .limit(50);
 

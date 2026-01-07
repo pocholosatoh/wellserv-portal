@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 type Payload = {
   prescriptionId: string;
@@ -15,6 +16,9 @@ type Payload = {
 
 export async function POST(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["staff"], requireBranch: true });
+    if (!auth.ok) return auth.response;
+
     const body = (await req.json()) as Payload;
 
     const prescriptionId = body.prescriptionId?.trim();

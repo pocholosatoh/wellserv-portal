@@ -4,6 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { setSignedCookie, clearSignedCookie } from "@/lib/auth/signedCookies";
+import { checkRateLimit, getRequestIp } from "@/lib/auth/rateLimit";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -32,14 +34,21 @@ function setCookie(
     maxAge: number;
   }> = {},
 ) {
-  res.cookies.set({
-    name,
-    value,
+  if (opts.maxAge === 0) {
+    clearSignedCookie(res, name, {
+      httpOnly: opts.httpOnly ?? true,
+      secure: opts.secure ?? isProd,
+      sameSite: opts.sameSite ?? "lax",
+      path: opts.path ?? "/",
+    });
+    return;
+  }
+  setSignedCookie(res, name, value, {
     httpOnly: opts.httpOnly ?? true,
     secure: opts.secure ?? isProd,
     sameSite: opts.sameSite ?? "lax",
     path: opts.path ?? "/",
-    maxAge: opts.maxAge ?? 60 * 60 * 12, // 12 hours for relief logins
+    maxAge: opts.maxAge ?? 60 * 60 * 12,
   });
 }
 
@@ -48,6 +57,16 @@ export async function POST(req: Request) {
     const { name, credentials, passcode, branch, license_no, philhealth_md_id } = await req
       .json()
       .catch(() => ({}));
+
+    const ip = getRequestIp(req);
+    const key = `login:doctor-reliever:${ip}:${String(name || "unknown").trim()}`;
+    const limited = await checkRateLimit({ key, limit: 5, windowMs: 10 * 60 * 1000 });
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429 },
+      );
+    }
 
     const expected = process.env.MD_RELIEVER_PASSCODE;
 

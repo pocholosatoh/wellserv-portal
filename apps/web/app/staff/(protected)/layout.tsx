@@ -6,6 +6,7 @@ import StaffNav from "../_components/StaffNavi";
 import { getSession } from "@/lib/session";
 import BranchPicker from "../_components/BranchPicker";
 import SectionAssignmentReminder from "../_components/SectionAssignmentReminder";
+import { readSignedCookie } from "@/lib/auth/signedCookies";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +18,10 @@ export default async function StaffProtectedLayout({ children }: { children: Rea
 
   const c = await cookies();
 
-  const staffRole = c.get("staff_role")?.value || s.staff_role || "";
-  const staffBranch = c.get("staff_branch")?.value || s.staff_branch || "";
-  const staffInitials = c.get("staff_initials")?.value || s.staff_initials || "";
-  const staffRolePrefix = c.get("staff_role_prefix")?.value || s.staff_role_prefix || "";
+  const staffRole = readSignedCookie(c, "staff_role") || s.staff_role || "";
+  const staffBranch = readSignedCookie(c, "staff_branch") || s.staff_branch || "";
+  const staffInitials = readSignedCookie(c, "staff_initials") || s.staff_initials || "";
+  const staffRolePrefix = readSignedCookie(c, "staff_role_prefix") || s.staff_role_prefix || "";
 
   const initials = staffInitials || null;
   const branchLabel = staffBranch === "ALL" ? "ALL BRANCHES" : (staffBranch || "").toUpperCase();
@@ -46,7 +47,7 @@ export default async function StaffProtectedLayout({ children }: { children: Rea
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2 md:ml-auto">
-            <BranchPicker />
+            <BranchPicker role={staffRole} branch={staffBranch as any} />
             {canSeeReception && (
               <a
                 href="/staff/reception"

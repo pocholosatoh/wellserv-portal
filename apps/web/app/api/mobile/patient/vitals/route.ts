@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getMobilePatient } from "@/lib/mobileAuth";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -86,10 +86,8 @@ async function fetchLatestEncounterId(supa: ReturnType<typeof getSupabase>, pati
 
 export async function GET(req: Request) {
   try {
-    const actor = await getMobilePatient(req);
-    if (!actor?.patient_id) {
-      return NextResponse.json({ error: "Login required" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["patient"], allowMobileToken: true, requirePatientId: true });
+    if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(req.url);
     const parameterKeyRaw = searchParams.get("parameter_key") || searchParams.get("parameterKey");
@@ -105,7 +103,7 @@ export async function GET(req: Request) {
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 50) : 10;
 
     const supa = getSupabase();
-    const pid = escapeLikeExact(String(actor.patient_id || "").trim());
+    const pid = escapeLikeExact(String(auth.patientId || "").trim());
 
     let query = supa
       .from("vitals_snapshots")
@@ -134,10 +132,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const actor = await getMobilePatient(req);
-    if (!actor?.patient_id) {
-      return NextResponse.json({ error: "Login required" }, { status: 401 });
-    }
+    const auth = await guard(req, { allow: ["patient"], allowMobileToken: true, requirePatientId: true });
+    if (!auth.ok) return auth.response;
 
     const body = await req.json().catch(() => ({}));
     const parsed = RequestSchema.safeParse({
@@ -154,7 +150,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    const patientId = normalizePatientId(actor.patient_id);
+    const patientId = normalizePatientId(auth.patientId);
     const supa = getSupabase();
     const encounterId = await fetchLatestEncounterId(supa, patientId);
 

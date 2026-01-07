@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getMobilePatient } from "@/lib/mobileAuth";
 import { getSupabase } from "@/lib/supabase";
 import { getPatientFollowup } from "@/lib/api/patient-followups-core";
+import { guard } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,8 @@ function escapeLikeExact(s: string) {
 
 export async function POST(req: Request) {
   try {
-    const actor = await getMobilePatient(req);
+    const auth = await guard(req, { allow: ["patient"], allowMobileToken: true });
+    const actor = auth.ok && auth.actor.kind === "patient" ? auth.actor : null;
     const body = await req.json().catch(() => ({}));
 
     let patientId: string | null = actor?.patient_id || null;

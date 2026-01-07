@@ -19,7 +19,8 @@ async function getBaseUrl(): Promise<string> {
 
 async function getRx(id: string) {
   const base = await getBaseUrl();
-  const res = await fetch(`${base}/api/prescriptions/${id}`, { cache: "no-store" });
+  const h = await headers();
+  const res = await fetch(`${base}/api/prescriptions/${id}`, { cache: "no-store", headers: h });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     console.error("Rx fetch failed", res.status, text);

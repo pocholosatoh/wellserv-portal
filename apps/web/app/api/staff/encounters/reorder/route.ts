@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { guard } from "@/lib/auth/guard";
 
 /**
  * POST body: { branch: "SI"|"SL", ids: string[] }
@@ -7,6 +8,8 @@ import { getSupabase } from "@/lib/supabase";
  */
 export async function POST(req: Request) {
   try {
+    const auth = await guard(req, { allow: ["staff"], requireBranch: true });
+    if (!auth.ok) return auth.response;
     const { branch, ids } = await req.json();
     if (!branch || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });

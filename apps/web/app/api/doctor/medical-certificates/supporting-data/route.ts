@@ -11,6 +11,7 @@ import {
   deriveLabFlag,
   formatLabEntrySummary,
 } from "@/lib/medicalCertificateLabs";
+import { guard } from "@/lib/auth/guard";
 
 type EncounterRow = {
   id: string;
@@ -72,13 +73,20 @@ function normalizePatientId(value?: string | null) {
 
 export async function GET(req: Request) {
   try {
+    const auth = await guard(req, {
+      allow: ["doctor"],
+      requireBranch: true,
+      requirePatientId: true,
+    });
+    if (!auth.ok) return auth.response;
+
     const doctor = await getDoctorSession();
     if (!doctor?.doctorId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const url = new URL(req.url);
-    const patientId = normalizePatientId(url.searchParams.get("patient_id"));
+    const patientId = normalizePatientId(auth.patientId);
     const consultationId = url.searchParams.get("consultation_id")?.trim() || null;
     const encounterId = url.searchParams.get("encounter_id")?.trim() || null;
 

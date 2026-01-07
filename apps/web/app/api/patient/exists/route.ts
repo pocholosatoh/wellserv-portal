@@ -1,6 +1,7 @@
 // app/api/patient/exists/route.ts
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { checkRateLimit, getRequestIp } from "@/lib/auth/rateLimit";
 
 // Change this if your table/column is named differently:
 const TABLE = "patients"; // <- e.g., "patients"
@@ -12,6 +13,16 @@ function isValid(pid: string) {
 
 export async function GET(req: Request) {
   try {
+    const ip = getRequestIp(req);
+    const key = `lookup:patient-exists-public:${ip}`;
+    const limited = await checkRateLimit({ key, limit: 30, windowMs: 60 * 1000 });
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 },
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const raw = (searchParams.get("patient_id") || "").trim();
     if (!raw || !isValid(raw)) {
