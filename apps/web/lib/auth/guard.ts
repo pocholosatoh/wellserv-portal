@@ -10,6 +10,16 @@ import { getRequestIp } from "@/lib/auth/rateLimit";
 import { getSession } from "@/lib/session";
 import { getDoctorSession } from "@/lib/doctorSession";
 import { getMobilePatient } from "@/lib/mobileAuth";
+import {
+  DEFAULT_BRANCH_KEYS,
+  DEFAULT_PATIENT_ID_KEYS,
+  checkActorAllowed,
+  checkBranchMatch,
+  checkBranchRequirement,
+  checkPatientScope,
+  normalizeBranch,
+  requireActor,
+} from "@/lib/auth/policy";
 
 export type BranchCode = "SI" | "SL" | "ALL";
 
@@ -45,17 +55,6 @@ export type GuardOptions = {
 export type GuardResult =
   | { ok: true; actor: Actor; patientId?: string; branch?: BranchCode }
   | { ok: false; response: NextResponse };
-
-const DEFAULT_PATIENT_ID_KEYS = ["patient_id", "patientId", "pid"];
-const DEFAULT_BRANCH_KEYS = ["branch", "branch_code", "branchCode"];
-
-function normalizeBranch(raw?: string | null): BranchCode | "" {
-  const val = String(raw || "")
-    .trim()
-    .toUpperCase();
-  if (val === "SI" || val === "SL" || val === "ALL") return val as BranchCode;
-  return "";
-}
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -236,86 +235,78 @@ export async function guard(req: Request, opts: GuardOptions = {}): Promise<Guar
 
   try {
     actor = await resolveActor(req, !!opts.allowMobileToken);
-    if (!actor) {
-      emitAuditEvent(auditCtx, { actor, patientId, result: "DENY", statusCode: 401 });
-      return { ok: false, response: jsonError("Unauthorized", 401) };
-    }
-
-    if (opts.allow && !opts.allow.includes(actor.kind)) {
+    const actorDecision = requireActor(actor);
+    if (!actorDecision.ok) {
       emitAuditEvent(auditCtx, {
         actor,
         patientId,
         result: "DENY",
-        statusCode: 403,
-        reason: "Forbidden",
+        statusCode: actorDecision.status,
+        reason: actorDecision.reason,
       });
-      return { ok: false, response: jsonError("Forbidden", 403) };
+      return {
+        ok: false,
+        response: jsonError(actorDecision.message || "Unauthorized", actorDecision.status || 401),
+      };
+    }
+
+    const resolvedActor = actor as Actor;
+    const allowDecision = checkActorAllowed(resolvedActor, opts.allow);
+    if (!allowDecision.ok) {
+      emitAuditEvent(auditCtx, {
+        actor: resolvedActor,
+        patientId,
+        result: "DENY",
+        statusCode: allowDecision.status,
+        reason: allowDecision.reason,
+      });
+      return {
+        ok: false,
+        response: jsonError(allowDecision.message || "Forbidden", allowDecision.status || 403),
+      };
     }
 
     if (opts.requirePatientId) {
-      if (actor.kind === "patient") {
-        patientId = actor.patient_id;
-
-        const url = new URL(req.url);
-        const body = await readJson(req);
-        const requested =
-          readFromKeys(url.searchParams, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS) ||
-          readFromKeys(body, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS);
-        if (requested && requested !== actor.patient_id) {
-          emitAuditEvent(auditCtx, {
-            actor,
-            patientId,
-            result: "DENY",
-            statusCode: 403,
-            reason: "Forbidden",
-          });
-          return { ok: false, response: jsonError("Forbidden", 403) };
-        }
-      } else {
-        const url = new URL(req.url);
-        const body = await readJson(req);
-        const requested =
-          readFromKeys(url.searchParams, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS) ||
-          readFromKeys(body, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS);
-        if (!requested) {
-          emitAuditEvent(auditCtx, {
-            actor,
-            patientId,
-            result: "DENY",
-            statusCode: 400,
-            reason: "patient_id required",
-          });
-          return { ok: false, response: jsonError("patient_id required", 400) };
-        }
-        patientId = requested;
+      const url = new URL(req.url);
+      const body = await readJson(req);
+      const requested =
+        readFromKeys(url.searchParams, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS) ||
+        readFromKeys(body, opts.patientIdKeys || DEFAULT_PATIENT_ID_KEYS);
+      const patientDecision = checkPatientScope(resolvedActor, requested);
+      patientId = patientDecision.patientId;
+      if (!patientDecision.ok) {
+        emitAuditEvent(auditCtx, {
+          actor: resolvedActor,
+          patientId,
+          result: "DENY",
+          statusCode: patientDecision.status,
+          reason: patientDecision.reason,
+        });
+        return {
+          ok: false,
+          response: jsonError(
+            patientDecision.message || "Forbidden",
+            patientDecision.status || 403,
+          ),
+        };
       }
     }
 
     if (opts.requireBranch) {
-      if (actor.kind === "patient") {
+      const branchDecision = checkBranchRequirement(resolvedActor);
+      branch = branchDecision.branch;
+      if (!branchDecision.ok) {
         emitAuditEvent(auditCtx, {
-          actor,
+          actor: resolvedActor,
           patientId,
           result: "DENY",
-          statusCode: 403,
-          reason: "Forbidden",
+          statusCode: branchDecision.status,
+          reason: branchDecision.reason,
         });
-        return { ok: false, response: jsonError("Forbidden", 403) };
-      }
-      if (actor.kind === "doctor") {
-        branch = actor.branch;
-      } else if (actor.kind === "staff") {
-        if (!actor.branch) {
-          emitAuditEvent(auditCtx, {
-            actor,
-            patientId,
-            result: "DENY",
-            statusCode: 400,
-            reason: "Branch not set",
-          });
-          return { ok: false, response: jsonError("Branch not set", 400) };
-        }
-        branch = actor.branch;
+        return {
+          ok: false,
+          response: jsonError(branchDecision.message || "Forbidden", branchDecision.status || 403),
+        };
       }
 
       const url = new URL(req.url);
@@ -323,21 +314,25 @@ export async function guard(req: Request, opts: GuardOptions = {}): Promise<Guar
       const requested =
         readFromKeys(url.searchParams, opts.branchKeys || DEFAULT_BRANCH_KEYS) ||
         readFromKeys(body, opts.branchKeys || DEFAULT_BRANCH_KEYS);
-      const requestedBranch = normalizeBranch(requested || "");
-      if (requestedBranch && branch && branch !== "ALL" && requestedBranch !== branch) {
+      const matchDecision = checkBranchMatch(branch, requested);
+      branch = matchDecision.branch;
+      if (!matchDecision.ok) {
         emitAuditEvent(auditCtx, {
-          actor,
+          actor: resolvedActor,
           patientId,
           result: "DENY",
-          statusCode: 403,
-          reason: "Forbidden",
+          statusCode: matchDecision.status,
+          reason: matchDecision.reason,
         });
-        return { ok: false, response: jsonError("Forbidden", 403) };
+        return {
+          ok: false,
+          response: jsonError(matchDecision.message || "Forbidden", matchDecision.status || 403),
+        };
       }
     }
 
     emitAuditEvent(auditCtx, { actor, patientId, result: "ALLOW" });
-    return { ok: true, actor, patientId, branch };
+    return { ok: true, actor: resolvedActor, patientId, branch };
   } catch (error) {
     emitAuditEvent(auditCtx, {
       actor,

@@ -46,7 +46,7 @@ Run these from a clean checkout to mirror CI:
 pnpm install
 pnpm lint
 pnpm build
-pnpm test   # currently placeholder
+pnpm test   # security regression checks (guard, rate limit, audit logging)
 ```
 
 ## Deploying to Vercel
