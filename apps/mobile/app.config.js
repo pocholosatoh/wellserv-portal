@@ -73,7 +73,7 @@ const config = {
       bundleIdentifier: "com.wellserv.mobile",
       supportsTablet: true,
       infoPlist: {
-        CFBundleDisplayName: "WELLSERV Patient",
+        CFBundleDisplayName: "WS Patient",
         ITSAppUsesNonExemptEncryption: false,
         NSLocationWhenInUseUsageDescription:
           "We use your location to autofill delivery coordinates.",
