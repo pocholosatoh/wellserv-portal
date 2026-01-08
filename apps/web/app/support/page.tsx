@@ -93,6 +93,54 @@ export default function SupportPage() {
             </div>
           </header>
 
+          <section className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-lg backdrop-blur md:p-8">
+            <h2 className="text-2xl font-semibold text-gray-900">Account Deletion Request</h2>
+            <p className="mt-3 text-sm text-gray-600">
+              To request account deletion, follow the steps below. This process is informational
+              only and is handled by our support team.
+            </p>
+            <div className="mt-5 grid gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl border border-white/70 bg-white/80 p-5">
+                <p className="text-sm font-semibold text-gray-900">How to request deletion</p>
+                <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-gray-700">
+                  <li>
+                    Contact us via Facebook Messenger or email{" "}
+                    <a
+                      className="text-accent hover:underline"
+                      href="mailto:wellservmedicalcorporation@gmail.com"
+                    >
+                      wellservmedicalcorporation@gmail.com
+                    </a>
+                    .
+                  </li>
+                  <li>Include your full name and the clinic/branch where records were created.</li>
+                  <li>Identity verification is required before deletion is processed.</li>
+                </ol>
+              </div>
+              <div className="rounded-2xl border border-white/70 bg-white/80 p-5">
+                <p className="text-sm font-semibold text-gray-900">What will be deleted</p>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-gray-700">
+                  <li>App access credentials.</li>
+                  <li>Patient portal access.</li>
+                  <li>Linked account identifiers.</li>
+                </ul>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-white/70 bg-white/80 p-5">
+                <p className="text-sm font-semibold text-gray-900">Data that may be retained</p>
+                <p className="mt-3 text-sm text-gray-600">
+                  Medical and laboratory records may be retained as required by Philippine health
+                  regulations and applicable laws.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/70 bg-white/80 p-5">
+                <p className="text-sm font-semibold text-gray-900">Processing time</p>
+                <p className="mt-3 text-sm text-gray-600">Typically within 30 days.</p>
+              </div>
+            </div>
+          </section>
+
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr),280px] lg:gap-8">
             <div className="space-y-6">
               <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-lg backdrop-blur">
