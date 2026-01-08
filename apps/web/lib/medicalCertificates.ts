@@ -1,13 +1,12 @@
 // lib/medicalCertificates.ts
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { toYMDManila } from "@/lib/time";
 
 export function generateCertificateNo(now = new Date()): string {
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
+  const ymd = toYMDManila(now).replace(/-/g, "");
   const rand = randomUUID().split("-")[0].toUpperCase();
-  return `MC-${y}${m}${d}-${rand}`;
+  return `MC-${ymd}-${rand}`;
 }
 
 export function generateQrToken(): string {

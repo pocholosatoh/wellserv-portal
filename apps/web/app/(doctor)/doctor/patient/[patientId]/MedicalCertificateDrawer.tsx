@@ -85,7 +85,10 @@ type MedCertFormState = {
   customSupporting: CustomSupportingEntry[];
 };
 
+const DISPLAY_TIME_ZONE = "Asia/Manila";
+
 const formatter = new Intl.DateTimeFormat("en-PH", {
+  timeZone: DISPLAY_TIME_ZONE,
   year: "numeric",
   month: "short",
   day: "2-digit",
@@ -105,6 +108,7 @@ function formatBirthday(iso?: string | null) {
   return Number.isNaN(+dt)
     ? iso
     : new Intl.DateTimeFormat("en-PH", {
+        timeZone: DISPLAY_TIME_ZONE,
         year: "numeric",
         month: "short",
         day: "2-digit",
@@ -147,7 +151,7 @@ function isSameDay(iso?: string | null, dayKey?: string) {
   if (!iso || !dayKey) return false;
   const dt = new Date(iso);
   if (Number.isNaN(+dt)) return false;
-  return dt.toLocaleDateString("en-CA") === dayKey;
+  return dt.toLocaleDateString("en-CA", { timeZone: DISPLAY_TIME_ZONE }) === dayKey;
 }
 
 function createEmptyFormState(): MedCertFormState {
@@ -231,7 +235,10 @@ export default function MedicalCertificateDrawer({
   const [labResults, setLabResults] = useState<LabSearchResult[]>([]);
   const [labSearchLoading, setLabSearchLoading] = useState(false);
   const [labSearchError, setLabSearchError] = useState<string | null>(null);
-  const issueDateKey = useMemo(() => new Date().toLocaleDateString("en-CA"), [open]);
+  const issueDateKey = useMemo(
+    () => new Date().toLocaleDateString("en-CA", { timeZone: DISPLAY_TIME_ZONE }),
+    [open],
+  );
   const draftRef = useRef<DraftPayload | null>(null);
   const hasInitializedRef = useRef(false);
   const doctorKey = formData?.doctor?.doctor_id || "reliever-doctor";
@@ -635,7 +642,7 @@ export default function MedicalCertificateDrawer({
   }
 
   const isEditing = Boolean(existingCertificate);
-  const issueDate = useMemo(() => new Date(`${issueDateKey}T00:00:00`), [issueDateKey]);
+  const issueDate = useMemo(() => new Date(`${issueDateKey}T00:00:00+08:00`), [issueDateKey]);
   const validUntil = useMemo(
     () => new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000),
     [issueDate],

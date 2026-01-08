@@ -317,7 +317,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const certificate_no = generateCertificateNo();
+    const certificate_no = generateCertificateNo(issuedAt);
     const qr_token = generateQrToken();
     const verification_code = generateVerificationCode();
 

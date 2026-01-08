@@ -14,7 +14,7 @@ import icon from "../../assets/icon.png";
 export default function HomeScreen() {
   const { session, client, signOut } = useSession();
   const patientId = session?.patientId;
-  const profileQuery = usePatientProfile(client, patientId);
+  const profileQuery = usePatientProfile(client, patientId, { session });
   const patientResults = usePatientResults({ limit: 1 });
   const rxQuery = usePatientPrescriptions();
   const followupQuery = usePatientFollowups();

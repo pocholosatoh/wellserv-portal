@@ -8,13 +8,14 @@
     "dev:web": "pnpm --filter web dev",
     "dev:mobile": "pnpm --filter mobile expo start --clear",
     "build": "turbo build",
-    "lint": "turbo lint",
+    "lint": "turbo lint && pnpm check:mobile-phi",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "prepare": "husky install",
     "apply-patches": "node scripts/apply-patches.js",
+    "check:mobile-phi": "node scripts/check-mobile-phi.js",
     "postinstall": "pnpm run apply-patches"
   },
   "devDependencies": {

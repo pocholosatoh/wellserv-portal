@@ -79,6 +79,7 @@ async function registerPushToken(): Promise<string | null> {
 export function SessionProvider({ children }: PropsWithChildren) {
   const storage = useMemo(() => createSecureStoreAdapter("wellserv"), []);
   const client = useMemo(() => {
+    // Do not query PHI tables from client; use server APIs.
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
     return createSupabaseClient({
       supabaseUrl: SUPABASE_URL,

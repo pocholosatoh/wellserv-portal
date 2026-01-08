@@ -31,7 +31,11 @@ export default async function StaffProtectedLayout({ children }: { children: Rea
 
   return (
     <div className="staff-shell min-h-dvh bg-[#f8fafb]">
-      <StaffNav initials={initials} rolePrefix={staffRolePrefix || null} />
+      <StaffNav
+        initials={initials}
+        rolePrefix={staffRolePrefix || null}
+        role={staffRole || null}
+      />
       <SectionAssignmentReminder rolePrefix={staffRolePrefix || null} />
       <div className="border-b border-gray-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-2 text-sm md:flex-row md:flex-wrap md:items-center md:gap-3 md:px-6">

@@ -219,6 +219,7 @@ export default async function StaffHome() {
   const staffRolePrefix = (s.staff_role_prefix || "").toUpperCase();
   const staffBranch =
     s.staff_branch === "ALL" ? "ALL BRANCHES" : (s.staff_branch || "").toUpperCase();
+  const isAdmin = staffRolePrefix === "ADM" || staffRole === "ADMIN";
   const canRegister = staffRolePrefix === "ADM";
   const canManageAssignments = staffRolePrefix === "ADM" || staffRolePrefix === "RMT";
 
@@ -270,6 +271,30 @@ export default async function StaffHome() {
               </svg>
             ),
             description: "Create new staff login codes.",
+          },
+        ]
+      : []),
+    ...(isAdmin
+      ? [
+          {
+            href: "/staff/audit",
+            label: "Audit Log",
+            badge: "Admin",
+            icon: (
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M12 3 5 6v6c0 5 3 8 7 10 4-2 7-5 7-10V6l-7-3Z" />
+                <path d="M9 8h6" />
+                <path d="M9 12h6" />
+                <path d="M9 16h6" />
+              </svg>
+            ),
+            description: "Review audit metadata (no PHI).",
           },
         ]
       : []),

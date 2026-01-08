@@ -6,7 +6,7 @@ Patient, staff, and doctor portals built on Next.js (App Router) with Supabase a
 
 - **Doctor console** (`/doctor`): branch-aware consult queue, patient search redirect, ECG inbox (`/doctor/ecg`), and patient workspace (`/doctor/patient/[patientId]`) with lab results, other labs, consult notes/prescriptions/diagnoses, and past consultations.
 - **Patient portal** (`/patient`): authenticated overview with latest result/prescription badges plus quick links to `/results`, `/prescriptions`, `/patient/medcerts`, `/patient/delivery`, and follow-up/help contacts.
-- **Staff workspace** (`/staff` → protected): launcher for follow-ups (`/staff/followups`), other labs/send-outs (`/staff/other-labs`), patient vitals/history (`/staff/patienthistory`), results portal (`/staff/portal`), prescriptions (`/staff/prescriptions`), med orders (`/staff/med-orders`), medical certificates (`/staff/medcerts`), RMT hema upload (`/staff/rmt/hemaupload`), section assignments (`/staff/section-assignments`, ADM/RMT), and staff registration (`/staff/staff/register`, ADM).
+- **Staff workspace** (`/staff` → protected): launcher for follow-ups (`/staff/followups`), other labs/send-outs (`/staff/other-labs`), patient vitals/history (`/staff/patienthistory`), results portal (`/staff/portal`), prescriptions (`/staff/prescriptions`), med orders (`/staff/med-orders`), medical certificates (`/staff/medcerts`), RMT hema upload (`/staff/rmt/hemaupload`), section assignments (`/staff/section-assignments`, ADM/RMT), staff registration (`/staff/staff/register`, ADM), and audit log viewer (`/staff/audit`, ADM).
 
 ## Monorepo layout
 
@@ -75,6 +75,7 @@ Create a `.env.local` with the server variables above (don’t commit it). In Ve
 - Logged (metadata only): actor role/id, patient_id when known, route + method, action/result, status_code, IP/user agent when available, minimal reason/source meta.
 - Not logged: request bodies, patient names, diagnoses, notes, lab values, prescription fields, raw headers, or tokens.
 - Dev smoke check: make one authorized request to a guarded PHI route and one unauthorized request, then confirm rows in `public.audit_log` with no PHI in `meta`.
+- Admin audit log viewer: `/staff/audit` (ADM only) shows metadata fields only (route/method/action/result, actor/branch/patient IDs, status_code, request_id) with date/action/result filters.
 
 ## Development
 

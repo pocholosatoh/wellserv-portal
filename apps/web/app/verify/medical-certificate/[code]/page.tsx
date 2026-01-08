@@ -28,7 +28,10 @@ async function fetchByCode(code: string) {
 
   const res = await fetch(
     `${base}/api/verify/medical-certificate?code=${encodeURIComponent(code)}`,
-    { cache: "no-store", headers: h },
+    {
+      cache: "no-store",
+      headers: new Headers(h),
+    },
   );
   const json = await res.json().catch(() => ({}));
   if (!res.ok || json?.error) {

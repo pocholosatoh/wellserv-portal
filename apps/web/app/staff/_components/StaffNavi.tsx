@@ -6,13 +6,17 @@ import { usePathname } from "next/navigation";
 export default function StaffNavi({
   initials,
   rolePrefix,
+  role,
 }: {
   initials?: string | null;
   rolePrefix?: string | null;
+  role?: string | null;
 }) {
   const pathname = usePathname();
   const accent = process.env.NEXT_PUBLIC_ACCENT_COLOR || "#44969b";
   const prefix = (rolePrefix || "").toUpperCase();
+  const normalizedRole = (role || "").toLowerCase();
+  const isAdmin = prefix === "ADM" || normalizedRole === "admin";
   const canRegister = prefix === "ADM";
   const canManageAssignments = prefix === "ADM" || prefix === "RMT";
 
@@ -32,6 +36,7 @@ export default function StaffNavi({
       ? [{ href: "/staff/section-assignments", label: "Section Assignments" }]
       : []),
     ...(canRegister ? [{ href: "/staff/staff/register", label: "Register Staff" }] : []),
+    ...(isAdmin ? [{ href: "/staff/audit", label: "Audit Log" }] : []),
   ];
 
   return (
