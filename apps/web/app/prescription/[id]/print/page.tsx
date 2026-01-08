@@ -20,7 +20,11 @@ async function getBaseUrl(): Promise<string> {
 async function getRx(id: string) {
   const base = await getBaseUrl();
   const h = await headers();
-  const res = await fetch(`${base}/api/prescriptions/${id}`, { cache: "no-store", headers: h });
+  // Copy to a mutable Headers instance before fetch mutates defaults.
+  const res = await fetch(`${base}/api/prescriptions/${id}`, {
+    cache: "no-store",
+    headers: new Headers(h),
+  });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     console.error("Rx fetch failed", res.status, text);
