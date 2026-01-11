@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     siteName: "WELLSERV",
     title: "WELLSERV Medical Laboratory — ₱999 Complete Lab Promo",
     description:
-      "CBC, Urinalysis, FBS, Cholesterol, LDL, HDL, Triglycerides, Uric Acid, ALT, Creatinine. Consult fee ₱350 if package is availed.",
+      "CBC, Urinalysis, FBS, Cholesterol, LDL, HDL, Triglycerides, Uric Acid, ALT, Creatinine. Consult fee ₱399 if package is availed.",
     url: "/", // becomes https://www.wellserv.co/
     images: [
       {
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "WELLSERV Medical Laboratory — ₱999 Complete Lab Promo",
     description:
-      "CBC, Urinalysis, FBS, Cholesterol, LDL, HDL, Triglycerides, Uric Acid, ALT, Creatinine. Consult fee ₱350 if package is availed.",
+      "CBC, Urinalysis, FBS, Cholesterol, LDL, HDL, Triglycerides, Uric Acid, ALT, Creatinine. Consult fee ₱399 if package is availed.",
     images: ["/og/wellserv-999.png"],
   },
   // If you want to block indexing while iterating, uncomment:

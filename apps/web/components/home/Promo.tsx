@@ -45,7 +45,7 @@ export default function Promo() {
           <h2 className="text-3xl font-semibold md:text-4xl">₱999 Complete Laboratory Promo</h2>
           <p className="text-gray-600 md:text-lg">
             All-in-one baseline health check. Consult fee only{" "}
-            <span className="font-medium">₱350</span> if availing package.
+            <span className="font-medium">₱399</span> if availing package.
           </p>
         </motion.div>
 
