@@ -39,7 +39,7 @@ export default function Hero() {
           </h1>
           <p className="max-w-prose text-gray-600">
             CBC, Urinalysis, FBS, Cholesterol, LDL, HDL, Triglycerides (Lipid Profile), Uric Acid,
-            ALT, Creatinine. Consult fee only ₱350 if package is availed.
+            ALT, Creatinine. Consult fee only ₱399 if package is availed.
           </p>
           <motion.ul
             initial="hidden"
