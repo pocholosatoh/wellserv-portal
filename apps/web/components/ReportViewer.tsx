@@ -284,6 +284,7 @@ type ReportViewerProps = {
   headerOverride?: ReactNode; // custom header JSX from parent
   watermarkSizePx?: number; // e.g., 320 (overrides size for screen/print)
   watermarkOpacity?: number; // e.g., 0.05 (applies to screen & print)
+  emitReportCount?: boolean; // emits window event with report count when loaded
 };
 
 export default function ReportViewer(props: ReportViewerProps) {
@@ -298,6 +299,7 @@ export default function ReportViewer(props: ReportViewerProps) {
     headerOverride,
     watermarkSizePx,
     watermarkOpacity,
+    emitReportCount = false,
   } = props;
 
   const searchParams = useSearchParams();
@@ -418,6 +420,17 @@ export default function ReportViewer(props: ReportViewerProps) {
   }, [reports, selectedDate, visitDates]);
   const showNoLabsNotice = (patientOnly || !hasLabSections) && !!report;
 
+  function emitReportCountEvent(pid: string, count: number) {
+    if (!emitReportCount || typeof window === "undefined") return;
+    const normalized = String(pid || "").trim();
+    if (!normalized) return;
+    window.dispatchEvent(
+      new CustomEvent("reportviewer:loaded", {
+        detail: { patientId: normalized, count },
+      }),
+    );
+  }
+
   async function fetchReports(id: string) {
     if (!id) return;
     setErr("");
@@ -459,6 +472,7 @@ export default function ReportViewer(props: ReportViewerProps) {
         [];
 
       if (reports.length === 0) {
+        if (emitReportCount) emitReportCountEvent(id, 0);
         setErr("No matching patient ID, please try again.");
         setData(null);
         setSelectedDate("");
@@ -479,6 +493,10 @@ export default function ReportViewer(props: ReportViewerProps) {
           reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean),
         ),
       ).sort((a: string, b: string) => ts(b) - ts(a));
+      if (emitReportCount) {
+        const count = dates.length || reports.length;
+        emitReportCountEvent(id, count);
+      }
       setSelectedDate(dates[0] ?? "");
     } catch (e: any) {
       setErr(e?.message || "Network error.");
@@ -528,6 +546,10 @@ export default function ReportViewer(props: ReportViewerProps) {
         [];
 
       if (reports.length === 0) {
+        if (emitReportCount) {
+          const pid = (patientId || normalizedSessionId || searchPatientId).trim();
+          emitReportCountEvent(pid, 0);
+        }
         setErr("No reports found.");
         setData(null);
         setSelectedDate("");
@@ -548,6 +570,11 @@ export default function ReportViewer(props: ReportViewerProps) {
           reports.map((r: any) => String(r?.visit?.date_of_test ?? "")).filter(Boolean),
         ),
       ).sort((a: string, b: string) => ts(b) - ts(a));
+      if (emitReportCount) {
+        const pid = (patientId || normalizedSessionId || searchPatientId).trim();
+        const count = dates.length || reports.length;
+        emitReportCountEvent(pid, count);
+      }
       setSelectedDate(dates[0] ?? "");
     } catch (e: any) {
       setErr(e?.message || "Network error.");

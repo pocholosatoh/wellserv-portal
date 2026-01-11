@@ -9,6 +9,7 @@ export default function ClientReportViewer({ patientId }: { patientId: string })
       initialPatientId={patientId}
       apiPath="/api/patient-results" // <- use your existing API route
       autoFetch={true} // <- immediately load for this patient
+      emitReportCount={true}
     />
   );
 }

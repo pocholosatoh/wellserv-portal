@@ -6,10 +6,11 @@ import LabTestQuickSearch from "./LabTestQuickSearch";
 
 type Followup = {
   id: string;
+  patient_id: string;
   due_date: string;
   return_branch: string | null;
-  intended_outcome: string | null;
-  expected_tests: string | null;
+  intended_outcome?: string | null;
+  expected_tests?: string | null;
   status: "scheduled" | "completed" | "canceled" | "skipped";
   cancel_reason?: string | null;
 };
@@ -37,11 +38,13 @@ export default function FollowUpPanel({
   consultationId,
   defaultBranch,
   doctorId,
+  initialFollowups,
 }: {
   patientId: string;
   consultationId: string | null;
   defaultBranch?: string | null;
   doctorId?: string | null;
+  initialFollowups?: Followup[];
 }) {
   const sp = useSearchParams();
   const urlCid = useMemo(() => {
@@ -51,8 +54,19 @@ export default function FollowUpPanel({
   const [resolvedConsultationId, setResolvedConsultationId] = useState<string | null>(
     urlCid || consultationId || null,
   );
-  const [active, setActive] = useState<Followup | null>(null);
-  const [history, setHistory] = useState<Followup[]>([]);
+  const [active, setActive] = useState<Followup | null>(() => {
+    if (!initialFollowups) return null;
+    const all = initialFollowups.filter((f) => f.patient_id === patientId);
+    return all.find((f) => f.status === "scheduled") ?? null;
+  });
+  const [history, setHistory] = useState<Followup[]>(() => {
+    if (!initialFollowups) return [];
+    const all = initialFollowups.filter((f) => f.patient_id === patientId);
+    return all
+      .filter((f) => f.status !== "scheduled")
+      .slice(-3)
+      .reverse();
+  });
   const [attachChecked, setAttachChecked] = useState(false);
   const [formMode, setFormMode] = useState<"new" | "edit" | null>(null);
 
@@ -74,6 +88,17 @@ export default function FollowUpPanel({
     [active?.expected_tests],
   );
 
+  function applyFollowups(rows: Followup[]) {
+    const all = rows.filter((f) => f.patient_id === patientId);
+    const act = all.find((f) => f.status === "scheduled") ?? null;
+    const hist = all
+      .filter((f) => f.status !== "scheduled")
+      .slice(-3)
+      .reverse();
+    setActive(act);
+    setHistory(hist);
+  }
+
   async function load() {
     setErr(null);
     try {
@@ -82,14 +107,8 @@ export default function FollowUpPanel({
       );
       const json = await res.json();
       if (json.error) throw new Error(json.error);
-      const all: Followup[] = (json.followups ?? []).filter((f: any) => f.patient_id === patientId);
-      const act = all.find((f) => f.status === "scheduled") ?? null;
-      const hist = all
-        .filter((f) => f.status !== "scheduled")
-        .slice(-3)
-        .reverse();
-      setActive(act);
-      setHistory(hist);
+      const all: Followup[] = json.followups ?? [];
+      applyFollowups(all);
     } catch (e: any) {
       setErr(e?.message || "Failed to load follow-ups");
     }
@@ -100,8 +119,12 @@ export default function FollowUpPanel({
   }, [urlCid, consultationId]);
 
   useEffect(() => {
-    load();
-  }, [patientId]);
+    if (!initialFollowups) {
+      load();
+      return;
+    }
+    applyFollowups(initialFollowups);
+  }, [patientId, initialFollowups]);
   useEffect(() => {
     resetForm();
     setAttachChecked(false);

@@ -46,12 +46,18 @@ type ConsultDetails = {
   doctor?: Consult["doctor"];
 };
 
-export default function PastConsultations({ patientId }: { patientId: string }) {
-  const [list, setList] = useState<Consult[]>([]);
+export default function PastConsultations({
+  patientId,
+  initialList,
+}: {
+  patientId: string;
+  initialList?: Consult[];
+}) {
+  const [list, setList] = useState<Consult[]>(initialList ?? []);
   const [openId, setOpenId] = useState<string | null>(null);
   const [details, setDetails] = useState<ConsultDetails | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!initialList);
   const [refreshing, setRefreshing] = useState(false);
 
   // Build a display name:
@@ -105,11 +111,15 @@ export default function PastConsultations({ patientId }: { patientId: string }) 
     }
   }, [patientId]);
 
-  // ⬇️ Add this initial load effect
   useEffect(() => {
-    setLoading(true);
-    fetchList();
-  }, [fetchList]);
+    if (!initialList) {
+      setLoading(true);
+      fetchList();
+      return;
+    }
+    setList(initialList);
+    setLoading(false);
+  }, [fetchList, initialList]);
 
   // 🔁 Listen for Rx signed events so Past Consultations reloads automatically
   useEffect(() => {
