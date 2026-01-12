@@ -30,6 +30,7 @@ export default function StaffNavi({
     { href: "/staff/prescriptions", label: "Prescriptions" },
     { href: "/staff/med-orders", label: "Med Orders" },
     { href: "/staff/supplies", label: "Supplies" },
+    ...(isAdmin ? [{ href: "/staff/supplies/global", label: "Global Supplies" }] : []),
     { href: "/staff/medcerts", label: "Medical Certs" },
     { href: "/staff/rmt/hemaupload", label: "RMT Hema Upload" },
     ...(canManageAssignments

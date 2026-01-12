@@ -162,7 +162,7 @@ const CARDS: {
         <path d="M9 12h6" />
       </svg>
     ),
-    description: "Receive stock and dispense supplies.",
+    description: "Transfer from global and dispense supplies.",
   },
   {
     href: "/staff/medcerts",
@@ -276,6 +276,25 @@ export default async function StaffHome() {
       : []),
     ...(isAdmin
       ? [
+          {
+            href: "/staff/supplies/global",
+            label: "Global Supplies",
+            badge: "Admin",
+            icon: (
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M12 2 3 7l9 5 9-5-9-5Z" />
+                <path d="M3 7v10l9 5 9-5V7" />
+                <path d="M12 12v10" />
+              </svg>
+            ),
+            description: "Add global stock and review availability.",
+          },
           {
             href: "/staff/audit",
             label: "Audit Log",

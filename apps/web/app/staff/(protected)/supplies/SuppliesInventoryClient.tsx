@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-const PACKAGING_TYPES = ["box", "bundle", "pack", "bag", "bottle"] as const;
-type PackagingType = (typeof PACKAGING_TYPES)[number];
+type PackagingType = "box" | "bundle" | "pack" | "bag" | "bottle";
 
 type NextExpiry = {
   expiry_date: string;
@@ -25,6 +24,8 @@ type InventoryItem = {
 };
 
 type Notice = { type: "success" | "error"; message: string };
+
+type GlobalItem = InventoryItem;
 
 function normalizeName(value: string) {
   return value.trim().toLowerCase();
@@ -55,37 +56,25 @@ export default function SuppliesInventoryClient() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [itemName, setItemName] = useState("");
-  const [packagingType, setPackagingType] = useState<PackagingType>("box");
-  const [pcsPerPackage, setPcsPerPackage] = useState("");
-  const [packagingCount, setPackagingCount] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [receiving, setReceiving] = useState(false);
-  const [receiveNotice, setReceiveNotice] = useState<Notice | null>(null);
+  const [globalItems, setGlobalItems] = useState<GlobalItem[]>([]);
+  const [globalLoading, setGlobalLoading] = useState(true);
+  const [globalLoadError, setGlobalLoadError] = useState<string | null>(null);
+
+  const [transferItemName, setTransferItemName] = useState("");
+  const [transferQty, setTransferQty] = useState("");
+  const [transferring, setTransferring] = useState(false);
+  const [transferNotice, setTransferNotice] = useState<Notice | null>(null);
 
   const [dispenseQty, setDispenseQty] = useState<Record<string, string>>({});
   const [dispenseBusy, setDispenseBusy] = useState<Record<string, boolean>>({});
   const [dispenseErrors, setDispenseErrors] = useState<Record<string, string | null>>({});
   const [inventoryNotice, setInventoryNotice] = useState<Notice | null>(null);
 
-  const matchedItem = useMemo(() => {
-    const needle = normalizeName(itemName);
+  const matchedGlobalItem = useMemo(() => {
+    const needle = normalizeName(transferItemName);
     if (!needle) return null;
-    return items.find((it) => normalizeName(it.item_name) === needle) || null;
-  }, [items, itemName]);
-
-  useEffect(() => {
-    if (!matchedItem) return;
-    if (
-      matchedItem.packaging_type &&
-      PACKAGING_TYPES.includes(matchedItem.packaging_type)
-    ) {
-      setPackagingType(matchedItem.packaging_type);
-    }
-    if (typeof matchedItem.pcs_per_package === "number") {
-      setPcsPerPackage(String(matchedItem.pcs_per_package));
-    }
-  }, [matchedItem]);
+    return globalItems.find((it) => normalizeName(it.item_name) === needle) || null;
+  }, [globalItems, transferItemName]);
 
   async function loadInventory() {
     setLoading(true);
@@ -104,65 +93,87 @@ export default function SuppliesInventoryClient() {
     }
   }
 
+  async function loadGlobalInventory() {
+    setGlobalLoading(true);
+    setGlobalLoadError(null);
+    try {
+      const res = await fetch("/api/staff/supplies/global/inventory", { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Failed to load global supplies.");
+
+      setGlobalItems(Array.isArray(json?.items) ? json.items : []);
+    } catch (e: any) {
+      setGlobalLoadError(e?.message || "Failed to load global supplies.");
+    } finally {
+      setGlobalLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadInventory();
+    loadGlobalInventory();
   }, []);
 
-  const pcsPerPackageNum = toPositiveInt(pcsPerPackage);
-  const packagingCountNum = toPositiveInt(packagingCount);
-  const addedPcs =
-    pcsPerPackageNum && packagingCountNum ? pcsPerPackageNum * packagingCountNum : null;
-  const expiryValid = /^\d{4}-\d{2}-\d{2}$/.test(expiryDate);
-  const receiveReady =
-    itemName.trim() &&
-    packagingType &&
-    pcsPerPackageNum &&
-    packagingCountNum &&
-    expiryValid &&
-    !receiving;
+  const transferQtyNum = toPositiveInt(transferQty);
+  const globalAvailable = matchedGlobalItem?.remaining_pcs_available ?? 0;
+  const transferQtyTooHigh = transferQtyNum != null && transferQtyNum > globalAvailable;
+  const transferReady = !!matchedGlobalItem && !!transferQtyNum && !transferring;
 
-  async function onReceiveSubmit(e: React.FormEvent) {
+  async function onTransferSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setReceiveNotice(null);
-    if (!receiveReady) {
-      setReceiveNotice({
+    setTransferNotice(null);
+
+    if (!matchedGlobalItem) {
+      setTransferNotice({
         type: "error",
-        message: "Please complete all required fields with valid values.",
+        message: "Select a valid global item to transfer.",
+      });
+      return;
+    }
+    if (!transferQtyNum) {
+      setTransferNotice({
+        type: "error",
+        message: "Enter a valid transfer quantity.",
+      });
+      return;
+    }
+    if (transferQtyNum > globalAvailable) {
+      setTransferNotice({
+        type: "error",
+        message: "Quantity exceeds global available stock.",
       });
       return;
     }
 
     try {
-      setReceiving(true);
+      setTransferring(true);
       const res = await fetch("/api/staff/supplies/receive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          item_name: itemName.trim(),
-          packaging_type: packagingType,
-          pcs_per_package: pcsPerPackageNum,
-          packaging_count: packagingCountNum,
-          expiry_date: expiryDate,
+          item_id: matchedGlobalItem.item_id,
+          qty_pcs: transferQtyNum,
         }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(json?.error || "Failed to receive stock.");
+        throw new Error(json?.error || "Failed to transfer stock.");
       }
 
-      setReceiveNotice({
+      setTransferNotice({
         type: "success",
-        message: `Received ${addedPcs?.toLocaleString()} pcs.`,
+        message: `Transferred ${transferQtyNum.toLocaleString()} pcs from Global.`,
       });
-      setPackagingCount("");
+      setTransferQty("");
       await loadInventory();
+      await loadGlobalInventory();
     } catch (e: any) {
-      setReceiveNotice({
+      setTransferNotice({
         type: "error",
-        message: e?.message || "Failed to receive stock.",
+        message: e?.message || "Failed to transfer stock.",
       });
     } finally {
-      setReceiving(false);
+      setTransferring(false);
     }
   }
 
@@ -216,11 +227,12 @@ export default function SuppliesInventoryClient() {
   }
 
   const datalistItems = useMemo(() => {
-    return items
+    return globalItems
+      .filter((it) => (it.remaining_pcs_available ?? 0) > 0)
       .map((it) => it.item_name)
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b));
-  }, [items]);
+  }, [globalItems]);
 
   return (
     <section className="space-y-6">
@@ -228,7 +240,7 @@ export default function SuppliesInventoryClient() {
         <div>
           <h1 className="text-lg font-semibold">Supplies Inventory</h1>
           <p className="text-sm text-gray-600">
-            Receive incoming stock and dispense available supplies by pcs.
+            Transfer from Global and dispense available supplies by pcs.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -249,34 +261,40 @@ export default function SuppliesInventoryClient() {
 
       <section className="space-y-4 rounded-2xl border bg-white p-4 shadow-sm">
         <div>
-          <h2 className="text-base font-semibold text-gray-900">Add / Receive Stock</h2>
+          <h2 className="text-base font-semibold text-gray-900">Transfer from Global</h2>
           <p className="text-sm text-gray-600">
-            Select an item or create a new one, then log the received packages.
+            Select an item with available global stock, then transfer pcs into this branch.
           </p>
         </div>
 
-        {receiveNotice && (
+        {globalLoadError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+            {globalLoadError}
+          </div>
+        )}
+
+        {transferNotice && (
           <div
             className={[
               "rounded-lg border px-4 py-2 text-sm",
-              receiveNotice.type === "success"
+              transferNotice.type === "success"
                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                 : "border-red-200 bg-red-50 text-red-700",
             ].join(" ")}
           >
-            {receiveNotice.message}
+            {transferNotice.message}
           </div>
         )}
 
-        <form onSubmit={onReceiveSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <form onSubmit={onTransferSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <label className="block md:col-span-2">
             <span className="text-sm font-medium text-gray-700">Item Name</span>
             <input
               list="supplies-item-options"
-              value={itemName}
+              value={transferItemName}
               onChange={(e) => {
-                setItemName(e.target.value);
-                setReceiveNotice(null);
+                setTransferItemName(e.target.value);
+                setTransferNotice(null);
               }}
               className="mt-1 w-full rounded-lg border px-3 py-2"
               placeholder="e.g., Syringes 5ml"
@@ -288,82 +306,50 @@ export default function SuppliesInventoryClient() {
                 <option key={name} value={name} />
               ))}
             </datalist>
-            {matchedItem && (
-              <span className="mt-1 block text-xs text-gray-500">
-                Existing item selected. Packaging defaults applied.
+            <span className="mt-1 block text-xs text-gray-500">
+              {globalLoading
+                ? "Loading global items..."
+                : matchedGlobalItem
+                  ? `${formatPackaging(matchedGlobalItem)} • Available: ${formatCount(
+                      matchedGlobalItem.remaining_pcs_available,
+                    )} pcs`
+                  : "Only items with available global stock appear in the list."}
+            </span>
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-gray-700">Transfer Qty (pcs)</span>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={transferQty}
+              onChange={(e) => {
+                setTransferQty(e.target.value);
+                setTransferNotice(null);
+              }}
+              className="mt-1 w-full rounded-lg border px-3 py-2"
+              placeholder="e.g., 50"
+              required
+            />
+            {transferQtyTooHigh && (
+              <span className="mt-1 block text-xs text-amber-700">
+                Quantity exceeds global available stock.
               </span>
             )}
           </label>
 
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Packaging Type</span>
-            <select
-              value={packagingType}
-              onChange={(e) => setPackagingType(e.target.value as PackagingType)}
-              className="mt-1 w-full rounded-lg border bg-white px-3 py-2"
-              required
-            >
-              {PACKAGING_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">PCS per Package</span>
-            <input
-              type="number"
-              min={1}
-              step={1}
-              value={pcsPerPackage}
-              onChange={(e) => setPcsPerPackage(e.target.value)}
-              className="mt-1 w-full rounded-lg border px-3 py-2"
-              placeholder="e.g., 100"
-              required
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Packaging Count</span>
-            <input
-              type="number"
-              min={1}
-              step={1}
-              value={packagingCount}
-              onChange={(e) => setPackagingCount(e.target.value)}
-              className="mt-1 w-full rounded-lg border px-3 py-2"
-              placeholder="e.g., 3"
-              required
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Expiry Date</span>
-            <input
-              type="date"
-              value={expiryDate}
-              onChange={(e) => setExpiryDate(e.target.value)}
-              className="mt-1 w-full rounded-lg border px-3 py-2"
-              required
-            />
-          </label>
-
           <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 md:col-span-2">
-            Added PCS:{" "}
-            <span className="font-semibold">
-              {addedPcs ? addedPcs.toLocaleString() : "—"}
-            </span>
+            Transfers consume from earliest expiry in Global (FEFO).
           </div>
 
           <div className="md:col-span-2">
             <button
               type="submit"
-              disabled={!receiveReady}
+              disabled={!transferReady || transferQtyTooHigh}
               className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {receiving ? "Receiving..." : "Receive Stock"}
+              {transferring ? "Transferring..." : "Transfer from Global"}
             </button>
           </div>
         </form>
