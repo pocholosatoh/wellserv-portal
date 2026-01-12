@@ -25,8 +25,10 @@ export type VitalsSnapshotRow = Row & {
   o2sat?: number | null;
   notes?: string | null;
   source?: string | null;
+  created_by?: string | null;
   created_by_initials?: string | null;
   created_at?: string | null;
+  blood_glucose_mgdl?: number | null;
 };
 
 export function getSupabase(): SupabaseClient {

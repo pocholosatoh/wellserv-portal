@@ -19,9 +19,9 @@ import DiagnosisPanel from "./DiagnosisPanel";
 import ConsentBus from "./ConsentBus";
 import ConsultQueueModal from "./ConsultQueueModal";
 import PatientSelfMonitoringCard from "./PatientSelfMonitoringCard";
-import PatientSelfLogsCard from "./PatientSelfLogsCard";
 import FollowUpPanel from "./FollowUpPanel";
 import ContinuityOfCareModal from "./ContinuityOfCareModal";
+import VitalsSnapshot from "./VitalsSnapshot";
 
 type DoctorLite = {
   display_name?: string | null;
@@ -555,7 +555,7 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
             </div>
           </section>
 
-          <PatientSelfLogsCard patientId={patientIdUpper} />
+          <VitalsSnapshot patientId={patientIdUpper} />
 
           <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
             <header className="px-4 py-3 border-b border-gray-100">
