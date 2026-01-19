@@ -115,6 +115,7 @@ export default function Reception() {
   const [requested, setRequested] = useState(""); // CSV string
   const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
+  const [manualNotes, setManualNotes] = useState("");
   const [manualAdd, setManualAdd] = useState<number>(0);
   const [saving, setSaving] = useState(false);
   const [role, setRole] = useState<string>("");
@@ -122,6 +123,7 @@ export default function Reception() {
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<any | null>(null);
   const [editCsv, setEditCsv] = useState("");
+  const [editManualNotes, setEditManualNotes] = useState("");
   const [editManual, setEditManual] = useState<number>(0);
   const [editSaving, setEditSaving] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -138,6 +140,7 @@ export default function Reception() {
       if (!r.ok) throw new Error(j?.error || "Load failed");
       setEditRow(j.row);
       setEditCsv(j.row?.notes_frontdesk || "");
+      setEditManualNotes(j.row?.notes_frontdesk_manual || "");
       setEditManual(Number(j.row?.price_manual_add || 0));
       setEditPhilhealth(!!(j.row?.yakap_flag || j.row?.is_philhealth_claim));
       setEditDiscountEnabled(!!j.row?.discount_enabled);
@@ -157,6 +160,7 @@ export default function Reception() {
         body: JSON.stringify({
           id: editRow.id,
           requested_tests_csv: editCsv,
+          notes_frontdesk_manual: editManualNotes,
           price_manual_add: editManual,
           discount_enabled: editDiscountEnabled,
           yakap_flag: editPhilhealth,
@@ -571,6 +575,7 @@ export default function Reception() {
         address,
       },
       requested_tests_csv: requested,
+      notes_frontdesk_manual: manualNotes,
       package_ids: selectedPackageIds,
       test_ids: selectedTestIds,
       yakap_flag: yakap,
@@ -652,6 +657,7 @@ export default function Reception() {
       setRequested("");
       setSelectedPackageIds([]);
       setSelectedTestIds([]);
+      setManualNotes("");
       setManualAdd(0);
       setYakap(false);
       setQueueNow(false);
@@ -806,6 +812,16 @@ export default function Reception() {
             />
           </label>
 
+          <label className="space-y-1 block">
+            <span className="text-sm">Manual add or Send-outs (optional)</span>
+            <input
+              value={manualNotes}
+              onChange={(e) => setManualNotes(e.target.value)}
+              className="border rounded px-2 py-2 w-full"
+              placeholder="Free text for tests not in catalog"
+            />
+          </label>
+
           {/* Quick Add */}
           <div className="rounded border bg-slate-50 p-3 space-y-2">
             <div className="text-sm font-medium">Quick Add</div>
@@ -870,7 +886,7 @@ export default function Reception() {
               <div className="font-semibold">₱ {liveTotals.auto.toFixed(2)}</div>
             </div>
             <label className="space-y-1">
-              <span className="text-sm">Manual add (optional)</span>
+              <span className="text-sm">Manual fee (optional)</span>
               <input
                 type="number"
                 step="0.01"
@@ -1091,6 +1107,16 @@ export default function Reception() {
 
             <label className="space-y-1 block">
               <span className="text-sm">Manual add (optional)</span>
+              <input
+                className="border rounded px-2 py-2 w-full"
+                value={editManualNotes}
+                onChange={(e) => setEditManualNotes(e.target.value)}
+                placeholder="Free text for tests not in catalog"
+              />
+            </label>
+
+            <label className="space-y-1 block">
+              <span className="text-sm">Manual fee (optional)</span>
               <input
                 type="number"
                 step="0.01"

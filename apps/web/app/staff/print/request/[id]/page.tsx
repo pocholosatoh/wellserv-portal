@@ -1,6 +1,7 @@
 // app/staff/print/request/[id]/page.tsx
 import PrintButton from "@/app/staff/_components/PrintButton";
 import { getSupabase } from "@/lib/supabase";
+import { mergeFrontdeskNotes } from "@/lib/notesFrontdesk";
 
 const supa = () => getSupabase();
 
@@ -31,7 +32,7 @@ export default async function RequestA5Page({ params }: { params: Promise<{ id: 
 
   const { data: enc } = await db
     .from("encounters")
-    .select("id,patient_id,branch_code,visit_date_local,notes_frontdesk")
+    .select("id,patient_id,branch_code,visit_date_local,notes_frontdesk,notes_frontdesk_manual")
     .eq("id", id)
     .maybeSingle();
 
@@ -49,7 +50,8 @@ export default async function RequestA5Page({ params }: { params: Promise<{ id: 
     .eq("encounter_id", enc.id)
     .order("created_at", { ascending: true });
 
-  const tests = (ord && ord[0]?.code_or_name) || enc.notes_frontdesk || "";
+  const baseNotes = (ord && ord[0]?.code_or_name) || enc.notes_frontdesk || "";
+  const tests = mergeFrontdeskNotes(baseNotes, enc.notes_frontdesk_manual) || "";
 
   return (
     <div className="p-6 print:p-0">

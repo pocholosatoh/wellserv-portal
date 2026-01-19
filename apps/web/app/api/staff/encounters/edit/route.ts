@@ -7,6 +7,7 @@ import {
   normalizeIdList,
   resolveTokens,
 } from "@/lib/labSelection";
+import { normalizeManualNotes } from "@/lib/notesFrontdesk";
 import { guard } from "@/lib/auth/guard";
 
 const DISCOUNT_RATE = 0.2;
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
     const {
       id,
       requested_tests_csv,
+      notes_frontdesk_manual,
       price_manual_add = 0,
       discount_enabled,
       yakap_flag, // boolean | undefined
@@ -31,10 +33,15 @@ export async function POST(req: Request) {
     if (!id) return NextResponse.json({ error: "missing id" }, { status: 400 });
 
     // Expand packages -> tests (id-first)
-    const tokens: string[] = String(requested_tests_csv || "")
+    const requestedCsvInput = typeof requested_tests_csv === "string" ? requested_tests_csv : "";
+    const tokens: string[] = requestedCsvInput
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
+    const manualNotes = normalizeManualNotes(notes_frontdesk_manual);
+    const notesFrontdeskManual = manualNotes || null;
+    const canonicalNotesFrontdesk = requestedCsvInput.trim();
+    const notesFrontdesk = canonicalNotesFrontdesk || null;
 
     const requestedPackageIds = normalizeIdList(body?.package_ids || body?.requested_package_ids);
     const requestedTestIds = normalizeIdList(body?.test_ids || body?.requested_test_ids);
@@ -197,7 +204,8 @@ export async function POST(req: Request) {
 
     // Build the patch object safely (only include provided fields)
     const patch: any = {
-      notes_frontdesk: requested_tests_csv || null,
+      notes_frontdesk: notesFrontdesk,
+      notes_frontdesk_manual: notesFrontdeskManual,
       price_manual_add: manualRounded,
       price_auto_total: autoTotal,
       discount_enabled: discountEnabled,

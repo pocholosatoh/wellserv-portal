@@ -8,6 +8,7 @@ import {
   normalizeIdList,
 } from "@/lib/labSelection";
 import { guard } from "@/lib/auth/guard";
+import { mergeFrontdeskNotes, normalizeManualNotes } from "@/lib/notesFrontdesk";
 
 function supa() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
       branch_code, // "SI" | "SL"
       patient, // { patient_id, full_name, sex, birthday_mmddyyyy, contact, address }
       requested_tests_csv,
+      notes_frontdesk_manual,
       yakap_flag = false,
       price_manual_add = 0,
       discount_enabled,
@@ -219,11 +221,18 @@ export async function POST(req: Request) {
       }
     }
 
+    const manualNotes = normalizeManualNotes(notes_frontdesk_manual);
+    const notesFrontdeskManual = manualNotes || null;
+    const canonicalNotesFrontdesk = canonicalRequestedTestsCsv || null;
+    const finalNotesFrontdesk = mergeFrontdeskNotes(canonicalNotesFrontdesk, manualNotes);
+
     const selectedPackageIds = requestedPackageIds;
     const selectedTestIds = requestedTestIds;
-    const notesFrontdesk = canonicalRequestedTestsCsv || null;
     const shouldUpdateNotes =
-      csvProvided || selectedPackageIds.length > 0 || selectedTestIds.length > 0;
+      csvProvided ||
+      selectedPackageIds.length > 0 ||
+      selectedTestIds.length > 0 ||
+      !!manualNotes;
 
     // ----------------- 3) Find/create today's encounter -----------------
     const visit_date_local = todayISOin();
@@ -258,7 +267,8 @@ export async function POST(req: Request) {
               is_philhealth_claim: !!yakap_flag,
               yakap_flag: !!yakap_flag,
               claim_notes: null,
-              notes_frontdesk: notesFrontdesk,
+              notes_frontdesk: canonicalNotesFrontdesk,
+              notes_frontdesk_manual: notesFrontdeskManual,
             },
           ])
           .select("id")
@@ -281,7 +291,8 @@ export async function POST(req: Request) {
           const { error: updErr } = await db
             .from("encounters")
             .update({
-              notes_frontdesk: notesFrontdesk,
+              notes_frontdesk: canonicalNotesFrontdesk,
+              notes_frontdesk_manual: notesFrontdeskManual,
               yakap_flag: !!yakap_flag,
               is_philhealth_claim: !!yakap_flag,
             })
@@ -409,7 +420,12 @@ export async function POST(req: Request) {
       discount_rate: DISCOUNT_RATE,
       discount_amount: discountAmount,
       total_price: finalTotal,
-      ...(shouldUpdateNotes ? { notes_frontdesk: notesFrontdesk } : {}),
+      ...(shouldUpdateNotes
+        ? {
+            notes_frontdesk: canonicalNotesFrontdesk,
+            notes_frontdesk_manual: notesFrontdeskManual,
+          }
+        : {}),
     };
 
     await db.from("encounters").update(encounterPatch).eq("id", encounter_id);
@@ -455,7 +471,7 @@ export async function POST(req: Request) {
             birthday: patient.birthday_mmddyyyy,
             contact: patient.contact || "",
             address: patient.address || "",
-            notes: notesFrontdesk || "",
+            notes: finalNotesFrontdesk || "",
           },
         });
 
@@ -469,7 +485,7 @@ export async function POST(req: Request) {
           birthday: patient.birthday_mmddyyyy,
           contact: patient.contact || "",
           address: patient.address || "",
-          notes: notesFrontdesk || "",
+          notes: finalNotesFrontdesk || "",
         });
 
         sheet_debug = resp; // keep the raw script response

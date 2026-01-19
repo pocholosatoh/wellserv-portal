@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     const { data: enc, error } = await db
       .from("encounters")
       .select(
-        "id,patient_id,branch_code,notes_frontdesk,price_manual_add,price_auto_total,total_price,discount_enabled",
+        "id,patient_id,branch_code,notes_frontdesk,notes_frontdesk_manual,price_manual_add,price_auto_total,total_price,discount_enabled",
       )
       .eq("id", id)
       .single();

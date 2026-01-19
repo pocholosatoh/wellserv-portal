@@ -153,9 +153,10 @@ export default function TestPicker({ value, onChange, onSelectionChange }: Props
       {/* CSV field (manual edit + shows current value) */}
       <input
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="border rounded px-2 py-2 w-full"
-        placeholder="CSV of test codes or package codes (e.g., CBC, FBS, COMP)"
+        readOnly
+        aria-readonly="true"
+        className="border rounded px-2 py-2 w-full bg-gray-50 text-gray-700"
+        placeholder="Selected tests/packages (from catalog)"
       />
 
       {/* tokens */}
