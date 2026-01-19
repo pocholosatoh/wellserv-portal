@@ -120,7 +120,7 @@ export default function DoctorLoginPage() {
             <div>
               <label className="block text-xs mb-1 text-gray-700">Doctor Code</label>
               <input
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f766e33]"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                 placeholder="e.g., JRR"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
@@ -131,7 +131,7 @@ export default function DoctorLoginPage() {
             <div>
               <label className="block text-xs mb-1 text-gray-700">PIN</label>
               <input
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f766e33]"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                 placeholder="4–6 digits"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
@@ -166,7 +166,7 @@ export default function DoctorLoginPage() {
             <h2 className="text-sm font-semibold">I’m a Reliever / Visiting Doctor</h2>
 
             <input
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f766e33]"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
               placeholder="Full name (no 'Dr.' — e.g., Juan Dela Cruz)"
               value={reliefName}
               onChange={(e) => setReliefName(e.target.value)}
@@ -174,7 +174,7 @@ export default function DoctorLoginPage() {
             />
 
             <input
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f766e33]"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
               placeholder="Designations / Credentials (e.g., MD, FPCP)"
               value={reliefCreds}
               onChange={(e) => setReliefCreds(e.target.value)}
@@ -182,7 +182,7 @@ export default function DoctorLoginPage() {
             />
 
             <input
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f766e33]"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
               placeholder="License / PRC No."
               value={reliefLicense}
               onChange={(e) => setReliefLicense(e.target.value)}
@@ -190,14 +190,14 @@ export default function DoctorLoginPage() {
             />
 
             <input
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f766e33]"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
               placeholder="PhilHealth MD ID (optional)"
               value={reliefPhic}
               onChange={(e) => setReliefPhic(e.target.value)}
             />
 
             <input
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f766e33]"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
               placeholder="Shared passcode (ask staff)"
               value={reliefPass}
               onChange={(e) => setReliefPass(e.target.value)}

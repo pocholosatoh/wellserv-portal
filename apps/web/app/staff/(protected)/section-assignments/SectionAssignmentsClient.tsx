@@ -138,7 +138,7 @@ export default function SectionAssignmentsClient({
     : "Read-only for this hub";
 
   const selectClass =
-    "mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500";
+    "mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500";
 
   return (
     <div className="space-y-6">
@@ -262,7 +262,7 @@ export default function SectionAssignmentsClient({
             type="button"
             onClick={saveChanges}
             disabled={saveDisabled}
-            className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "Saving…" : isDirty ? "Save changes" : "Saved"}
           </button>

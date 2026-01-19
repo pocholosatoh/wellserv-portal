@@ -402,7 +402,7 @@ export default function ContinuityOfCareModal({
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="rounded-md bg-[#44969b] px-4 py-2 text-sm font-semibold text-white hover:bg-[#3b858a]"
+                  className="rounded-md bg-[#44969b] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
                 >
                   Acknowledged
                 </button>

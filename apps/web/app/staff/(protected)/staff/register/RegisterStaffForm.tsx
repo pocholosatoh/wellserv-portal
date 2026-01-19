@@ -22,9 +22,9 @@ export default function RegisterStaffForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
   const fieldClass =
-    "mt-1 w-full rounded-lg border border-gray-300 bg-white p-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent";
+    "mt-1 w-full rounded-lg border border-gray-300 bg-white p-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-transparent";
   const checkboxClass =
-    "h-4 w-4 rounded border-gray-300 text-accent focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 focus:ring-offset-white";
+    "h-4 w-4 rounded border-gray-300 text-accent focus:ring-2 focus:ring-accent/30 focus:ring-offset-1 focus:ring-offset-white";
 
   const age = useMemo(() => {
     if (!birthday) return "";
@@ -238,7 +238,7 @@ export default function RegisterStaffForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg border border-transparent bg-accent p-3 text-white shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:opacity-60"
+        className="w-full rounded-lg border border-transparent bg-accent p-3 text-white shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:opacity-60"
       >
         {loading ? "Saving…" : "Register Staff"}
       </button>

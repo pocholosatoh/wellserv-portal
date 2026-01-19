@@ -68,7 +68,7 @@ export default async function PatientMedCertsPage() {
               </Link>
               <Link
                 href="/patient/results"
-                className="rounded-full border border-[#2e6468] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[#2e6468] hover:bg-[#2e6468]/5"
+                className="rounded-full border border-accent px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-accent hover:bg-accent/5"
               >
                 View Results
               </Link>

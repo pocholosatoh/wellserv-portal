@@ -13,11 +13,11 @@ function SubmitButton() {
       disabled={pending}
       className={[
         "inline-flex items-center gap-2 rounded-lg",
-        "bg-[var(--accent,#2f7cff)] px-4 py-2 font-medium text-white",
+        "bg-[var(--accent,#44969b)] px-4 py-2 font-medium text-white",
         "shadow transition",
         "hover:brightness-105 hover:shadow-md",
         "active:brightness-95",
-        "focus:outline-none focus:ring-2 focus:ring-[color:var(--accent,#2f7cff)]/40",
+        "focus:outline-none focus:ring-2 focus:ring-[color:var(--accent,#44969b)]/40",
         "disabled:opacity-50 disabled:cursor-not-allowed",
       ].join(" ")}
       title={pending ? "Uploading…" : undefined}

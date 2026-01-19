@@ -53,9 +53,9 @@ export default function BranchPicker({
   }
 
   const btn =
-    "rounded-md border border-gray-300 bg-white px-3 py-1.5 shadow-sm transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white";
+    "rounded-md border border-gray-300 bg-white px-3 py-1.5 shadow-sm transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-white";
   const active =
-    "rounded-md border border-accent bg-accent px-3 py-1.5 text-white shadow-sm transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white";
+    "rounded-md border border-accent bg-accent px-3 py-1.5 text-white shadow-sm transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-white";
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">

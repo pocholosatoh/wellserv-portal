@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_RX_VALID_DAYS } from "@/lib/rx";
+import { getFollowupAutoclearSkip } from "./followupAutoclearStore";
 
 type Med = {
   id: string;
@@ -465,11 +466,17 @@ export default function RxPanel({
         return;
       }
 
+      const skipFollowupAutoclear = getFollowupAutoclearSkip(consultationId);
+
       // Call the sign API
       const res = await fetch("/api/prescriptions/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prescriptionId: rxId, validDays }),
+        body: JSON.stringify({
+          prescriptionId: rxId,
+          validDays,
+          skip_followup_autoclear: skipFollowupAutoclear,
+        }),
       });
       const j = await res.json().catch(() => ({}));
 

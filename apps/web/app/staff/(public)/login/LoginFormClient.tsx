@@ -25,9 +25,9 @@ export default function LoginFormClient() {
   const [error, setError] = useState<string | null>(null);
   const [needsPin, setNeedsPin] = useState(false);
   const fieldClass =
-    "mt-1 w-full rounded-lg border border-gray-300 bg-white p-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent";
+    "mt-1 w-full rounded-lg border border-gray-300 bg-white p-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-transparent";
   const buttonClass =
-    "rounded-lg border border-gray-300 bg-white px-3 py-2 text-center shadow-sm transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white";
+    "rounded-lg border border-gray-300 bg-white px-3 py-2 text-center shadow-sm transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-white";
 
   function validateLocally() {
     try {
@@ -153,7 +153,7 @@ export default function LoginFormClient() {
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 focus:ring-offset-white"
+            className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-2 focus:ring-accent/30 focus:ring-offset-1 focus:ring-offset-white"
           />
           Keep me signed in
         </label>
@@ -161,7 +161,7 @@ export default function LoginFormClient() {
         <button
           type="submit"
           disabled={loading}
-          className="mt-2 w-full rounded-lg border border-transparent bg-accent p-3 text-white shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:opacity-60"
+          className="mt-2 w-full rounded-lg border border-transparent bg-accent p-3 text-white shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:opacity-60"
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>

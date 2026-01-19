@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       due_date, // "YYYY-MM-DD"
       intended_outcome = "",
       expected_tests = "",
-      tolerance_days = 7,
+      tolerance_days = 30,
       created_by = null,
       updated_by = null,
     } = body || {};

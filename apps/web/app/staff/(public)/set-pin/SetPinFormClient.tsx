@@ -20,9 +20,9 @@ export default function SetPinFormClient() {
   const [staffNo, setStaffNo] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const fieldClass =
-    "mt-1 w-full rounded-lg border border-gray-300 bg-white p-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent";
+    "mt-1 w-full rounded-lg border border-gray-300 bg-white p-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-transparent";
   const primaryButtonClass =
-    "w-full rounded-lg border border-transparent bg-accent p-3 text-white shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:opacity-60";
+    "w-full rounded-lg border border-transparent bg-accent p-3 text-white shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:opacity-60";
 
   useEffect(() => {
     setMessage(null);
@@ -222,7 +222,7 @@ export default function SetPinFormClient() {
             </div>
             <Link
               href="/staff/login"
-              className="block rounded-lg border border-transparent bg-accent p-3 text-center text-white shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white"
+              className="block rounded-lg border border-transparent bg-accent p-3 text-center text-white shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-white"
             >
               Go to Login
             </Link>

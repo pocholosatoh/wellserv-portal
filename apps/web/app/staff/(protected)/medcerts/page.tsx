@@ -87,7 +87,7 @@ export default async function StaffMedCertsPage({
           </label>
           <button
             type="submit"
-            className="rounded-lg bg-[#2e6468] px-4 py-2 text-sm font-semibold text-white shadow-sm"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm"
           >
             Search
           </button>
@@ -141,7 +141,7 @@ export default async function StaffMedCertsPage({
                       <Link
                         href={`/doctor/medical-certificates/${cert.id}/print`}
                         target="_blank"
-                        className="rounded-full border border-[#2e6468] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-[#2e6468] hover:bg-[#2e6468]/5"
+                        className="rounded-full border border-accent px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-accent hover:bg-accent/5"
                       >
                         View / Print
                       </Link>

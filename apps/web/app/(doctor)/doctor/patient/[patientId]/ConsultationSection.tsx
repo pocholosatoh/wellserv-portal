@@ -10,6 +10,7 @@ import FinishConsultButton from "./FinishConsultButton";
 import ConsentModal from "./ConsentModal"; // ← ensure this file exists
 import MedicalCertificateDrawer from "./MedicalCertificateDrawer";
 import EncounterLinker from "./EncounterLinker";
+import { getFollowupAutoclearSkip } from "./followupAutoclearStore";
 
 export default function ConsultationSection({
   patientId,
@@ -134,7 +135,7 @@ export default function ConsultationSection({
                   ? "Generate a medical certificate for this patient"
                   : "Start the consult and ensure an encounter is linked to create a certificate"
               }
-              className="rounded-full border border-[#2e6468] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#2e6468] disabled:border-gray-300 disabled:text-gray-400"
+              className="rounded-full border border-accent px-3 py-1 text-xs font-semibold uppercase tracking-wide text-accent disabled:border-gray-300 disabled:text-gray-400"
             >
               Medical Certificate
             </button>
@@ -221,12 +222,14 @@ export default function ConsultationSection({
           onSaved={async () => {
             // finalize only here (after consent saved)
             try {
+              const skipFollowupAutoclear = getFollowupAutoclearSkip(consultationId);
               await fetch("/api/doctor/consultations/finalize", {
                 method: "POST",
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify({
                   consultation_id: consultationId,
                   encounter_id: encounterId,
+                  skip_followup_autoclear: skipFollowupAutoclear,
                 }),
               });
             } catch {}

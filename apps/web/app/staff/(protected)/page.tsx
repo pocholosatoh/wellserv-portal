@@ -125,6 +125,26 @@ const CARDS: {
     description: "View and print prescriptions.",
   },
   {
+    href: "/staff/referrals",
+    label: "Referrals",
+    badge: "Print",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-6 w-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <path d="M7 4h7l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
+        <path d="M14 4v4h4" />
+        <path d="M9 13h6" />
+        <path d="m13 9 3 3-3 3" />
+      </svg>
+    ),
+    description: "Search and print referral forms.",
+  },
+  {
     href: "/staff/med-orders",
     label: "Med Orders",
     badge: "Orders",

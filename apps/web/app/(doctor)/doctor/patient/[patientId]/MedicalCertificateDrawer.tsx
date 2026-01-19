@@ -782,7 +782,7 @@ export default function MedicalCertificateDrawer({
                     "_blank",
                   )
                 }
-                className="rounded-full border border-[#2e6468] px-4 py-1 text-sm font-medium text-[#2e6468]"
+                className="rounded-full border border-accent px-4 py-1 text-sm font-medium text-accent"
               >
                 View Print
               </button>
@@ -1012,7 +1012,7 @@ export default function MedicalCertificateDrawer({
                 <button
                   type="submit"
                   disabled={labSearchLoading}
-                  className="rounded bg-[#2e6468] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                 >
                   {labSearchLoading ? "Searching…" : "Search"}
                 </button>
@@ -1030,7 +1030,7 @@ export default function MedicalCertificateDrawer({
                         <button
                           type="button"
                           onClick={() => addLabResult(res)}
-                          className="rounded-full border border-[#2e6468] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#2e6468]"
+                          className="rounded-full border border-accent px-3 py-1 text-xs font-semibold uppercase tracking-wide text-accent"
                         >
                           Add
                         </button>
@@ -1120,7 +1120,7 @@ export default function MedicalCertificateDrawer({
                     onClick={() =>
                       window.open(`/doctor/medical-certificates/${item.id}/print`, "_blank")
                     }
-                    className="rounded-full border border-[#2e6468] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#2e6468]"
+                    className="rounded-full border border-accent px-3 py-1 text-xs font-semibold uppercase tracking-wide text-accent"
                   >
                     View
                   </button>
@@ -1148,7 +1148,7 @@ export default function MedicalCertificateDrawer({
                 type="button"
                 disabled={saving || loading}
                 onClick={handleSubmit}
-                className="inline-flex items-center justify-center rounded-full bg-[#2e6468] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-full bg-accent px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
               >
                 {saving ? "Generating…" : "Generate certificate"}
               </button>

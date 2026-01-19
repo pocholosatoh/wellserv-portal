@@ -154,7 +154,7 @@ export default function EncounterLinker({
             type="button"
             onClick={() => saveLink({ encounter_id: selected, create_new: false })}
             disabled={saving || loading || !selected}
-            className="rounded bg-[#2e6468] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50 w-full sm:w-auto"
+            className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50 w-full sm:w-auto"
           >
             {saving ? "Linking…" : "Link encounter"}
           </button>

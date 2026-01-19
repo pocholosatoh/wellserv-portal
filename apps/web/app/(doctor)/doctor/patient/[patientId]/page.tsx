@@ -22,6 +22,7 @@ import PatientSelfMonitoringCard from "./PatientSelfMonitoringCard";
 import FollowUpPanel from "./FollowUpPanel";
 import ContinuityOfCareModal from "./ContinuityOfCareModal";
 import VitalsSnapshot from "./VitalsSnapshot";
+import ReferralPanel from "./ReferralPanel";
 
 type DoctorLite = {
   display_name?: string | null;
@@ -600,6 +601,15 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
                 doctorId={session.doctorId}
                 initialFollowups={continuityFollowups}
               />
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
+            <header className="px-4 py-3 border-b border-gray-100">
+              <h2 className="font-medium text-gray-800">Referral</h2>
+            </header>
+            <div className="p-4">
+              <ReferralPanel patientId={patientIdUpper} consultationId={initialConsultationId} />
             </div>
           </section>
 

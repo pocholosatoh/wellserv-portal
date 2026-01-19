@@ -28,6 +28,7 @@ export default function StaffNavi({
     { href: "/staff/other-labs", label: "Other Labs" },
     { href: "/staff/patienthistory", label: "Patient Vitals and Hx" },
     { href: "/staff/prescriptions", label: "Prescriptions" },
+    { href: "/staff/referrals", label: "Referrals" },
     { href: "/staff/med-orders", label: "Med Orders" },
     { href: "/staff/supplies", label: "Supplies" },
     ...(isAdmin ? [{ href: "/staff/supplies/global", label: "Global Supplies" }] : []),
@@ -52,7 +53,7 @@ export default function StaffNavi({
                 href={it.href}
                 className={[
                   "group relative shrink-0 rounded-md border border-gray-200 bg-white/70 px-3 py-1.5 text-gray-800 shadow-sm transition",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-white",
                   active ? "text-white" : "hover:bg-gray-50",
                 ].join(" ")}
                 style={{
@@ -83,7 +84,7 @@ export default function StaffNavi({
           </div>
 
           <form action="/api/auth/logout?who=staff" method="post" className="w-full sm:w-auto">
-            <button className="w-full rounded-md border border-gray-300 px-3 py-1.5 shadow-sm transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white">
+            <button className="w-full rounded-md border border-gray-300 px-3 py-1.5 shadow-sm transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-white">
               Logout
             </button>
           </form>

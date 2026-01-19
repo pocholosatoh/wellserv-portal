@@ -44,6 +44,14 @@ type ConsultDetails = {
   doctor_name_at_time?: string | null;
   signing_doctor_name?: string | null;
   doctor?: Consult["doctor"];
+  events?: Array<{
+    id: string;
+    event_type: string;
+    event_text: string;
+    created_at: string | null;
+    referral_id?: string | null;
+    referral_code?: string | null;
+  }>;
 };
 
 export default function PastConsultations({
@@ -136,8 +144,24 @@ export default function PastConsultations({
       }
     }
 
+    async function onReferral(e: CustomEvent) {
+      const cid = e.detail?.consultationId;
+      const eventPid = String(e.detail?.patientId || "").toUpperCase();
+      if (eventPid && eventPid !== patientId.toUpperCase()) return;
+      await fetchList();
+      if (cid && openId === cid) {
+        const r = await fetch(`/api/consultations/details?id=${encodeURIComponent(cid)}`);
+        const jj = await r.json();
+        if (r.ok) setDetails(jj.details as ConsultDetails);
+      }
+    }
+
     window.addEventListener("rx:signed", onSigned as any);
-    return () => window.removeEventListener("rx:signed", onSigned as any);
+    window.addEventListener("referral:generated", onReferral as any);
+    return () => {
+      window.removeEventListener("rx:signed", onSigned as any);
+      window.removeEventListener("referral:generated", onReferral as any);
+    };
   }, [patientId, openId, fetchList]);
 
   async function toggleOpen(id: string) {
@@ -207,6 +231,34 @@ export default function PastConsultations({
                     <div className="text-sm text-gray-500 mb-2">
                       Consulting MD: <b>{docName(details)}</b>
                     </div>
+
+                    {details.events && details.events.length > 0 && (
+                      <div className="mb-4 rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                        <div className="text-xs font-semibold uppercase text-slate-500 mb-2">
+                          Timeline
+                        </div>
+                        <div className="space-y-1 text-sm text-slate-700">
+                          {details.events.map((evt) => (
+                            <div key={evt.id} className="flex flex-wrap gap-2 items-center">
+                              <span>{evt.event_text}</span>
+                              {evt.referral_id && (
+                                <a
+                                  href={`/doctor/referrals/${evt.referral_id}/print`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-[#2e6468] hover:underline"
+                                >
+                                  {evt.referral_code || "View referral"}
+                                </a>
+                              )}
+                              <span className="text-xs text-slate-400">
+                                {fmtManila(evt.created_at)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Notes */}
                     <div className="mb-4">

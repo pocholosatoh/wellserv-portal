@@ -24,7 +24,7 @@ export type AuditEventInput = {
   meta?: Record<string, AuditMetaValue>;
 };
 
-const ALLOWED_META_KEYS = new Set(["reason", "source", "rate_limited"]);
+const ALLOWED_META_KEYS = new Set(["reason", "source", "rate_limited", "event", "referral_id"]);
 const MAX_ROUTE_LEN = 512;
 const MAX_METHOD_LEN = 16;
 const MAX_REQUEST_ID_LEN = 128;
@@ -59,6 +59,7 @@ const PHI_ROUTE_PREFIXES = [
   "/api/patient/other-labs-v2",
   "/api/patient/prescriptions",
   "/api/prescriptions",
+  "/api/referrals",
   "/api/staff/encounters",
   "/api/staff/intake",
   "/api/staff/med-orders",

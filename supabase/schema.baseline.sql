@@ -1563,7 +1563,7 @@ CREATE TABLE IF NOT EXISTS "public"."followups" (
     "closed_by_consultation_id" "uuid",
     "return_branch" "text",
     "due_date" "date" NOT NULL,
-    "tolerance_days" integer DEFAULT 7 NOT NULL,
+    "tolerance_days" integer DEFAULT 30 NOT NULL,
     "valid_until" "date" GENERATED ALWAYS AS (("due_date" + '30 days'::interval)) STORED,
     "intended_outcome" "text",
     "expected_tests" "text",
@@ -4295,7 +4295,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
-
 
 
 

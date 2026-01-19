@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase";
 import { guard } from "@/lib/auth/guard";
 import { getDoctorSession } from "@/lib/doctorSession";
 import { computeValidUntil, DEFAULT_RX_VALID_DAYS, parseValidDays } from "@/lib/rx";
+import { autoClearActiveFollowupIfQualified } from "@/lib/followups/autoClear";
 
 function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
   return new Intl.DateTimeFormat("en-CA", {
@@ -57,6 +58,9 @@ export async function POST(req: NextRequest) {
     let consultationId = String(body?.consultation_id || body?.consultationId || "").trim();
     const requestedValidDays = parseValidDays(body?.valid_days ?? body?.validDays);
     let existingValidDays: number | null = null;
+    const skipFollowupAutoclear = Boolean(
+      body?.skip_followup_autoclear ?? body?.skipFollowupAutoclear ?? false,
+    );
 
     // NEW: allow signing by prescription_id alone (resolve its consultation_id)
     if (!consultationId && prescriptionId) {
@@ -231,7 +235,7 @@ export async function POST(req: NextRequest) {
         updated_at: nowIso,
       })
       .eq("id", consultationId)
-      .select("encounter_id, patient_id, branch")
+      .select("encounter_id, patient_id, branch, type, visit_at")
       .maybeSingle();
 
     if (updCon.error) return NextResponse.json({ error: updCon.error.message }, { status: 500 });
@@ -286,6 +290,20 @@ export async function POST(req: NextRequest) {
           return db.from("encounters").update(payload).eq("id", enc.id);
         }),
       );
+    }
+
+    try {
+      await autoClearActiveFollowupIfQualified({
+        db,
+        patientId: encounterPatientId,
+        closingConsultationId: consultationId,
+        consultVisitAt: updCon.data?.visit_at ?? null,
+        consultType: updCon.data?.type ?? null,
+        consultBranch: encounterBranch,
+        skipFollowupAutoclear,
+      });
+    } catch {
+      console.error("followup_autoclear_failed");
     }
 
     // 9) Response for panel & claims preview

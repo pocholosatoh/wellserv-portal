@@ -185,7 +185,7 @@ export default function NotesPanel({
                   openTemplates("SOAP");
                 }
               }}
-              className="inline-block rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468] cursor-pointer"
+              className="inline-block rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-accent hover:border-accent cursor-pointer"
             >
               SOAP Templates
             </div>
@@ -200,7 +200,7 @@ export default function NotesPanel({
                   openTemplates("MARKDOWN");
                 }
               }}
-              className="inline-block rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-[#2e6468] hover:border-[#2e6468] cursor-pointer"
+              className="inline-block rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-accent hover:border-accent cursor-pointer"
             >
               Markdown Templates
             </div>

@@ -1,4 +1,5 @@
 import { sbReadPatientById, sbReadLatestVitalsByPatient } from "@/lib/supabase";
+import PatientHistoryView from "@/components/PatientHistoryView";
 // app/(doctor)/doctor/patient/[patientId]/PatientSummary.tsx
 // Server component: fetch and render the summary card
 
@@ -106,26 +107,7 @@ export default async function PatientSummary({ patientId }: { patientId: string 
             <b>Last vitals recorded:</b> {measured}
           </div>
         )}
-        {patient.allergies_text && (
-          <div>
-            <b>Allergies:</b> {patient.allergies_text}
-          </div>
-        )}
-        {patient.chief_complaint && (
-          <div>
-            <b>Chief Complaint:</b> {patient.chief_complaint}
-          </div>
-        )}
-        {patient.present_illness_history && (
-          <div>
-            <b>HPI:</b> {patient.present_illness_history}
-          </div>
-        )}
-        {patient.past_medical_history && (
-          <div>
-            <b>PMHx:</b> {patient.past_medical_history}
-          </div>
-        )}
+        <PatientHistoryView history={patient} emptyLabel="" />
       </div>
     </div>
   );

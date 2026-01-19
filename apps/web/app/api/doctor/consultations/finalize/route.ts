@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { guard } from "@/lib/auth/guard";
+import { autoClearActiveFollowupIfQualified } from "@/lib/followups/autoClear";
 
 function todayYMD(tz = process.env.APP_TZ || "Asia/Manila") {
   return new Intl.DateTimeFormat("en-CA", {
@@ -24,6 +25,9 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const consultation_id = String(body?.consultation_id || body?.consultationId || "").trim();
     const encounter_id = String(body?.encounter_id || body?.encounterId || "").trim();
+    const skipFollowupAutoclear = Boolean(
+      body?.skip_followup_autoclear ?? body?.skipFollowupAutoclear ?? false,
+    );
 
     if (!consultation_id || !encounter_id) {
       return NextResponse.json(
@@ -58,7 +62,7 @@ export async function POST(req: Request) {
       .from("consultations")
       .update({ status: "done", updated_at: new Date().toISOString() })
       .eq("id", consultation_id)
-      .select("encounter_id, patient_id, branch")
+      .select("encounter_id, patient_id, branch, type, visit_at")
       .maybeSingle();
 
     if (up1.error || !up1.data) {
@@ -114,6 +118,20 @@ export async function POST(req: Request) {
           return db.from("encounters").update(payload).eq("id", enc.id);
         }),
       );
+    }
+
+    try {
+      await autoClearActiveFollowupIfQualified({
+        db,
+        patientId: up1.data?.patient_id ?? null,
+        closingConsultationId: consultation_id,
+        consultVisitAt: up1.data?.visit_at ?? null,
+        consultType: up1.data?.type ?? null,
+        consultBranch: up1.data?.branch ?? null,
+        skipFollowupAutoclear,
+      });
+    } catch {
+      console.error("followup_autoclear_failed");
     }
 
     return NextResponse.json({ ok: true });

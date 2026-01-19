@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BRANCHES } from "@/lib/hubs";
 import LabTestQuickSearch from "./LabTestQuickSearch";
+import { useFollowupAutoclearSkip } from "./followupAutoclearStore";
 
 type Followup = {
   id: string;
@@ -67,7 +68,7 @@ export default function FollowUpPanel({
       .slice(-3)
       .reverse();
   });
-  const [attachChecked, setAttachChecked] = useState(false);
+  const [skipAutoclear, setSkipAutoclear] = useFollowupAutoclearSkip(resolvedConsultationId);
   const [formMode, setFormMode] = useState<"new" | "edit" | null>(null);
 
   // new follow-up fields
@@ -81,8 +82,7 @@ export default function FollowUpPanel({
   const isCreating = formMode === "new";
   const formOpen = formMode !== null;
   const isLocked = !resolvedConsultationId;
-  const canSave =
-    resolvedConsultationId && (attachChecked || (isCreating && due) || (isEditing && due));
+  const canSave = resolvedConsultationId && ((isCreating && due) || (isEditing && due));
   const activeExpectedTokens = useMemo(
     () => parseExpectedTokens(active?.expected_tests),
     [active?.expected_tests],
@@ -127,8 +127,8 @@ export default function FollowUpPanel({
   }, [patientId, initialFollowups]);
   useEffect(() => {
     resetForm();
-    setAttachChecked(false);
-  }, [patientId, defaultBranch]);
+    setSkipAutoclear(false);
+  }, [patientId, defaultBranch, setSkipAutoclear]);
 
   function resetForm() {
     setFormMode(null);
@@ -183,22 +183,6 @@ export default function FollowUpPanel({
         if (j.error) throw new Error(j.error);
       }
 
-      // complete current if checkbox ticked
-      if (attachChecked && active?.id) {
-        const payload: Record<string, any> = {
-          followup_id: active.id,
-          closed_by_consultation_id: resolvedConsultationId,
-        };
-        if (actorId) payload.updated_by = actorId;
-        const r = await fetch("/api/followups/attach", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const j = await r.json();
-        if (j.error) throw new Error(j.error);
-      }
-
       // new follow-up
       if (isCreating && due) {
         const payload: Record<string, any> = {
@@ -222,7 +206,6 @@ export default function FollowUpPanel({
         setTests("");
       }
 
-      setAttachChecked(false);
       resetForm();
       await load();
     } catch (e: any) {
@@ -285,12 +268,16 @@ export default function FollowUpPanel({
             <label className="flex items-center gap-2 mt-2">
               <input
                 type="checkbox"
-                checked={attachChecked}
-                onChange={(e) => setAttachChecked(e.target.checked)}
+                checked={skipAutoclear}
+                onChange={(e) => setSkipAutoclear(e.target.checked)}
                 disabled={!resolvedConsultationId}
               />
-              <span className="text-sm">Mark this consult as the follow-up</span>
+              <span className="text-sm">Do NOT clear the scheduled follow-up for this consult</span>
             </label>
+            <div className="text-xs text-gray-500 mt-1">
+              By default, finishing this consult will auto-complete the scheduled follow-up if it is
+              within the due window.
+            </div>
           </div>
         )}
 
@@ -298,13 +285,13 @@ export default function FollowUpPanel({
         <button
           type="button"
           onClick={startNew}
-          className="group mb-3 inline-flex items-center gap-2 rounded-full border border-[#44969b]/60 bg-[#44969b]/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#2e6468] select-none"
+          className="group mb-3 inline-flex items-center gap-2 rounded-full border border-[#44969b]/60 bg-[#44969b]/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent select-none"
           aria-expanded={isCreating}
           aria-controls="doctor-followup-form"
           disabled={isEditing}
         >
           <span
-            className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#2e6468] shadow-sm transition-transform duration-200"
+            className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-accent shadow-sm transition-transform duration-200"
             style={{ transform: isCreating ? "rotate(90deg)" : "rotate(0deg)" }}
             aria-hidden
           >

@@ -4,10 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 import { appendRunningRow } from "@/lib/sheetsdaily";
 import {
   buildLabCatalogIndex,
-  expandTokensByPackageIds,
-  findIdCodeMismatch,
+  normalizeCode,
   normalizeIdList,
-  resolveTokens,
 } from "@/lib/labSelection";
 import { guard } from "@/lib/auth/guard";
 
@@ -136,7 +134,98 @@ export async function POST(req: Request) {
       );
     }
 
-    // ----------------- 2) Find/create today's encounter -----------------
+    // ----------------- 2) Resolve selection (id-first, ids authoritative) -----------------
+    const requestedTestsCsvInput =
+      typeof requested_tests_csv === "string" ? requested_tests_csv : "";
+    const inputTokens = requestedTestsCsvInput
+      .split(",")
+      .map((s: string) => normalizeCode(s))
+      .filter(Boolean);
+    const inputTokenSet = new Set(inputTokens);
+
+    const requestedPackageIds = normalizeIdList(body?.package_ids || body?.requested_package_ids);
+    const requestedTestIds = normalizeIdList(body?.test_ids || body?.requested_test_ids);
+
+    const [{ data: testsRaw }, { data: packs }] = await Promise.all([
+      db.from("tests_catalog").select("id,test_code,default_price,is_active"),
+      db.from("packages").select("id,package_code,display_name,package_price"),
+    ]);
+
+    const activeTests = (testsRaw || []).filter((t) => t.is_active);
+
+    console.info("[intake] catalog loaded", {
+      tests: testsRaw?.length || 0,
+      active_tests: activeTests.length,
+      packages: packs?.length || 0,
+    });
+
+    const baseIndex = buildLabCatalogIndex(activeTests || [], packs || [], []);
+
+    const missingPackageIds = requestedPackageIds.filter((id) => !baseIndex.packageById.has(id));
+    if (missingPackageIds.length) {
+      console.warn("[intake] package_id not found", { missingPackageIds });
+      return NextResponse.json(
+        { ok: false, error: "package_id not found", missing_package_ids: missingPackageIds },
+        { status: 404 },
+      );
+    }
+
+    const missingTestIds = requestedTestIds.filter((id) => !baseIndex.testById.has(id));
+    if (missingTestIds.length) {
+      console.warn("[intake] test_id not found", { missingTestIds });
+      return NextResponse.json(
+        { ok: false, error: "test_id not found", missing_test_ids: missingTestIds },
+        { status: 404 },
+      );
+    }
+
+    const canonicalCodes: string[] = [];
+    const canonicalCodeSet = new Set<string>();
+    const pushCanonical = (code?: string | null) => {
+      const normalized = normalizeCode(code);
+      if (!normalized || canonicalCodeSet.has(normalized)) return;
+      canonicalCodeSet.add(normalized);
+      canonicalCodes.push(normalized);
+    };
+
+    for (const pkgId of requestedPackageIds) {
+      pushCanonical(baseIndex.packageCodeById.get(pkgId));
+    }
+    for (const testId of requestedTestIds) {
+      pushCanonical(baseIndex.testCodeById.get(testId));
+    }
+
+    const canonicalRequestedTestsCsv = canonicalCodes.join(", ");
+    const canonicalTokenSet = new Set(canonicalCodes);
+    const csvProvided = requestedTestsCsvInput.trim().length > 0;
+
+    if (csvProvided) {
+      const extraInputCount = Array.from(inputTokenSet).filter(
+        (code) => !canonicalTokenSet.has(code),
+      ).length;
+      const missingInputCount = Array.from(canonicalTokenSet).filter(
+        (code) => !inputTokenSet.has(code),
+      ).length;
+
+      if (extraInputCount || missingInputCount) {
+        console.warn("[intake] requested_tests_csv mismatch (using ids)", {
+          branch_code,
+          patient_id: pid,
+          input_count: inputTokenSet.size,
+          canonical_count: canonicalTokenSet.size,
+          extra_input_count: extraInputCount,
+          missing_input_count: missingInputCount,
+        });
+      }
+    }
+
+    const selectedPackageIds = requestedPackageIds;
+    const selectedTestIds = requestedTestIds;
+    const notesFrontdesk = canonicalRequestedTestsCsv || null;
+    const shouldUpdateNotes =
+      csvProvided || selectedPackageIds.length > 0 || selectedTestIds.length > 0;
+
+    // ----------------- 3) Find/create today's encounter -----------------
     const visit_date_local = todayISOin();
     let encounter_id: string | null = body?.encounter_id || null;
 
@@ -169,7 +258,7 @@ export async function POST(req: Request) {
               is_philhealth_claim: !!yakap_flag,
               yakap_flag: !!yakap_flag,
               claim_notes: null,
-              notes_frontdesk: requested_tests_csv || null,
+              notes_frontdesk: notesFrontdesk,
             },
           ])
           .select("id")
@@ -188,11 +277,11 @@ export async function POST(req: Request) {
         encounter_id = ins.id;
       } else {
         encounter_id = existing.id;
-        if (requested_tests_csv || yakap_flag) {
+        if (shouldUpdateNotes || yakap_flag) {
           const { error: updErr } = await db
             .from("encounters")
             .update({
-              notes_frontdesk: requested_tests_csv || null,
+              notes_frontdesk: notesFrontdesk,
               yakap_flag: !!yakap_flag,
               is_philhealth_claim: !!yakap_flag,
             })
@@ -214,77 +303,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // ----------------- 3) Resolve selection (id-first) -----------------
-    const tokens: string[] = (requested_tests_csv || "")
-      .split(",")
-      .map((s: string) => s.trim())
-      .filter(Boolean);
-
-    const requestedPackageIds = normalizeIdList(body?.package_ids || body?.requested_package_ids);
-    const requestedTestIds = normalizeIdList(body?.test_ids || body?.requested_test_ids);
-
-    const [{ data: testsRaw }, { data: packs }] = await Promise.all([
-      db.from("tests_catalog").select("id,test_code,default_price,is_active"),
-      db.from("packages").select("id,package_code,display_name,package_price"),
-    ]);
-
-    const activeTests = (testsRaw || []).filter((t) => t.is_active);
-
-    console.info("[intake] catalog loaded", {
-      tests: testsRaw?.length || 0,
-      active_tests: activeTests.length,
-      packages: packs?.length || 0,
-    });
-
-    const baseIndex = buildLabCatalogIndex(testsRaw || [], packs || [], []);
-
-    const missingPackageIds = requestedPackageIds.filter((id) => !baseIndex.packageById.has(id));
-    if (missingPackageIds.length) {
-      console.warn("[intake] package_id not found", { missingPackageIds });
-      return NextResponse.json(
-        { ok: false, error: "package_id not found", missing_package_ids: missingPackageIds },
-        { status: 404 },
-      );
-    }
-
-    const missingTestIds = requestedTestIds.filter((id) => !baseIndex.testById.has(id));
-    if (missingTestIds.length) {
-      console.warn("[intake] test_id not found", { missingTestIds });
-      return NextResponse.json(
-        { ok: false, error: "test_id not found", missing_test_ids: missingTestIds },
-        { status: 404 },
-      );
-    }
-
-    const tokenResolution = resolveTokens(tokens, baseIndex, { allowNameFallback: true });
-    if (tokenResolution.errors.length) {
-      return NextResponse.json(
-        { ok: false, error: tokenResolution.errors[0] },
-        { status: 400 },
-      );
-    }
-
-    const mismatch = findIdCodeMismatch(tokens, requestedPackageIds, requestedTestIds, baseIndex);
-    if (mismatch) {
-      console.warn("[intake] id/code mismatch", mismatch);
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            mismatch.kind === "package"
-              ? "package_id does not match package_code in requested_tests_csv"
-              : "test_id does not match test_code in requested_tests_csv",
-          details: mismatch,
-        },
-        { status: 400 },
-      );
-    }
-
-    const selectedPackageIds = requestedPackageIds.length
-      ? requestedPackageIds
-      : tokenResolution.packageIds;
-    const selectedTestIds = requestedTestIds.length ? requestedTestIds : tokenResolution.testIds;
-
     const { data: itemsRaw } =
       selectedPackageIds.length > 0
         ? await db
@@ -293,30 +311,31 @@ export async function POST(req: Request) {
             .in("package_id", selectedPackageIds)
         : { data: [] };
 
-    const index = buildLabCatalogIndex(testsRaw || [], packs || [], itemsRaw || []);
+    const index = buildLabCatalogIndex(activeTests || [], packs || [], itemsRaw || []);
 
     console.info("[intake] lab selection", {
-      tokens: tokens.length,
       packages: selectedPackageIds.length,
       tests: selectedTestIds.length,
-      source: requestedPackageIds.length || requestedTestIds.length ? "ids" : "codes",
+      source: "ids",
     });
 
-    let expanded = expandTokensByPackageIds(tokenResolution.matches, index);
-    if (!expanded.length && (selectedPackageIds.length || selectedTestIds.length)) {
-      const derived: string[] = [];
-      for (const pkgId of selectedPackageIds) {
-        const members = index.packageItemsByPackageId.get(pkgId) || [];
-        for (const testId of members) {
-          const code = index.testCodeById.get(testId);
-          if (code) derived.push(code);
-        }
+    const expanded: string[] = [];
+    const expandedSet = new Set<string>();
+    const pushExpanded = (code?: string | null) => {
+      const normalized = normalizeCode(code);
+      if (!normalized || expandedSet.has(normalized)) return;
+      expandedSet.add(normalized);
+      expanded.push(normalized);
+    };
+
+    for (const pkgId of selectedPackageIds) {
+      const members = index.packageItemsByPackageId.get(pkgId) || [];
+      for (const testId of members) {
+        pushExpanded(index.testCodeById.get(testId));
       }
-      for (const testId of selectedTestIds) {
-        const code = index.testCodeById.get(testId);
-        if (code) derived.push(code);
-      }
-      expanded = derived;
+    }
+    for (const testId of selectedTestIds) {
+      pushExpanded(index.testCodeById.get(testId));
     }
 
     console.info("[intake] package expansion", {
@@ -365,7 +384,7 @@ export async function POST(req: Request) {
     const finalTotal = Math.round(grossTotal - discountAmount);
 
     console.info("[intake] pricing computed", {
-      source: requestedPackageIds.length || requestedTestIds.length ? "ids" : "codes",
+      source: "ids",
       package_total: packageTotal,
       non_package_tests_total: nonPackageTestsTotal,
       final_total: finalTotal,
@@ -383,17 +402,17 @@ export async function POST(req: Request) {
     }
 
     // persist pricing on encounter
-    await db
-      .from("encounters")
-      .update({
-        price_auto_total: autoTotal,
-        price_manual_add: manualRounded,
-        discount_enabled: discountEnabled,
-        discount_rate: DISCOUNT_RATE,
-        discount_amount: discountAmount,
-        total_price: finalTotal,
-      })
-      .eq("id", encounter_id);
+    const encounterPatch = {
+      price_auto_total: autoTotal,
+      price_manual_add: manualRounded,
+      discount_enabled: discountEnabled,
+      discount_rate: DISCOUNT_RATE,
+      discount_amount: discountAmount,
+      total_price: finalTotal,
+      ...(shouldUpdateNotes ? { notes_frontdesk: notesFrontdesk } : {}),
+    };
+
+    await db.from("encounters").update(encounterPatch).eq("id", encounter_id);
 
     // optional queue step
     if (queue_now) {
@@ -436,7 +455,7 @@ export async function POST(req: Request) {
             birthday: patient.birthday_mmddyyyy,
             contact: patient.contact || "",
             address: patient.address || "",
-            notes: requested_tests_csv || "",
+            notes: notesFrontdesk || "",
           },
         });
 
@@ -450,7 +469,7 @@ export async function POST(req: Request) {
           birthday: patient.birthday_mmddyyyy,
           contact: patient.contact || "",
           address: patient.address || "",
-          notes: requested_tests_csv || "",
+          notes: notesFrontdesk || "",
         });
 
         sheet_debug = resp; // keep the raw script response

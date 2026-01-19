@@ -211,7 +211,7 @@ export default async function StaffAuditLogPage({
           <div className="flex items-end">
             <button
               type="submit"
-              className="w-full rounded-lg bg-[#2e6468] px-4 py-2 text-sm font-semibold text-white shadow-sm"
+              className="w-full rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm"
             >
               Apply
             </button>

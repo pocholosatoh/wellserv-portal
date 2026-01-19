@@ -299,7 +299,7 @@ export default async function MedicalCertificatePrintPage({
         </div>
 
         <style>{`
-        :root { --accent: #2e6468; }
+        :root { --accent: #44969b; }
         body { background: #f1f5f9; }
         .print-page-root { width: 100%; color: #0f172a; font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial; }
         .certificate-print-wrapper { margin: 0 auto; width: 100%; max-width: 900px; background: #fff; box-shadow: 0 15px 30px rgba(15, 23, 42, 0.08); }

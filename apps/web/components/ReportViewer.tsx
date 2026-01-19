@@ -789,7 +789,7 @@ export default function ReportViewer(props: ReportViewerProps) {
           --sig-height: 30px;
           --logo-height: 150px;
           --brand: #16313b;
-          --accent: #0f766e;
+          --accent: #44969b;
           --border: #d5e0e8;
           --border-strong: #8ba1ae;
           --surface: #ffffff;

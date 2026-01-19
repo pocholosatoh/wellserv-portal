@@ -297,7 +297,7 @@ export default function NoteTemplatesModal({
                   <button
                     type="button"
                     onClick={handleInsert}
-                    className="rounded-md bg-[#2e6468] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#255356]"
+                    className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
                   >
                     {insertLabel}
                   </button>
@@ -392,7 +392,7 @@ export default function NoteTemplatesModal({
                   type="button"
                   onClick={handleCreate}
                   disabled={creating}
-                  className="rounded-md bg-[#2e6468] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#255356] disabled:opacity-70"
+                  className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-70"
                 >
                   Save Template
                 </button>

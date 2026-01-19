@@ -141,7 +141,41 @@ export async function GET(req: Request) {
       items = lines.error ? null : ((lines.data ?? []) as any);
     }
 
-    // 6) Shape response for the UI
+    // 6) Consultation events (referrals, etc.)
+    const eventsRes = await db
+      .from("consultation_events")
+      .select("id, event_type, event_text, referral_id, created_at")
+      .eq("consultation_id", id)
+      .order("created_at", { ascending: false });
+
+    const events = eventsRes.error ? [] : (eventsRes.data ?? []);
+    const referralIds = Array.from(
+      new Set(events.map((evt: any) => evt.referral_id).filter(Boolean)),
+    ) as string[];
+
+    const referralMap = new Map<string, string>();
+    if (referralIds.length) {
+      const refs = await db
+        .from("patient_referrals")
+        .select("id, referral_code")
+        .in("id", referralIds);
+      if (!refs.error && refs.data) {
+        refs.data.forEach((row) => {
+          if (row.id) referralMap.set(row.id, row.referral_code ?? "");
+        });
+      }
+    }
+
+    const mappedEvents = events.map((evt: any) => ({
+      id: evt.id,
+      event_type: evt.event_type,
+      event_text: evt.event_text,
+      created_at: evt.created_at,
+      referral_id: evt.referral_id ?? null,
+      referral_code: evt.referral_id ? referralMap.get(evt.referral_id) || null : null,
+    }));
+
+    // 7) Shape response for the UI
     const details = {
       id: c.data.id,
       patient_id: c.data.patient_id,
@@ -164,6 +198,7 @@ export async function GET(req: Request) {
             valid_until: rxValidUntil,
           }
         : null,
+      events: mappedEvents,
     };
 
     return NextResponse.json({ details });
