@@ -5,6 +5,7 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { PatientTabsHeader, type PatientTabKey } from "../../src/components/PatientTabsHeader";
+import { emitDashboardRefresh } from "../../src/lib/events/dashboardRefresh";
 import { useSession } from "../../src/providers/SessionProvider";
 
 const tabRoutes: Record<PatientTabKey, Href> = {
@@ -35,6 +36,12 @@ export default function RootLayout() {
   const handleTabPress = useCallback(
     (tab: PatientTabKey) => {
       const target = tabRoutes[tab];
+      if (tab === "home") {
+        emitDashboardRefresh("tabPress");
+        if (!target || target === pathname) return;
+        router.navigate(target);
+        return;
+      }
       if (!target || target === pathname) return;
       router.navigate(target);
     },

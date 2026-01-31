@@ -82,6 +82,7 @@ const config = {
     android: {
       package: "com.wellserv.mobile",
       label: "WELLSERV Patient",
+      googleServicesFile: "./google-services.json",
       icon: "./assets/icon.png",
       adaptiveIcon: {
         foregroundImage: "./assets/icon-android-foreground.png",

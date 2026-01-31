@@ -1,6 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stack, Link } from "expo-router";
-import { Animated, View, Text, TouchableOpacity, ScrollView, Image, Linking } from "react-native";
+import {
+  Animated,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Linking,
+  RefreshControl,
+} from "react-native";
 import { FontAwesome, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSession } from "../../src/providers/SessionProvider";
 import { usePatientProfile } from "@wellserv/data";
@@ -9,6 +18,10 @@ import { usePatientResults } from "../../src/hooks/usePatientResults";
 import { usePatientFollowups } from "../../src/hooks/usePatientFollowups";
 import { useHubs } from "../../src/hooks/useHubs";
 import { colors, spacing } from "@wellserv/theme";
+import {
+  useDashboardRefreshListener,
+  type DashboardRefreshReason,
+} from "../../src/lib/events/dashboardRefresh";
 import icon from "../../assets/icon.png";
 
 export default function HomeScreen() {
@@ -21,22 +34,48 @@ export default function HomeScreen() {
   const hubsQuery = useHubs();
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [hasTimedOut, setHasTimedOut] = useState(false);
+  const [isDashboardRefreshing, setIsDashboardRefreshing] = useState(false);
+  const [refreshCycleId, setRefreshCycleId] = useState(0);
+  const [lastCompletedCycleId, setLastCompletedCycleId] = useState(0);
   const isLoggedIn = !!patientId;
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const queryStates = [
-    { isLoading: profileQuery.isLoading, error: profileQuery.error },
-    { isLoading: patientResults.isLoading, error: patientResults.error },
-    { isLoading: rxQuery.isLoading, error: rxQuery.error },
-    { isLoading: followupQuery.isLoading, error: followupQuery.error },
-    { isLoading: hubsQuery.isLoading, error: hubsQuery.error },
+  const refreshCycleRef = useRef(0);
+  const refreshInFlightRef = useRef(false);
+  const requiredQueryStates = [
+    { isLoading: patientResults.isFetching, error: patientResults.error },
+    { isLoading: rxQuery.isFetching, error: rxQuery.error },
   ];
-  const totalQueries = queryStates.length;
-  const doneCount = queryStates.reduce(
+  const totalQueries = requiredQueryStates.length;
+  const doneCount = requiredQueryStates.reduce(
     (acc, query) => acc + (!query.isLoading || query.error ? 1 : 0),
     0,
   );
-  const progress = totalQueries ? doneCount / totalQueries : 1;
-  const allDone = doneCount === totalQueries;
+  const rawProgress = totalQueries ? doneCount / totalQueries : 1;
+  const requiredDone =
+    refreshCycleId > 0 &&
+    lastCompletedCycleId >= refreshCycleId &&
+    requiredQueryStates.every((query) => query.error || !query.isLoading);
+  const progress = requiredDone ? 1 : Math.min(rawProgress, 0.9);
+  const showDashboard = !isLoggedIn || requiredDone || hasTimedOut;
+  const refreshDashboard = useCallback(
+    async (_reason: DashboardRefreshReason) => {
+      if (refreshInFlightRef.current) return;
+      refreshInFlightRef.current = true;
+      setIsDashboardRefreshing(true);
+      const nextCycle = refreshCycleRef.current + 1;
+      refreshCycleRef.current = nextCycle;
+      setRefreshCycleId(nextCycle);
+      try {
+        await Promise.allSettled([patientResults.refetch(), rxQuery.refetch()]);
+      } finally {
+        setLastCompletedCycleId(nextCycle);
+        setIsDashboardRefreshing(false);
+        refreshInFlightRef.current = false;
+      }
+    },
+    [patientResults.refetch, rxQuery.refetch],
+  );
+  const hasTriggeredInitialRefresh = useRef(false);
   const greetingName = (() => {
     const toTitle = (s: string) => {
       if (!s) return s;
@@ -66,12 +105,28 @@ export default function HomeScreen() {
       setHasTimedOut(false);
       return;
     }
-    if (allDone) return;
+    if (requiredDone) return;
     const timer = setTimeout(() => {
       setHasTimedOut(true);
     }, 8000);
     return () => clearTimeout(timer);
-  }, [allDone, isLoggedIn]);
+  }, [requiredDone, isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn || hasTriggeredInitialRefresh.current) return;
+    hasTriggeredInitialRefresh.current = true;
+    void refreshDashboard("mount");
+  }, [isLoggedIn, refreshDashboard]);
+
+  useDashboardRefreshListener(
+    useCallback(
+      (reason) => {
+        if (!isLoggedIn) return;
+        void refreshDashboard(reason);
+      },
+      [isLoggedIn, refreshDashboard],
+    ),
+  );
 
   useEffect(() => {
     Animated.timing(progressAnim, {
@@ -124,8 +179,6 @@ export default function HomeScreen() {
   const followupBranchLabel =
     followup?.returnBranchLabel?.trim() || followup?.returnBranch?.trim() || "";
   const hubs = hubsQuery.data ?? [];
-  const showDashboard = !isLoggedIn || allDone || hasTimedOut;
-
   if (isLoggedIn && !showDashboard) {
     return (
       <View style={{ flex: 1, backgroundColor: "#fff" }}>
@@ -197,7 +250,15 @@ export default function HomeScreen() {
           ),
         }}
       />
-      <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.lg }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isDashboardRefreshing}
+            onRefresh={() => refreshDashboard("pull")}
+          />
+        }
+      >
         <View
           style={{
             flexDirection: "row",
