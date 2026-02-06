@@ -70,7 +70,7 @@ const config = {
     },
     assetBundlePatterns: ["**/*"],
     ios: {
-      bundleIdentifier: "com.wellserv.mobile",
+      bundleIdentifier: "com.wellserv.patient",
       supportsTablet: true,
       infoPlist: {
         CFBundleDisplayName: "WS Patient",
