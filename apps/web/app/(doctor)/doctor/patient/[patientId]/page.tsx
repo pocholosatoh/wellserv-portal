@@ -14,8 +14,7 @@ import PastConsultations from "./PastConsultations";
 import LogoutButton from "@/app/(doctor)/doctor/LogoutButton";
 import OtherLabsCard from "./OtherLabsCard";
 // import QuickPatientJump from "./QuickPatientJump";
-import ConsultationSection from "./ConsultationSection";
-import DiagnosisPanel from "./DiagnosisPanel";
+import { ReloadableConsultationSection } from "./ConsultationSection";
 import ConsentBus from "./ConsentBus";
 import ConsultQueueModal from "./ConsultQueueModal";
 import PatientSelfMonitoringCard from "./PatientSelfMonitoringCard";
@@ -544,10 +543,10 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         {/* Left column: results + other labs */}
-        <div className="lg:col-span-7 space-y-5">
-          <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
+        <div className="space-y-4 lg:col-span-7">
+          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white/95 shadow-sm">
             <header className="px-4 py-3 border-b border-gray-100">
               <h2 className="font-medium text-gray-800">Lab Results</h2>
             </header>
@@ -558,62 +557,36 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
 
           <VitalsSnapshot patientId={patientIdUpper} />
 
-          <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
-            <header className="px-4 py-3 border-b border-gray-100">
-              <h2 className="font-medium text-gray-800">Other Labs</h2>
-            </header>
-            <div className="p-4">
-              <OtherLabsCard patientId={patientIdUpper} showHeader={false} />
-            </div>
-          </section>
+          <OtherLabsCard patientId={patientIdUpper} />
         </div>
 
         {/* Right column: doctor actions */}
-        <div className="lg:col-span-5 space-y-5">
-          <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
+        <div className="space-y-4 lg:col-span-5">
+          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white/95 shadow-sm">
             <header className="px-4 py-3 border-b border-gray-100">
               <h2 className="font-medium text-gray-800">Notes, Prescriptions & Diagnoses</h2>
             </header>
             <div className="p-4 space-y-6">
-              <ConsultationSection
+              <ReloadableConsultationSection
                 patientId={patientIdUpper}
                 initialConsultationId={initialConsultationId} // can be null; your StartConsultBar handles it
                 defaultBranch={branchName}
-              />
-
-              {/* Diagnoses Panel (auto-picks up today's consultation or via Refresh) */}
-              <DiagnosisPanel
-                patientId={patientIdUpper}
-                initialConsultationId={initialConsultationId}
+                currentDoctorName={docName}
               />
             </div>
           </section>
 
-          <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
-            <header className="px-4 py-3 border-b border-gray-100">
-              <h2 className="font-medium text-gray-800">Schedule Follow-Up</h2>
-            </header>
-            <div className="p-4">
-              <FollowUpPanel
-                patientId={patientIdUpper}
-                consultationId={initialConsultationId}
-                defaultBranch={branchName}
-                doctorId={session.doctorId}
-                initialFollowups={continuityFollowups}
-              />
-            </div>
-          </section>
+          <FollowUpPanel
+            patientId={patientIdUpper}
+            consultationId={initialConsultationId}
+            defaultBranch={branchName}
+            doctorId={session.doctorId}
+            initialFollowups={continuityFollowups}
+          />
 
-          <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
-            <header className="px-4 py-3 border-b border-gray-100">
-              <h2 className="font-medium text-gray-800">Referral</h2>
-            </header>
-            <div className="p-4">
-              <ReferralPanel patientId={patientIdUpper} consultationId={initialConsultationId} />
-            </div>
-          </section>
+          <ReferralPanel patientId={patientIdUpper} consultationId={initialConsultationId} />
 
-          <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
+          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white/95 shadow-sm">
             <header className="px-4 py-3 border-b border-gray-100">
               <h2 className="font-medium text-gray-800">Patient Self-Monitoring Prescription</h2>
             </header>
@@ -627,7 +600,7 @@ export default async function DoctorPatientPage({ params, searchParams }: Props)
         </div>
       </div>
 
-      <section className="rounded-xl border border-gray-200 bg-white/95 shadow-sm overflow-hidden">
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white/95 shadow-sm">
         <header className="px-4 py-3 border-b border-gray-100">
           <h2 className="font-medium text-gray-800">Past Consultations</h2>
         </header>

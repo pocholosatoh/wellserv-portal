@@ -7,15 +7,17 @@ type RxState = "none" | "draft" | "signed";
 export default function FinishConsultButton({
   consultationId,
   encounterId, // kept so parent can finalize after consent
-  onFinished, // kept (parent can still reload after full flow)
   onNeedConsent, // 👈 NEW: parent opens ConsentModal
   encounterLoading = false,
+  isFinished = false,
+  finishedByName = null,
 }: {
   consultationId: string;
   encounterId?: string;
-  onFinished?: () => void;
   onNeedConsent: () => void; // required for consent-first flow
   encounterLoading?: boolean;
+  isFinished?: boolean;
+  finishedByName?: string | null;
 }) {
   const [rxState, setRxState] = useState<RxState>("none");
   const [loading, setLoading] = useState(false);
@@ -50,21 +52,45 @@ export default function FinishConsultButton({
     onNeedConsent();
   }
 
+  function withDoctorPrefix(name?: string | null) {
+    const value = (name || "").trim();
+    if (!value) return null;
+    if (/^dr\.?\s/i.test(value)) return value;
+    return `Dr. ${value}`;
+  }
+
+  if (isFinished) {
+    return (
+      <div className="border-t border-gray-200 bg-gray-50/80 px-4 py-3">
+        <div className="text-xs text-gray-500">Consultation is finished.</div>
+        <div className="mt-2 flex justify-end">
+          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-800">
+            {finishedByName
+              ? `Finished by ${withDoctorPrefix(finishedByName)}`
+              : "Finished"}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   // ---- UI states ----
   if (rxState === "signed") {
     return (
-      <div className="px-4 py-3 bg-gray-50 border-t flex items-center justify-between">
+      <div className="border-t border-gray-200 bg-gray-50/80 px-4 py-3">
         <div className="text-xs text-gray-500">Prescription signed — consultation is finished.</div>
-        <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2 py-1 text-xs">
-          Finished (Rx signed)
-        </span>
+        <div className="mt-2 flex justify-end">
+          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-800">
+            Finished (Rx signed)
+          </span>
+        </div>
       </div>
     );
   }
 
   if (rxState === "draft") {
     return (
-      <div className="px-4 py-3 bg-gray-50 border-t">
+      <div className="border-t border-gray-200 bg-gray-50/80 px-4 py-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="text-xs text-gray-500">
             A prescription draft exists. Sign it or delete the draft to finish.
@@ -84,7 +110,7 @@ export default function FinishConsultButton({
   }
 
   return (
-    <div className="px-4 py-3 bg-gray-50 border-t">
+    <div className="border-t border-gray-200 bg-gray-50/80 px-4 py-3">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="text-xs text-gray-500">
           No medicines to prescribe? You can complete the consult here (consent required).

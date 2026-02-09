@@ -311,7 +311,7 @@ export default function ReferralPanel({
   }
 
   return (
-    <div className="rounded-xl border p-4 shadow-card space-y-3">
+    <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Referrals</h3>
         <button

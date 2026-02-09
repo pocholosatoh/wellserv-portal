@@ -47,10 +47,12 @@ export default function RxPanel({
   patientId,
   consultationId: cidProp,
   onSigned,
+  onSignIntent,
 }: {
   patientId: string;
   consultationId?: string | null;
-  onSigned?: () => void;
+  onSigned?: (meta?: { signerName?: string | null }) => void;
+  onSignIntent?: (runSign: () => Promise<void>) => void;
 }) {
   // --- state ---
   const [consultationId, setConsultationId] = useState<string | null>(cidProp ?? null);
@@ -485,8 +487,8 @@ export default function RxPanel({
         return;
       }
 
-      // ✅ SUCCESS: Open the consent modal (parent controls it)
-      onSigned?.();
+      // ✅ SUCCESS: parent marks consultation as finished/locked
+      onSigned?.({ signerName: (j?.signer?.name as string | null | undefined) ?? null });
 
       // Lock the panel underneath (no page reload here)
       setLockedSigned(true);
@@ -803,7 +805,13 @@ export default function RxPanel({
             </button>
             <button
               type="button"
-              onClick={signRx}
+              onClick={() => {
+                if (onSignIntent) {
+                  onSignIntent(signRx);
+                  return;
+                }
+                void signRx();
+              }}
               className="rounded bg-[#44969b] text-white px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canSign}
               title={signTitle}

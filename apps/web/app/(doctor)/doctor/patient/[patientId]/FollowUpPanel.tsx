@@ -216,7 +216,7 @@ export default function FollowUpPanel({
   }
 
   return (
-    <div className="rounded-xl border p-4 shadow-card">
+    <div className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm">
       <div className="flex items-center gap-2 mb-2">
         <h3 className="font-semibold">Follow-Ups</h3>
       </div>
