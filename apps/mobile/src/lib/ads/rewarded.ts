@@ -27,15 +27,26 @@ function hasAppId() {
 
 function getRewardedAdUnitId() {
   const envId = Platform.OS === "ios" ? iosUnitId : androidUnitId;
+  const envName =
+    Platform.OS === "ios" ? "EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS" : "EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID";
+
   if (__DEV__) {
-    return envId || TestIds.REWARDED;
+    return TestIds.REWARDED;
   }
+
   if (!envId) {
-    throw new Error("Production build cannot run rewarded ads without real AdMob IDs.");
+    console.warn(
+      `Missing ${envName} in a non-dev build. Falling back to TestIds.REWARDED for safety.`,
+    );
+    return TestIds.REWARDED;
   }
+
   if (envId.includes(TEST_ADMOB_PUB_ID)) {
-    throw new Error("Production build cannot run rewarded ads without real AdMob IDs.");
+    console.warn(
+      `Non-dev build is using a Google test rewarded ad unit (${envName}). Set a real AdMob ID for production.`,
+    );
   }
+
   return envId;
 }
 

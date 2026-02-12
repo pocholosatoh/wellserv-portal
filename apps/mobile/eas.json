@@ -8,11 +8,11 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "ADMOB_IOS_APP_ID": "ca-app-pub-3940256099942544~1458002511",
+        "ADMOB_IOS_APP_ID": "ca-app-pub-9061278288401434~3465243180",
         "ADMOB_ANDROID_APP_ID": "ca-app-pub-3940256099942544~3347511713",
-        "EXPO_PUBLIC_ADMOB_APP_ID_IOS": "ca-app-pub-3940256099942544~1458002511",
+        "EXPO_PUBLIC_ADMOB_APP_ID_IOS": "ca-app-pub-9061278288401434~3465243180",
         "EXPO_PUBLIC_ADMOB_APP_ID_ANDROID": "ca-app-pub-3940256099942544~3347511713",
-        "EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS": "ca-app-pub-3940256099942544/1712485313",
+        "EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS": "ca-app-pub-9061278288401434/4874527775",
         "EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID": "ca-app-pub-3940256099942544/5224354917"
       },
       "android": { "buildType": "apk" },
@@ -21,9 +21,9 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_ADMOB_APP_ID_IOS": "ca-app-pub-3940256099942544~1458002511",
+        "EXPO_PUBLIC_ADMOB_APP_ID_IOS": "ca-app-pub-9061278288401434~3465243180",
         "EXPO_PUBLIC_ADMOB_APP_ID_ANDROID": "ca-app-pub-3940256099942544~3347511713",
-        "EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS": "ca-app-pub-3940256099942544/1712485313",
+        "EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS": "ca-app-pub-9061278288401434/4874527775",
         "EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID": "ca-app-pub-3940256099942544/5224354917"
       },
       "android": { "buildType": "app-bundle" },
@@ -32,9 +32,9 @@
     "internal": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_ADMOB_APP_ID_IOS": "ca-app-pub-3940256099942544~1458002511",
+        "EXPO_PUBLIC_ADMOB_APP_ID_IOS": "ca-app-pub-9061278288401434~3465243180",
         "EXPO_PUBLIC_ADMOB_APP_ID_ANDROID": "ca-app-pub-3940256099942544~3347511713",
-        "EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS": "ca-app-pub-3940256099942544/1712485313",
+        "EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS": "ca-app-pub-9061278288401434/4874527775",
         "EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID": "ca-app-pub-3940256099942544/5224354917"
       },
       "android": { "buildType": "app-bundle" },

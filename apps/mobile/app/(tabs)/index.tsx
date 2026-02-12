@@ -16,6 +16,7 @@ import { usePatientProfile } from "@wellserv/data";
 import { usePatientPrescriptions } from "../../src/hooks/usePatientPrescriptions";
 import { usePatientResults } from "../../src/hooks/usePatientResults";
 import { usePatientFollowups } from "../../src/hooks/usePatientFollowups";
+import { useHasConsultationHistory } from "../../src/hooks/useHasConsultationHistory";
 import { useHubs } from "../../src/hooks/useHubs";
 import { colors, spacing } from "@wellserv/theme";
 import {
@@ -30,6 +31,7 @@ export default function HomeScreen() {
   const profileQuery = usePatientProfile(client, patientId, { session });
   const patientResults = usePatientResults({ limit: 1 });
   const rxQuery = usePatientPrescriptions();
+  const consultationHistoryQuery = useHasConsultationHistory();
   const followupQuery = usePatientFollowups();
   const hubsQuery = useHubs();
   const [isSupportOpen, setIsSupportOpen] = useState(false);
@@ -66,14 +68,18 @@ export default function HomeScreen() {
       refreshCycleRef.current = nextCycle;
       setRefreshCycleId(nextCycle);
       try {
-        await Promise.allSettled([patientResults.refetch(), rxQuery.refetch()]);
+        await Promise.allSettled([
+          patientResults.refetch(),
+          rxQuery.refetch(),
+          consultationHistoryQuery.refetch(),
+        ]);
       } finally {
         setLastCompletedCycleId(nextCycle);
         setIsDashboardRefreshing(false);
         refreshInFlightRef.current = false;
       }
     },
-    [patientResults.refetch, rxQuery.refetch],
+    [consultationHistoryQuery.refetch, patientResults.refetch, rxQuery.refetch],
   );
   const hasTriggeredInitialRefresh = useRef(false);
   const greetingName = (() => {
@@ -172,6 +178,10 @@ export default function HomeScreen() {
     const raw = latestPrescription?.doctorName || latestPrescription?.doctorNamePlain || "";
     return raw.trim();
   }, [latestPrescription]);
+  const hasConsultationHistory = consultationHistoryQuery.data?.hasConsultationHistory;
+  const noConsultationHistory = hasConsultationHistory === false;
+  const noConsultationHistoryMessage =
+    "You have not yet visited a Wellserv® Doctor. A Doctor is available for you daily in any of our clinics.";
 
   const followup = followupQuery.followup;
   const hasFollowup = !!followup;
@@ -345,16 +355,24 @@ export default function HomeScreen() {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: "600", marginBottom: 8 }}>Prescriptions</Text>
-                  <Text style={{ color: colors.gray[700], marginBottom: 4 }}>
-                    Latest: {latestPrescriptionDate}
-                  </Text>
-                  {!!doctorDisplay && (
-                    <Text style={{ color: colors.gray[800] }}>
-                      From your Doctor:{"\n"}
-                      {doctorDisplay}
+                  {noConsultationHistory ? (
+                    <Text style={{ color: colors.gray[700], lineHeight: 18 }}>
+                      {noConsultationHistoryMessage}
                     </Text>
+                  ) : (
+                    <>
+                      <Text style={{ color: colors.gray[700], marginBottom: 4 }}>
+                        Latest: {latestPrescriptionDate}
+                      </Text>
+                      {!!doctorDisplay && (
+                        <Text style={{ color: colors.gray[800] }}>
+                          From your Doctor:{"\n"}
+                          {doctorDisplay}
+                        </Text>
+                      )}
+                    </>
                   )}
-                  {rxQuery.error && (
+                  {!noConsultationHistory && rxQuery.error && (
                     <Text style={{ color: colors.gray[600], marginTop: 6 }}>
                       We couldn&apos;t load your prescriptions.
                     </Text>

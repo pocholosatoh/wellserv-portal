@@ -23,6 +23,10 @@ type ApiPrescription = {
   id: string;
   patient_id: string;
   doctor_id?: string | null;
+  consultation_id?: string | null;
+  status?: string | null;
+  active?: boolean | null;
+  is_superseded?: boolean | null;
   doctors?: { display_name?: string | null; credentials?: string | null } | null;
   consultations?: { signing_doctor_name?: string | null } | null;
   created_at: string;
@@ -67,6 +71,33 @@ function describeFrequency(code?: string | null) {
   if (!code) return "";
   const k = String(code).toUpperCase().trim();
   return FREQ_DICT[k] ? `${FREQ_DICT[k]} (${k})` : k;
+}
+
+function isActiveSignedPrescription(row: ApiPrescription) {
+  const status = String(row.status || "").trim().toLowerCase();
+  if (status && status !== "signed") return false;
+  if (row.is_superseded === true) return false;
+  if (row.active === true || row.is_superseded === false) return true;
+  // Backward compatibility: if active/superseded flags are absent, keep previous behavior.
+  if (row.active == null && row.is_superseded == null) return !status || status === "signed";
+  return false;
+}
+
+function prescriptionGroupKey(row: ApiPrescription) {
+  if (row.consultation_id) return `consultation:${row.consultation_id}`;
+  const day = String(row.created_at || "").slice(0, 10);
+  if (day) return `day:${day}`;
+  return `id:${row.id}`;
+}
+
+function sortByNewest(rows: ApiPrescription[]) {
+  return [...rows].sort((a, b) => {
+    const aTsRaw = new Date(a.created_at || 0).getTime();
+    const bTsRaw = new Date(b.created_at || 0).getTime();
+    const aTs = Number.isFinite(aTsRaw) ? aTsRaw : 0;
+    const bTs = Number.isFinite(bTsRaw) ? bTsRaw : 0;
+    return bTs - aTs;
+  });
 }
 
 function mapPrescription(row: ApiPrescription): MobilePrescription {
@@ -152,7 +183,21 @@ export function usePatientPrescriptions() {
         throw err;
       }
 
-      return (json.prescriptions ?? []).map(mapPrescription);
+      const rows = json.prescriptions ?? [];
+      const filtered = rows.filter((row) => {
+        const hasFilterFields =
+          row.status != null || row.active != null || row.is_superseded != null;
+        if (!hasFilterFields) return true;
+        return isActiveSignedPrescription(row);
+      });
+
+      const deduped = new Map<string, ApiPrescription>();
+      for (const row of sortByNewest(filtered)) {
+        const key = prescriptionGroupKey(row);
+        if (!deduped.has(key)) deduped.set(key, row);
+      }
+
+      return Array.from(deduped.values()).map(mapPrescription);
     },
   });
 }

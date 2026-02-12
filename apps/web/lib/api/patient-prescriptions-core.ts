@@ -45,49 +45,98 @@ type PrescriptionItemRow = {
   updated_at?: string | null;
 };
 
+function normalizeRxStatus(value?: string | null) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isActiveSignedPrescription(row: PrescriptionRow) {
+  if (normalizeRxStatus(row.status) !== "signed") return false;
+  if (row.is_superseded === true) return false;
+  return row.active === true || row.is_superseded === false;
+}
+
+function prescriptionGroupKey(row: PrescriptionRow) {
+  if (row.consultation_id) return `consultation:${row.consultation_id}`;
+  const day = String(row.created_at || "").slice(0, 10);
+  if (day) return `day:${day}`;
+  return `id:${row.id}`;
+}
+
+function sortByNewest(rows: PrescriptionRow[]) {
+  return [...rows].sort((a, b) => {
+    const aTsRaw = new Date(a.created_at || 0).getTime();
+    const bTsRaw = new Date(b.created_at || 0).getTime();
+    const aTs = Number.isFinite(aTsRaw) ? aTsRaw : 0;
+    const bTs = Number.isFinite(bTsRaw) ? bTsRaw : 0;
+    return bTs - aTs;
+  });
+}
+
 export async function getPatientPrescriptions(patient_id: string) {
   const supabase = getSupabase();
 
-  const { data: rxList, error: rxErr } = await supabase
-    .from("prescriptions")
-    .select(
-      `
-        id,
-        patient_id,
-        doctor_id,
-        consultation_id,
-        doctors(display_name, credentials),
-        consultations(signing_doctor_name),
-        status,
-        show_prices,
-        notes_for_patient,
-        discount_type,
-        discount_value,
-        discount_expires_at,
-        discount_applied_by,
-        final_total,
-        want_pharmacy_order,
-        order_requested_at,
-        delivery_address,
-        valid_days,
-        valid_until,
-        supersedes_prescription_id,
-        is_superseded,
-        active,
-        created_at,
-        updated_at
-        `,
-    )
-    .eq("patient_id", patient_id)
-    .eq("status", "signed")
-    .eq("is_superseded", false)
-    .order("created_at", { ascending: false });
+  const rxSelect = `
+    id,
+    patient_id,
+    doctor_id,
+    consultation_id,
+    doctors(display_name, credentials),
+    consultations(signing_doctor_name),
+    status,
+    show_prices,
+    notes_for_patient,
+    discount_type,
+    discount_value,
+    discount_expires_at,
+    discount_applied_by,
+    final_total,
+    want_pharmacy_order,
+    order_requested_at,
+    delivery_address,
+    valid_days,
+    valid_until,
+    supersedes_prescription_id,
+    is_superseded,
+    active,
+    created_at,
+    updated_at
+  `;
 
-  if (rxErr) {
-    throw new Error(rxErr.message);
+  const [activeQuery, fallbackQuery] = await Promise.all([
+    supabase
+      .from("prescriptions")
+      .select(rxSelect)
+      .eq("patient_id", patient_id)
+      .eq("status", "signed")
+      .eq("active", true)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("prescriptions")
+      .select(rxSelect)
+      .eq("patient_id", patient_id)
+      .eq("status", "signed")
+      .eq("is_superseded", false)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  if (activeQuery.error) throw new Error(activeQuery.error.message);
+  if (fallbackQuery.error) throw new Error(fallbackQuery.error.message);
+
+  const merged = new Map<string, PrescriptionRow>();
+
+  for (const row of sortByNewest((activeQuery.data || []) as PrescriptionRow[])) {
+    if (!isActiveSignedPrescription(row)) continue;
+    const key = prescriptionGroupKey(row);
+    if (!merged.has(key)) merged.set(key, row);
   }
 
-  const filteredList = (rxList || []).filter((r) => r.is_superseded === false);
+  for (const row of sortByNewest((fallbackQuery.data || []) as PrescriptionRow[])) {
+    if (!isActiveSignedPrescription(row)) continue;
+    const key = prescriptionGroupKey(row);
+    if (!merged.has(key)) merged.set(key, row);
+  }
+
+  const filteredList = sortByNewest(Array.from(merged.values()));
 
   if (!filteredList.length) {
     return { prescriptions: [] as Array<PrescriptionRow & { items: PrescriptionItemRow[] }> };

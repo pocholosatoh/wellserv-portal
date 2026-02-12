@@ -15,9 +15,15 @@ Examples:
 
 Environment variables:
 
+- `EXPO_PUBLIC_ADMOB_APP_ID_IOS` (App ID, contains `~`, native config)
 - `EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS`
 - `EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID`
   Production AdMob IDs are provided via EAS Secrets.
+
+Notes:
+
+- AdMob iOS App ID (`ca-app-pub-...~...`) is different from rewarded Ad Unit ID (`ca-app-pub-.../...`).
+- After changing iOS App ID in Expo config/plugin env, you must rebuild iOS (`eas build --platform ios`) so native Info.plist is regenerated.
 
 Cooldown behavior:
 
