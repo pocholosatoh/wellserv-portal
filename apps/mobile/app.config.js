@@ -58,7 +58,7 @@ const config = {
   expo: {
     name: "WELLSERV Patient",
     slug: "wellserv-mobile",
-    version: "0.1.0",
+    version: "1.1",
     orientation: "portrait",
     scheme: "wellserv",
     userInterfaceStyle: "light",
@@ -71,9 +71,10 @@ const config = {
     assetBundlePatterns: ["**/*"],
     ios: {
       bundleIdentifier: "com.wellserv.patient",
+      buildNumber: "5",
       supportsTablet: true,
       infoPlist: {
-        CFBundleDisplayName: "WS Patient",
+        CFBundleDisplayName: "WELLSERV",
         ITSAppUsesNonExemptEncryption: false,
         NSLocationWhenInUseUsageDescription:
           "We use your location to autofill delivery coordinates.",
@@ -81,6 +82,7 @@ const config = {
     },
     android: {
       package: "com.wellserv.mobile",
+      versionCode: 5,
       label: "WELLSERV Patient",
       googleServicesFile: "./google-services.json",
       icon: "./assets/icon.png",
