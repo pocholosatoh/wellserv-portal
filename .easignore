@@ -1,2 +1,32 @@
-# Force include Firebase Android config
+cat > .easignore <<'EOF'
+# ---- Exclude everything unnecessary for Expo build ----
+
+# Node
+node_modules
+**/node_modules
+
+# Build artifacts
+**/.next
+**/dist
+**/build
+**/.turbo
+**/.expo
+**/.expo-shared
+
+# iOS / Android native folders (managed workflow doesn't need these)
+**/ios
+**/android
+
+# Logs
+*.log
+
+# Git
+.git
+.gitignore
+
+# OS
+.DS_Store
+
+# Keep Firebase config for Android
 !apps/mobile/google-services.json
+EOF
