@@ -22,7 +22,8 @@
     "eas:prod:android": "eas build -p android --profile production",
     "eas:prod:ios": "eas build -p ios --profile production",
     "eas:submit:ios": "eas submit -p ios --profile production",
-    "eas:submit:android": "eas submit -p android --profile production"
+    "eas:submit:android": "eas submit -p android --profile production",
+    "build:android:prod:local": "NODE_ENV=production APP_ENV=production EAS_BUILD_PROFILE=production eas build -p android --profile production --local"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

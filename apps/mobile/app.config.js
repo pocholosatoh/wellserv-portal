@@ -1,9 +1,11 @@
+import fs from "fs";
+import path from "path";
+
 const IOS_TEST_APP_ID = "ca-app-pub-3940256099942544~1458002511";
 const ANDROID_TEST_APP_ID = "ca-app-pub-3940256099942544~3347511713";
 const isProductionBuild =
-  process.env.EAS_BUILD_PROFILE === "production" ||
-  process.env.APP_ENV === "production" ||
-  process.env.NODE_ENV === "production";
+  process.env.EAS_BUILD === "true" && process.env.EAS_BUILD_PROFILE === "production";
+const googleServicesFile = path.resolve(__dirname, "google-services.json");
 
 function resolveAppId(primaryValue, fallbackValue, testValue) {
   const candidate = primaryValue || fallbackValue || testValue;
@@ -53,6 +55,9 @@ requireProdValue(
   "EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID",
   process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID,
 );
+if (isProductionBuild && !fs.existsSync(googleServicesFile)) {
+  throw new Error(`Missing google-services.json at ${googleServicesFile}`);
+}
 
 const config = {
   expo: {
@@ -84,7 +89,7 @@ const config = {
       package: "com.wellserv.mobile",
       versionCode: 5,
       label: "WELLSERV Patient",
-      googleServicesFile: "./google-services.json",
+      googleServicesFile,
       icon: "./assets/icon.png",
       adaptiveIcon: {
         foregroundImage: "./assets/icon-android-foreground.png",
