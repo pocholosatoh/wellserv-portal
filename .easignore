@@ -1,4 +1,3 @@
-cat > .easignore <<'EOF'
 # ---- Exclude everything unnecessary for Expo build ----
 
 # Node
@@ -17,6 +16,9 @@ node_modules
 **/ios
 **/android
 
+# Production env values must come from EAS environment variables/secrets.
+apps/mobile/.env.production
+
 # Logs
 *.log
 
@@ -29,4 +31,3 @@ node_modules
 
 # Keep Firebase config for Android
 !apps/mobile/google-services.json
-EOF

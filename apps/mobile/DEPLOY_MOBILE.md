@@ -31,6 +31,35 @@ pnpm -C apps/mobile eas:prod:android
 pnpm -C apps/mobile eas:prod:ios
 ```
 
+## Production Env Setup (EAS)
+
+Set production values in EAS (do this once, then update when values rotate):
+
+```sh
+cd apps/mobile
+eas env:create --scope project --environment production --name EXPO_PUBLIC_API_BASE_URL --value https://api.wellserv.co
+eas env:create --scope project --environment production --name ADMOB_IOS_APP_ID --value <real_ios_admob_app_id>
+eas env:create --scope project --environment production --name ADMOB_ANDROID_APP_ID --value <real_android_admob_app_id>
+eas env:create --scope project --environment production --name EXPO_PUBLIC_ADMOB_REWARDED_ID_IOS --value <real_ios_rewarded_unit_id>
+eas env:create --scope project --environment production --name EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID --value <real_android_rewarded_unit_id>
+eas env:create --scope project --environment production --name EXPO_PUBLIC_SUPABASE_URL --value <supabase_url>
+eas env:create --scope project --environment production --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <supabase_anon_key>
+```
+
+If a variable already exists, replace `env:create` with `env:update`.
+
+Verify the environment before building:
+
+```sh
+cd apps/mobile
+eas env:list --environment production
+```
+
+Important:
+
+- Do not use Google AdMob test app IDs in the `production` environment.
+- `apps/mobile/.env.production` is intentionally excluded from EAS upload; production builds must read values from EAS environment variables.
+
 ## Sanity Check
 
 - Run `pnpm -C apps/mobile exec eas build:inspect --profile internal --platform android` to validate `eas.json` (if `build:inspect` isn't available, any build will validate the config).
