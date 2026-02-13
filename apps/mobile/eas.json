@@ -42,7 +42,9 @@
     },
     "production": {
       "autoIncrement": true,
-      "env": {},
+      "env": {
+        "EXPO_NO_DOTENV": "1"
+      },
       "android": { "buildType": "app-bundle" },
       "ios": {}
     }

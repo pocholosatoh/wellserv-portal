@@ -7,42 +7,52 @@ const isProductionBuild =
   process.env.EAS_BUILD === "true" && process.env.EAS_BUILD_PROFILE === "production";
 const googleServicesFile = path.resolve(__dirname, "google-services.json");
 
-function resolveAppId(primaryValue, fallbackValue, testValue) {
-  const candidate = primaryValue || fallbackValue || testValue;
-  if (!candidate || candidate.includes("/") || !candidate.includes("~")) return testValue;
+function normalizeEnvValue(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isValidAppId(value) {
+  return Boolean(value) && value.includes("~") && !value.includes("/");
+}
+
+function resolveAppId(name, primaryValue, fallbackValue, testValue) {
+  const primary = normalizeEnvValue(primaryValue);
+  const fallback = normalizeEnvValue(fallbackValue);
+
+  if (isProductionBuild) {
+    if (!primary) {
+      throw new Error(`Missing ${name} for production build`);
+    }
+    if (!isValidAppId(primary)) {
+      throw new Error(`Invalid ${name} format for production build`);
+    }
+    if (primary === testValue) {
+      throw new Error(`Test ${name} is not allowed in production builds`);
+    }
+    return primary;
+  }
+
+  const candidate = primary || fallback || testValue;
+  if (!isValidAppId(candidate)) return testValue;
   return candidate;
 }
 
 function requireProdValue(name, value) {
-  if (isProductionBuild && !value) {
+  if (isProductionBuild && !normalizeEnvValue(value)) {
     throw new Error(`Missing ${name} for production build`);
   }
   return value;
 }
-
-function requireNonTestProdValue(name, value, testValue) {
-  if (isProductionBuild && value === testValue) {
-    throw new Error(`Test ${name} is not allowed in production builds`);
-  }
-  return value;
-}
-
-const iosAppId = requireNonTestProdValue(
+const iosAppId = resolveAppId(
   "ADMOB_IOS_APP_ID",
-  resolveAppId(
-    process.env.ADMOB_IOS_APP_ID,
-    process.env.EXPO_PUBLIC_ADMOB_APP_ID_IOS,
-    IOS_TEST_APP_ID,
-  ),
+  process.env.ADMOB_IOS_APP_ID,
+  process.env.EXPO_PUBLIC_ADMOB_APP_ID_IOS,
   IOS_TEST_APP_ID,
 );
-const androidAppId = requireNonTestProdValue(
+const androidAppId = resolveAppId(
   "ADMOB_ANDROID_APP_ID",
-  resolveAppId(
-    process.env.ADMOB_ANDROID_APP_ID,
-    process.env.EXPO_PUBLIC_ADMOB_APP_ID_ANDROID,
-    ANDROID_TEST_APP_ID,
-  ),
+  process.env.ADMOB_ANDROID_APP_ID,
+  process.env.EXPO_PUBLIC_ADMOB_APP_ID_ANDROID,
   ANDROID_TEST_APP_ID,
 );
 
