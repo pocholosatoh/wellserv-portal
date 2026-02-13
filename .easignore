@@ -1,0 +1,2 @@
+# Force include Firebase Android config
+!apps/mobile/google-services.json
